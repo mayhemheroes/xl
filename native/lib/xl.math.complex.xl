@@ -6,6 +6,8 @@
 //
 //     Implementation of complex numbers
 //
+//     The interface does not specify the many special cases and optimizations,
+//     but they are described in this file
 //
 //
 //
@@ -34,114 +36,104 @@
 // If not, see <https://www.gnu.org/licenses/>.
 // *****************************************************************************
 
-COMPLEX[real  : some number,
-        angle : some number] is module with
+use XL.MATH.FUNCTIONS
+
+module COMPLEX[real, angle] is
 // ----------------------------------------------------------------------------
 //    Complex numbers taking the given `real` and 'angle' types
 // ----------------------------------------------------------------------------
 
     // Imaginary unit
-    i                           as complex      is cartesian(real 0, real 1)
-    square_angle                as angle        is arccos(angle(0))
-    half_circle                 as angle        is 2 * square_angle
-    full_circle                 as angle        is 4 * square_angle
+    i                   is imaginary(real 1)
 
-    //  Multiplication by i (e.g. to accelerate exp(Z*i))
-    Z:cartesian * [[i]]         as cartesian    is cartesian(Z.Im, -Z.Re)
-    Z:polar     * [[i]]         as polar        is polar(Z.Mod, Z.Arg + square_angle)
-    [[i]]       * Z:cartesian   as cartesian    is cartesian(Z.Im, -Z.Re)
-    [[i]]       * Z:polar       as polar        is polar(Z.Mod, Z.Arg + square_angle)
+    // Types for the rest of this implementation
+    with
+        X :complex;      Y:complex;      Z:complex
+        XC:cartesian;   YC:cartesian;   ZC:cartesian
+        XP:polar;       YP:polar;       ZP:polar
+        XR:real;        YR:real;        ZR:real
+        XI:imaginary;   YI:imaginary;   ZI:imaginary
 
-    // Implicit conversion between the representations
-    Z:cartesian                 as polar        is polar(mod Z, arg Z)
-    Z:polar                     as cartesian    is cartesian(re Z, im Z)
-    X:real                      as cartesian    is cartesian(X, real 0)
-    X:real                      as polar        is polar(X, real 0)
-    X:real                      as complex      is cartesian(X, real 0)
-    X:natural                   as cartesian    is cartesian(real X, real 0)
-    X:natural                   as polar        is polar(real X, real 0)
-    X:natural                   as complex      is cartesian(real X, real 0)
-`
-    // Special operations that can be optimized with one real operand
-    Z:cartesian + X:real        as cartesian    is cartesian(Z.Re + X, Z.Im)
-    Z:cartesian - X:real        as cartesian    is cartesian(Z.Re - X, Z.Im)
-    Z:cartesian * X:real        as cartesian    is cartesian(Z.Re * X, Z.Im * X)
-    Z:cartesian / X:real        as cartesian    when X ≠ 0 is cartesian(Z.Re / X, Z.Im / X)
-    Z:cartesian / X:real        as error        when X =  0 is error "Divide complex by zero"
-    X:real      + Z:cartesian   as cartesian    is cartesian(X + Z.Re, Z.Im)
-    X:real      - Z:cartesian   as cartesian    is cartesian(X - Z.Re, -Z.Im)
-    X:real      * Z:cartesian   as cartesian    is cartesian(X * Z.Re, X * Z.Im)
-    X:real      / Z:cartesian   as cartesian    when Z ≠ 0 is
-        Denominator is Z.Re^2 + Z.Im^2
-        cartesian(X*Z.Re, -X*Z.Im) / Denominator
-    X:real      / Z:cartesian   as cartesian    when Z =  0 is error "Divide by complex zero"
+    // Optimizations for various multiplications by [i]
+    [[i]] * Z           is Z * i
+    ZR * [[i]]          is imaginary(ZR)
+    ZI * [[i]]          is -ZI.Im
+    ZC * [[i]]          is cartesian(-ZC.Im, ZC.Re)
+    ZP:polar * [[i]]    is polar(ZP.Mod, ZP.Arg + angle.quarter)
 
-    // In polar form, only multiplication and division are faster
-    Z:polar     * X:real        as polar        is polar(Z.Mod * X, Z.Arg)
-    Z:polar     / X:real        as polar        when X ≠ 0      is polar(Z.Mod / X, Z.Arg)
-    Z:polar     / X:real        as error        when X = 0      is error "Divide complex by zero"
-    X:real      * Z:polar       as polar        is polar(X * Z.Mod, Z.Arg)
-    X:real      / Z:polar       as polar        when X ≠ 0      is polar(X / Z.Mod, -Z.Arg)
-    X:real      / Z:polar       as error        when X = 0      is error "Divide by complex zero"
+    // Implicit conversions between representations
+    ZR                  is cartesian(ZR, real 0)
+    ZR                  is polar(ZR, angle 0)
+    ZI                  is cartesian(real 0, ZI.Im)
+    ZI                  is polar(ZI.Im, angle.half)
+    ZP                  is cartesian(re ZP, im ZP)
+    ZC                  is polar(mod ZC, arg ZC)
 
     // Basic arithmetic in cartesian form
-    X:cartesian + Y:cartesian   as cartesian    is cartesian(X.Re + Y.Re, X.Im + Y.Im)
-    X:cartesian - Y:cartesian   as cartesian    is cartesian(X.Re - Y.Re, X.Im - Y.Im)
-    X:cartesian * Y:cartesian   as cartesian    is cartesian (Z1.Re * Z2.Re - Z1.Im * Z2.Im,
-                                                              Z1.Re * Z2.Im + Z1.Im * Z2.Re)
-    X:cartesian / Y:cartesian   as cartesian    is
-        Numerator   is cartesian(Z1.Re*Z2.Re + Z1.Im*Z2.Im, Z1.Im*Z2.Re - Z1.Re*Z2.Im)
-        Denominator is Z2.Re^2 + Z2.Im^2
+    XC + YC             is cartesian(XC.Re+YC.Re, XC.Im+YC.Im)
+    XC - YC             is cartesian(XC.Re-YC.Re, XC.Im-YC.Im)
+    XC * YC             is cartesian(XC.Re*YC.Re - XC.Im*YC.Im,
+                                     XC.Re*YC.Im + XC.Im*YC.Re)
+    XC / YC when YC ≠ 0 is
+        Numerator   is cartesian(XC.Re*YC.Re + XC.Im*YC.Im,
+                                 XC.Im*YC.Re - XC.Re*YC.Im)
+        Denominator is YC.Re^2 + YC.Im^2
         Numerator / Denominator
+    XC / YC when YC = 0 is
+        error "Divide polar $1 by zero", XC, YC
+    -ZC                 is cartesian(-ZC.Re, -ZC.Im)
+    ~ZC                 is cartesian( ZC.Re, -ZC.Im)
 
-    +X:cartesian                as cartesian    is X
-    -X:cartesian                as cartesian    is cartesian(-X.Re, -X.Im)
-    ~X:cartesian                as cartesian    is cartesian(X.Re, -X.Im)
-
-    // Basic arithmetic in polar form
-    X:polar     * Y:polar       as polar        is polar(X.Mod * Y.Mod, Y.Arg + Y.Arg)
-    X:polar     / Y:polar       as polar        when Y.Arg ≠ 0 is polar(X.Mod/Y.Mod, X.Arg-Y.arg)
-    X:polar     / Y:polar       as error        when Y.Arg = 0 is error "Divide by zero, polar form"
-    +X:polar                    as polar        is X
-    -X:polar                    as polar        is polar(X.Mod, (X.Arg + half_circle) mod full_circle)
-    ~X:polar                    as polar        is polar(X.Mod, -X.Arg)
+    // Basic arithmetic optimizations for polar form multiply and divide
+    XP * YP                     is polar(XP.Mod * YP.Mod, YP.Arg + YP.Arg)
+    XP / YP when YP.Mod ≠ 0     is polar(XP.Mod / YP.Mod, XP.Arg - YP.Arg)
+    XP / YP when YP.Mod = 0     is divide_error XP, YP
+    -ZP                         is polar(ZP.Mod, ZP.Arg + angle.half)
+    ~ZP                         is polar(ZP.Mod, -ZP.Arg)
 
     // Prefix form for field access
-    re          Z:cartesian     as real         is Z.Re
-    re          Z:polar         as real         is Z.Mod * cos(Z.Arg)
-    im          Z:cartesian     as real         is Z.Im
-    im          Z:polar         as real         is Z.Mod * sin(Z.Arg)
-    mod         Z:cartesian     as real         is sqrt(Z.Re^2 + Z.Im^2)
-    mod         Z:polar         as real         is Z.Mod
-    arg         Z:cartesian     as real         is arctan(Z.Im, Z.Re)
-    arg         Z:polar         as real         is Z.Arg
+    re ZC                       is ZC.Re
+    re ZP                       is ZP.Mod * cos(ZP.Arg)
+    im ZC                       is ZC.Im
+    im ZP                       is ZP.Mod * sin(ZP.Arg)
+    mod ZC                      is sqrt(ZC.Re^2 + ZC.Im^2)
+    mod ZP                      is ZP.Mod
+    arg ZC                      is arctan(ZC.Im, ZC.Re)
+    arg ZP                      is ZP.Arg
 
     // Comparisons
-    X:cartesian = Y:cartesian   as boolean      is X.Re = Y.Re and X.Im = Y.Im
-    X:cartesian < Y:cartesian   as boolean      is X.Re < Y.Re or (X.Re = Y.Re and X.Im < Y.Im)
+    XC = YC                     is XC.Re = YC.Re and XC.Im = YC.Re
+    XC = 0                      is XC.Re = real 0 and YC = real 0
+    XC < YC                     is XC.Re < YC.Re or (XC.Re = YC.Re and
+                                                     XC.Im < YC.Im)
 
     // Some elementaty functions on complex numbers
-    sqrt        Z:polar         as polar        is polar(sqrt(Z.Arg), Z.Im / 2)
-    exp         Z:cartesian     as polar        is polar(exp(Z.Re), Z.Im)
-    ln          Z:polar         as cartesian    is cartesian(ln(Z.Arg), Z.Mod)
+    sqrt ZP                     is polar(sqrt(ZP.Mod), ZP.Arg / 2)
+    exp  ZC                     is polar(exp(ZC.Re), ZC.Im radians)
+    ln   ZP                     is cartesian(ln(ZP.Arg), radians(ZP.Mod))
 
-    sin         Z:cartesian     as polar        is (exp(i*Z) - exp(-i*Z)) / (2*i)
-    cos         Z:cartesian     as polar        is (exp(i*Z) + exp(-i*Z)) / 2
-    tan         Z:cartesian     as polar        is (sin Z / cos Z)
-    arcsin      Z:polar         as cartesian    is (ln(i * Z + sqrt(1-Z&2)) / i)
-    arccos      Z:polar         as cartesian    is (ln(Z + i * sqrt(1-Z^2)) / i)
-    arctan      Z:polar         as cartesian    is (ln((i-Z)/(i+Z)) / (2*i))
+    sin  ZC                     is ((exp(i*ZC) - exp(-i*ZC)) / (2*i))
+    cos  ZC                     is ((exp(i*ZC) + exp(-i*ZC)) / 2)
+    tan  ZC                     is (sin ZC / cos ZC)
+    arcsin ZP                   is (ln(i * ZP + sqrt(1-ZP^2)) / i)
+    arccos ZP                   is (ln(ZP + i * sqrt(1-ZP^2)) / i)
+    arctan ZP                   is (ln((i-ZP)/(i+ZP)) / (2*i))
 
-    sinh        Z:cartesian     as polar        is ((exp(Z) - exp(-Z)) / 2)
-    cosh        Z:cartesian     as polar        is ((exp(Z) + exp(-Z)) / 2)
-    tanh        Z:cartesian     as polar        is
-        exp_p is exp Z
-        exp_m is exp(-Z)
-        (exp_p - exp_m) / (exp_p + exp_m)
-    arcsinh     Z:polar         as cartesian    is ln(Z + sqrt(Z^2 + 1))
-    arccosh     Z:polar         as cartesian    is ln(Z + sqrt(Z^2 - 1))
-    arctanh     Z:polar         as cartesian    is ln((Z+1) / (Z-1)) / 2
+    sinh ZC                     is ((exp(ZC) - exp(-ZC)) / 2)
+    cosh ZC                     is ((exp(ZC) + exp(-ZC)) / 2)
+    tanh ZC                     is { p is exp(ZC); m is exp(-ZC); (p-m)/(p+m) }
+    arcsinh ZP                  is ln(ZP + sqrt(ZP^2 + 1))
+    arccosh ZP                  is ln(ZP + sqrt(ZP^2 - 1))
+    arctanh ZP                  is ln((ZP+1) / (ZP-1)) / 2
 
-    use XL.TEXT_IO
-    to write    Z:cartesian                     is write format("(%1, %2)", Z.Re, Z.Im)
-    to write    Z:polar                         is write format("(%1∠%2)", Z.Mod, Z.Arg)
+    // Basic I/O
+    to write ZI                 is write format("i%1", ZI.Im)
+    to write ZC                 is write format("(%1, %2)", ZC.Re, ZC.Im)
+    to write ZP                 is write format("(%1 ∠%2)", ZP.Mod, ZP.Arg)
+    to read Z:out imaginary     is read('i', Z.Im)
+    to read Z:out cartesian     is read('(', Z.Re,  ',', Z.Im,  ')')
+    to read Z:out polar         is read('(', Z.Mod, '∠', Z.Arg, ')')
+
+    // Errors
+    type divide_error           is NUMBER.numeric_error
+    type logarithm_error        is NUMBER.numeric_error
