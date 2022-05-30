@@ -1,7 +1,7 @@
 FROM --platform=linux/amd64 ubuntu:22.04
 
 RUN apt-get update
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential llvm-11-dev
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git llvm-11-dev
 
 RUN ln -s /usr/bin/llvm-config-11 /usr/bin/llvm-config
 
