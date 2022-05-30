@@ -1,6 +1,6 @@
 [submodule "make-it-quick"]
 	path = make-it-quick
-	url = ../make-it-quick
+	url = https://github.com/c3d/make-it-quick
 [submodule "recorder"]
 	path = recorder
-	url = ../recorder
+	url = https://github.com/c3d/recorder
