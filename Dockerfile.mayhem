@@ -17,5 +17,7 @@ RUN ldd ../xl | tr -s '[:blank:]' '\n' | grep '^/' | xargs -I % sh -c 'cp % /dep
 FROM ubuntu:22.04 as package
 
 COPY --from=builder /deps /deps
-COPY --from=builder ../xl ../xl
+COPY --from=builder /repo /repo
 ENV LD_LIBRARY_PATH=/deps
+
+WORKDIR /repo/src
