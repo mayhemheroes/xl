@@ -1,6 +1,5 @@
-project: rnshah9/xl
+project: xl
 target: xl
-tests: null
 
 cmds:
   - cmd: ../xl @@
