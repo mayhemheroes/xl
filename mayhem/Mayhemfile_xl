@@ -3,4 +3,3 @@ target: xl
 
 cmds:
   - cmd: ../xl @@
-image: ghcr.io/rnshah9/playground:xl

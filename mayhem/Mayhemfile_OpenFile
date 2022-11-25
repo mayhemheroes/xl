@@ -1,0 +1,6 @@
+project: xl
+target: openfile
+
+cmds:
+  - cmd: /fuzz_OpenFile
+    libfuzzer: true
