@@ -11,13 +11,10 @@ RUN make -j8
 RUN cp /repo/src/* /repo
 WORKDIR /repo/src
 
-RUN mkdir -p /deps
-RUN ldd ../xl | tr -s '[:blank:]' '\n' | grep '^/' | xargs -I % sh -c 'cp % /deps;'
-
 FROM ubuntu:22.04 as package
+RUN apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y llvm-11-dev
 
-COPY --from=builder /deps /deps
 COPY --from=builder /repo /repo
-ENV LD_LIBRARY_PATH=/deps
 
 WORKDIR /repo/src
