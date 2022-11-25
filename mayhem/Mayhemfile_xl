@@ -1,0 +1,5 @@
+project: xl
+target: xl
+
+cmds:
+  - cmd: ../xl @@
