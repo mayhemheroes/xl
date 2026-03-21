@@ -634,6 +634,7 @@ void GarbageCollector::Statistics(uint &total,
     allocated = alloc;
     available = avail;
     freed     = free;
+    scanned   = scan;
     collected = collect;
 }
 
