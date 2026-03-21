@@ -412,7 +412,7 @@ void *TypeAllocator::operator new(size_t size) NEW_THROW
     if (!result)
         throw std::bad_alloc();
 #else // don't align
-#warning "Unknown platfom - No alignment"
+#warning "Unknown platform - No alignment"
     result = malloc(size);
     if (!result)
         throw std::bad_alloc();
