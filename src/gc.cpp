@@ -400,7 +400,7 @@ void *TypeAllocator::operator new(size_t size) NEW_THROW
     // Real operating systems
     if (posix_memalign(&result, PTR_MASK+1, size))
     {
-#if __cpp_has_exceptions
+#if __cpp_exceptions
         throw std::bad_alloc();
 #else // !__cpp_has_exceptions
         return nullptr;
