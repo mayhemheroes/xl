@@ -479,7 +479,7 @@ Tree *Types::TypeCoversType(Tree *wideType, Tree *narrowType)
             Tree *declaredType = typeAnnotation->right;
             return TypeCoversType(declaredType, narrowType);
         }
-        if (Infix *typeCondition = IsPatternCondition(pattern))
+        if (IsPatternCondition(pattern))
         {
             Ooops("Not implemented yet; Condition in pattern $1", pattern);
             return nullptr;
@@ -630,7 +630,7 @@ Tree *Types::TypeCoversType(Tree *wideType, Tree *narrowType)
     {
         if (Tree *pattern = IsPatternType(narrowType))
         {
-            if (Name *nval = pattern->AsName())
+            if (pattern->AsName())
                 return narrowType;
             else
                 return nullptr;
@@ -723,7 +723,7 @@ Tree *Types::PatternCoversPattern(Tree *wide, Tree *narrow, Tree *type)
             Tree *declaredType = typeAnnotation->right;
             return TypeCoversType(declaredType, type);
         }
-        if (Infix *typeCondition = IsPatternCondition(wide))
+        if (IsPatternCondition(wide))
         {
             Ooops("Not implemented yet; Condition in pattern $1", wide);
             return nullptr;
