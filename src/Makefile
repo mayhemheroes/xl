@@ -127,8 +127,11 @@ CONFIG= sigaction                       \
 
 CXX_STD=
 
-MIQ=../make-it-quick/
+MIQ=../recorder/make-it-quick/
 include $(MIQ)rules.mk
+
+# Do not link configure probes against LLVM, libxl, librecorder, etc.
+MIQ_CFGLDFLAGS =
 
 # Name of 'llvm-config' to use - Note that XL now requires llvm 6.0 or above
 LLVM_CONFIG=llvm-config

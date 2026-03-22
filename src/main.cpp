@@ -82,6 +82,24 @@ XL_BEGIN
 
 Main *MAIN = nullptr;
 
+namespace
+{
+__attribute__((noinline))
+void ProvokeStackOverflow(unsigned long depth)
+// ----------------------------------------------------------------------------
+//   Trigger a real stack overflow even with aggressive optimization.
+// ----------------------------------------------------------------------------
+{
+    volatile char marker[4096];
+    marker[0] = (char) depth;
+    record(fault_injection, "Provoking stack overflow %p", (void *) &marker[0]);
+    if (depth == ~0UL)
+        return;
+    ProvokeStackOverflow(depth + 1);
+    marker[0] = 0;
+}
+}
+
 
 // ============================================================================
 //
@@ -342,23 +360,14 @@ int Main::ParseOptions()
         std::cerr << "WARNING: Cannot set locale.\n"
                   << "         Check LANG, LC_CTYPE, LC_ALL.\n";
 
-    // Test that the crash handler works for stack overflows
-    if (RECORDER_TWEAK(inject_fault) == 3)
-    {
-        record(fault_injection, "Provoking stack overflow %p", (void *) &cmd);
-        ParseOptions();
-    }
-
     // Scan options and build list of files we need to process
     for (cmd = options.ParseFirst(); cmd != end; cmd = options.ParseNext())
         file_names.push_back(cmd);
 
-    // Test that the crash handler works for stack overflows
+    // Test that the crash handler works for stack overflows.
+    // Run this after options parsing so -tinject_fault takes effect.
     if (RECORDER_TWEAK(inject_fault) == 3)
-    {
-        record(fault_injection, "Provoking stack overflow %p", (void *) &cmd);
-        ParseOptions();
-    }
+        ProvokeStackOverflow(0);
 
     // Load builtins before the rest (only after parsing options for builtins)
     if (Opt::builtins)
