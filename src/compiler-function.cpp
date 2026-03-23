@@ -188,9 +188,8 @@ JIT::Value_p CompilerFunction::Return(Tree *tree, JIT::Value_p value)
     JIT::Type_p retTy = jit.ReturnType(function);
     value = Autobox(tree, value, retTy);
 
-    JIT::Type_p valTy = JIT::Type(value);
-    if (valTy == retTy)
-        code.Store(value, returned);
+    value = code.PointerAs(value, retTy);
+    code.Store(value, returned);
     return value;
 }
 
@@ -596,7 +595,7 @@ JIT::Value_p CompilerFunction::Autobox(Tree *source,
             type == compiler.prefixTreePtrTy  ||
             type == compiler.postfixTreePtrTy ||
             type == compiler.infixTreePtrTy)
-            result = code.BitCast(result, req);
+            result = code.PointerAs(result, req);
         else
             // If there was some inconsistency, return an error
             result = ConstantTree(xl_nil);

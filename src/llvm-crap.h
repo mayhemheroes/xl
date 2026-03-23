@@ -147,6 +147,8 @@ RECORDER_DECLARE(llvm_ir);
 namespace XL
 {
 
+struct Compiler;
+
 class JIT
 // ----------------------------------------------------------------------------
 //  Interface to the LLVM JIT
@@ -163,7 +165,8 @@ public:
     // LLVM data types required for the JIT interface
     typedef llvm::Type                  *Type_p;
     typedef llvm::IntegerType           *IntegerType_p;
-    typedef llvm::PointerType           *PointerType_p;
+    // LLVM 17+ may represent XL logical pointers with wrapper structs.
+    typedef llvm::Type                  *PointerType_p;
     typedef llvm::ArrayType             *ArrayType_p;
     typedef llvm::StructType            *StructType_p;
     typedef llvm::FunctionType          *FunctionType_p;
@@ -219,6 +222,8 @@ public:
     StructType_p        StructType(const Signature &items, kstring n = nullptr);
     FunctionType_p      FunctionType(Type_p r,const Signature &p,bool va=false);
     PointerType_p       PointerType(Type_p rty);
+    PointerType_p       TreePointerType(Type_p rty, kstring name = nullptr);
+    Type_p              WrappedPointeeType(Type_p wrapper) const;
     Type_p              VoidType();
 
     // Modules
@@ -234,6 +239,7 @@ public:
     Function_p          ExternFunction(FunctionType_p fty, text name);
     Function_p          Prototype(Function_p callee);
     Value_p             Prototype(Value_p callee);
+
 };
 
 
@@ -280,6 +286,7 @@ class JITModule
 public:
     JITModule(JIT &jit, text name)
         : jit(jit), module(jit.CreateModule(name)) {}
+    JITModule(Compiler &compiler, text name);
     ~JITModule()        { jit.DeleteModule(module); }
 private:
     JIT &               jit;
@@ -351,9 +358,21 @@ public:
     JIT::Value_p        StructGEP(JIT::Value_p ptr,
                                   unsigned idx,
                                   kstring name="");
+    JIT::Value_p        StructGEP(JIT::Value_p ptr,
+                                  unsigned idx,
+                                  JIT::Type_p aggregateTy,
+                                  kstring name="");
     JIT::Value_p        ArrayGEP(JIT::Value_p ptr,
                                  uint32_t idx,
                                  kstring name="");
+    JIT::Value_p        Load(JIT::Type_p ty,
+                             JIT::Value_p ptr,
+                             kstring name = "");
+    JIT::Value_p        PointerValue(JIT::Value_p ptr);
+    JIT::Value_p        PointerAs(JIT::Value_p value, JIT::Type_p target);
+    JIT::Value_p        BitCast(JIT::Value_p v,
+                                JIT::Type_p t,
+                                kstring name = "");
 
 #define UNARY(Name)                                                     \
     JIT::Value_p        Name(JIT::Value_p l,                            \

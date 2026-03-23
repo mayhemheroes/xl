@@ -76,7 +76,7 @@ CompilerUnit::CompilerUnit(Compiler &compiler, Scope *scope, Tree *source)
 // ----------------------------------------------------------------------------
     : compiler(compiler),
       jit(compiler.jit),
-      module(jit, "xl.module"),
+      module(compiler, "xl.module"),
       context(new Context(scope)),
       source(source),
       types(new CompilerTypes(scope)),

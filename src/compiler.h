@@ -78,6 +78,7 @@ struct Compiler : Evaluator
     // Find the machine type corresponding to the tree type or value
     JIT::PointerType_p  TreeMachineType(Tree *tree);
     JIT::Type_p         MachineType(Tree *tree);
+    void                RebindTypesToJITContext();
 
 public:
     JIT                 jit;

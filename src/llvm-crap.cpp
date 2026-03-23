@@ -38,6 +38,7 @@
 // *****************************************************************************
 
 #include "llvm-crap.h"
+#include "compiler.h"
 #include "renderer.h"
 #include "errors.h"
 #include "main.h"               // For options
@@ -96,7 +97,7 @@
 // Not that it contains exactly the same thing, but it's the replacement.
 #if LLVM_VERSION < 30
 # include <llvm/Support/StandardPasses.h>
-#else
+#elif LLVM_VERSION < 1700
 # include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #endif
 
@@ -164,15 +165,22 @@
 # include "llvm/ExecutionEngine/SectionMemoryManager.h"
 # include <llvm/IR/LegacyPassManager.h>
 # include <llvm/IR/Mangler.h>
-# include "llvm/ExecutionEngine/Orc/CompileUtils.h"
-# include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
-# include "llvm/ExecutionEngine/Orc/IRTransformLayer.h"
-# include "llvm/ExecutionEngine/Orc/IndirectionUtils.h"
-# include "llvm/ExecutionEngine/Orc/LambdaResolver.h"
-# include "llvm/ExecutionEngine/Orc/LazyEmittingLayer.h"
+# if LLVM_VERSION >= 1700
+#  include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
+#  include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
+#  include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#  include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
+# else
+#  include "llvm/ExecutionEngine/Orc/CompileUtils.h"
+#  include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
+#  include "llvm/ExecutionEngine/Orc/IRTransformLayer.h"
+#  include "llvm/ExecutionEngine/Orc/IndirectionUtils.h"
+#  include "llvm/ExecutionEngine/Orc/LambdaResolver.h"
+#  include "llvm/ExecutionEngine/Orc/LazyEmittingLayer.h"
+# endif
 #endif // >= 370
 
-#if LLVM_VERSION > 381
+#if LLVM_VERSION > 381 && LLVM_VERSION < 1700
 # include "llvm/ExecutionEngine/Orc/OrcRemoteTargetClient.h"
 # include <llvm/Transforms/Scalar/GVN.h>
 #endif // 381
@@ -185,10 +193,16 @@
 
 #if LLVM_VERSION < 500
 #include "llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h"
-#elif LLVM_VERSION < 900
+#elif LLVM_VERSION < 1700
 # include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
-#else
-# include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#endif // LLVM_VERSION 500
+
+#if LLVM_VERSION >= 600 && LLVM_VERSION < 1700
+# include "llvm/ExecutionEngine/Orc/SymbolStringPool.h"
+#endif // LLVM_VERSION 600
+
+#if LLVM_VERSION >= 1700
+# include <llvm/Transforms/Scalar/GVN.h>
 #endif
 
 // Finally, link everything together.
@@ -258,6 +272,54 @@ using namespace llvm::legacy;
 using namespace llvm::orc;
 #endif // LLVM_CRAP_MCJIT
 
+static const char *kTreePtrWrapperPrefix = "xl.ptr.";
+
+static inline bool IsTreePtrWrapperType(JIT::Type_p type)
+// ----------------------------------------------------------------------------
+{
+#if LLVM_VERSION >= 1700
+    if (auto st = dyn_cast<StructType>(type))
+    {
+        if (!st->hasName() || st->getNumElements() != 1)
+            return false;
+        if (!st->getElementType(0)->isPointerTy())
+            return false;
+        return st->getName().starts_with(kTreePtrWrapperPrefix);
+    }
+#else
+    (void) type;
+#endif
+    return false;
+}
+
+static inline JIT::Type_p WrappedRawPointerType(JIT::Type_p type)
+// ----------------------------------------------------------------------------
+{
+#if LLVM_VERSION >= 1700
+    if (IsTreePtrWrapperType(type))
+        return cast<StructType>(type)->getElementType(0);
+#else
+    (void) type;
+#endif
+    return type;
+}
+
+static inline JIT::Type_p WrappedPointeeType(JIT::Type_p type, JIT *jit)
+// ----------------------------------------------------------------------------
+//   Resolve pointee type recorded for a logical tree-pointer wrapper
+// ----------------------------------------------------------------------------
+{
+#if LLVM_VERSION >= 1700
+    if (!jit || !IsTreePtrWrapperType(type))
+        return nullptr;
+    return jit->WrappedPointeeType(type);
+#else
+    (void) type;
+    (void) jit;
+#endif
+    return nullptr;
+}
+
 #if LLVM_VERSION < 400
 typedef TargetAddress                                JITTargetAddress;
 #endif // LLVM_VERSION
@@ -305,9 +367,11 @@ typedef LazyEmittingLayer::ModuleSetHandleT          ModuleHandle;
 typedef CompileLayer::ModuleSetHandleT               ModuleHandle;
 #elif LLVM_VERSION < 700
 typedef CompileLayer::ModuleHandleT                  ModuleHandle;
-#else // LLVM_VERSION >= 700
+#elif LLVM_VERSION < 1700
 typedef std::shared_ptr<SymbolResolver>              SymbolResolver_s;
 typedef VModuleKey                                   ModuleHandle;
+#else // LLVM_VERSION >= 1700
+typedef intptr_t                                     ModuleHandle;
 #endif // LLVM_VERSION vs. 700
 
 
@@ -366,12 +430,19 @@ class JITPrivate
 
     JITInitializer      initializer;
     unsigned            optLevel;
-#if LLVM_VERSION < 900
+#if LLVM_VERSION >= 1700
+    std::unique_ptr<LLVMContext> context;
+#elif LLVM_VERSION < 900
     LLVMContext         context;
 #endif
     TargetMachine_u     target;
     const DataLayout    layout;
-#if LLVM_VERSION < 900
+#if LLVM_VERSION >= 1700
+    std::unique_ptr<LLJIT> lljit;
+    orc::ResourceTrackerSP moduleTracker;
+    ModuleHandle        nextModuleHandle;
+    std::vector<std::pair<JIT::Type_p, JIT::Type_p>> treeWrapperPointees;
+#elif LLVM_VERSION < 900
 #if LLVM_VERSION >= 700
     ExecutionSession    session;
     typedef std::shared_ptr<SymbolResolver> SymbolResolver_s;
@@ -395,7 +466,7 @@ class JITPrivate
     ThreadSafeContext   threadSafeContext;
     LLVMContext &       context;
     MangleAndInterner   mangle;
-#endif
+#endif // LLVM_VERSION >= 1700
 
     Module_s            module;
     ModuleHandle        moduleHandle;
@@ -405,18 +476,21 @@ public:
     ~JITPrivate();
 
 private:
+    LLVMContext &       ContextRef();
     JIT::Module_p       Module();
     JIT::ModuleID       CreateModule(text name);
     void                DeleteModule(JIT::ModuleID mod);
     Module_s            OptimizeModule(Module_s module);
     text                Mangle(text name);
+#if LLVM_VERSION < 1700
     JITSymbol           Symbol(text name);
+#endif
     JITTargetAddress    Address(text name);
     void                PrintCode();
 };
 
 
-#if LLVM_VERSION < 900
+#if LLVM_VERSION < 1700
 static inline uint64_t globalSymbolAddress(const text &name)
 // ----------------------------------------------------------------------------
 //    Return the address of the symbol in the current address space
@@ -427,10 +501,10 @@ static inline uint64_t globalSymbolAddress(const text &name)
            name.c_str(), (void *) result);
     return result;
 }
-#endif // LLVM_VERSION < 900
+#endif // LLVM_VERSION < 1700
 
 
-#if LLVM_VERSION >= 380
+#if LLVM_VERSION >= 380 && LLVM_VERSION < 1700
 #if LLVM_VERSION < 390
 std::unique_ptr<JITCompileCallbackManager>
 createLocalCompileCallbackManager(const Triple &T,
@@ -491,13 +565,19 @@ static inline IndirectStubs_u createStubs(TargetMachine &target)
 
 #if LLVM_VERSION >= 900
 static ExitOnError exitOnError;
+#if LLVM_VERSION < 1700
 static text llvmSymbolError = "";
-static void logErrorsToStdErr(llvm::Error err) {
+static void logErrorsToStdErr(llvm::Error err)
+// ----------------------------------------------------------------------------
+//   Helper function to log errors to standard error
+// ----------------------------------------------------------------------------
+{
     if (llvmSymbolError.length())
         llvmSymbolError += "\n";
     llvmSymbolError += toString(std::move(err));
     record(llvm_symbols, "Error: %s", llvmSymbolError);
 }
+#endif // LLVM_VERSION < 1700
 #endif
 
 
@@ -513,12 +593,18 @@ JITPrivate::JITPrivate(int argc, char **argv)
 // Yuck. Barf.
     : initializer(argc, argv),
       optLevel(3),
-#if LLVM_VERSION < 900
+#if LLVM_VERSION >= 1700
+      context(std::make_unique<LLVMContext>()),
+#elif LLVM_VERSION < 900
       context(),
 #endif
       target(EngineBuilder().selectTarget()),
       layout(target->createDataLayout()),
-#if LLVM_VERSION < 900
+#if LLVM_VERSION >= 1700
+      lljit(),
+      moduleTracker(),
+      nextModuleHandle(1),
+#elif LLVM_VERSION < 900
 #if LLVM_VERSION < 500
       linker(),
 #elif LLVM_VERSION < 700
@@ -581,7 +667,7 @@ JITPrivate::JITPrivate(int argc, char **argv)
 #endif // LLVM_VERSION 800
       stubs(createStubs(*target)),
 #endif // LLVM_VERSION 380
-#else // LLVM_VERSION >= 900
+#else // LLVM_VERSION >= 900 && LLVM_VERSION < 1700
       magic(exitOnError(LLLazyJITBuilder().create())),
       session(magic->getExecutionSession()),
 #if LLVM_VERSION < 1000
@@ -591,13 +677,35 @@ JITPrivate::JITPrivate(int argc, char **argv)
 #endif // LLVM_VERSION vs 1000
       context(*threadSafeContext.getContext()),
       mangle(session, layout),
-#endif // LLVM_VERSION >= 900
+#endif // LLVM_VERSION >= 1700
       module(),
       moduleHandle()
 {
     llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
 
-#if LLVM_VERSION >= 900
+#if LLVM_VERSION >= 1700
+    auto JTMB = orc::JITTargetMachineBuilder(target->getTargetTriple());
+    auto jit = llvm::orc::LLJITBuilder()
+        .setJITTargetMachineBuilder(std::move(JTMB))
+        .setNumCompileThreads(1)
+        .create();
+    if (!jit)
+    {
+        text message = toString(jit.takeError());
+        Ooops("Unable to initialize LLVM ORCv2 JIT: $1").Arg(message, "");
+    }
+    lljit = std::move(*jit);
+
+    auto gen = DynamicLibrarySearchGenerator::GetForCurrentProcess(
+        lljit->getDataLayout().getGlobalPrefix());
+    if (!gen)
+    {
+        text message = toString(gen.takeError());
+        Ooops("Unable to load process symbols in LLVM ORCv2 JIT: $1")
+            .Arg(message, "");
+    }
+    lljit->getMainJITDylib().addGenerator(std::move(*gen));
+#elif LLVM_VERSION >= 900
 
 #ifdef XL_WHITELISTING
     // The XL_WHITELISTING case will enforce a limited set of symbols.
@@ -647,7 +755,23 @@ JITPrivate::~JITPrivate()
 //    Destructor for JIT private helper
 // ----------------------------------------------------------------------------
 {
+    if (moduleHandle)
+        DeleteModule((intptr_t) moduleHandle);
     record(llvm, "JITPrivate %p destroyed", this);
+}
+
+
+LLVMContext &JITPrivate::ContextRef()
+// ----------------------------------------------------------------------------
+//   Return the active LLVM context
+// ----------------------------------------------------------------------------
+{
+#if LLVM_VERSION >= 1700
+    assert(context && "No active LLVM context");
+    return *context;
+#else
+    return context;
+#endif
 }
 
 
@@ -669,7 +793,10 @@ JIT::ModuleID JITPrivate::CreateModule(text name)
     assert (!module.get() && "Creating module while module is active");
 
     // The "Can't make up my mind" school of programming
-#if LLVM_VERSION < 500
+#if LLVM_VERSION >= 1700
+    context = std::make_unique<LLVMContext>();
+    module = std::make_unique<llvm::Module>(name, *context);
+#elif LLVM_VERSION < 500
     module = llvm::make_unique<llvm::Module>(name, context);
 #elif LLVM_VERSION < 700
     module = std::make_shared<llvm::Module>(name, context);
@@ -679,11 +806,16 @@ JIT::ModuleID JITPrivate::CreateModule(text name)
     module = std::make_unique<llvm::Module>(name, context);
 #endif // LLVM_VERSION 500
     record(llvm_modules, "Created module %p in %p", module.get(), this);
+#if LLVM_VERSION >= 1700
+    module->setDataLayout(lljit->getDataLayout());
+    moduleHandle = nextModuleHandle++;
+#else
     module->setDataLayout(layout);
 #if LLVM_VERSION >= 700
     moduleHandle = session.allocateVModule();
 #endif
-    return (intptr_t) &moduleHandle;
+#endif
+    return (intptr_t) moduleHandle;
 }
 
 
@@ -692,8 +824,8 @@ void JITPrivate::DeleteModule(JIT::ModuleID modID)
 //   Remove the last module from the JIT
 // ----------------------------------------------------------------------------
 {
-    assert(modID == (intptr_t) &moduleHandle && "Removing an unknown module");
-#if LLVM_VERSION >= 700
+    assert(modID == (intptr_t) moduleHandle && "Removing an unknown module");
+#if LLVM_VERSION >= 700 && LLVM_VERSION < 1700
     assert(moduleHandle && "Removing a module with null VModKey");
 #endif
 
@@ -701,7 +833,14 @@ void JITPrivate::DeleteModule(JIT::ModuleID modID)
     // else simply delete it here
     if (!module.get())
     {
-#if LLVM_VERSION < 380
+#if LLVM_VERSION >= 1700
+        if (moduleTracker)
+        {
+            cantFail(moduleTracker->remove(),
+                     "Unable to remove module from ORCv2 JIT");
+            moduleTracker.reset();
+        }
+#elif LLVM_VERSION < 380
         lazyEmitter.removeModuleSet(moduleHandle);
 #elif LLVM_VERSION < 500
         optimizer.removeModuleSet(moduleHandle);
@@ -713,14 +852,20 @@ void JITPrivate::DeleteModule(JIT::ModuleID modID)
 #endif // LLVM_VERSION
     }
 
-#if LLVM_VERSION >= 700
+#if LLVM_VERSION >= 700 && LLVM_VERSION < 1700
+    moduleHandle = 0;
+#elif LLVM_VERSION >= 1700
     moduleHandle = 0;
 #endif // LLVM_VERSION >= 700
 
     module = nullptr;
+#if LLVM_VERSION >= 1700
+    context = std::make_unique<LLVMContext>();
+#endif
 }
 
 
+#if LLVM_VERSION < 1700
 static void dumpModule(JIT::Module_p module, kstring message)
 // ----------------------------------------------------------------------------
 //   Dump a module for debugging purpose
@@ -729,6 +874,7 @@ static void dumpModule(JIT::Module_p module, kstring message)
     llvm::errs() << "; " << message << ":\n";
     module->print(llvm::errs(), nullptr);
 }
+#endif // LLVM_VERSION < 1700
 
 
 Module_s JITPrivate::OptimizeModule(Module_s module)
@@ -736,6 +882,11 @@ Module_s JITPrivate::OptimizeModule(Module_s module)
 //   Run the optimization pass
 // ----------------------------------------------------------------------------
 {
+#if LLVM_VERSION >= 1700
+    if (Opt::emitIR)
+        module->print(llvm::outs(), nullptr);
+    return module;
+#else
     if (RECORDER_TRACE(llvm_code) & 0x10)
         dumpModule(module.get(), "Dump of module before optimizations");
 
@@ -791,6 +942,7 @@ Module_s JITPrivate::OptimizeModule(Module_s module)
         dumpModule(module.get(), "Dump of module after optimizations");
 
     return module;
+#endif
 }
 
 
@@ -806,6 +958,7 @@ text JITPrivate::Mangle(text name)
 }
 
 
+#if LLVM_VERSION < 1700
 JITSymbol JITPrivate::Symbol(text name)
 // ----------------------------------------------------------------------------
 //   Return the symbol associated with the name
@@ -825,9 +978,10 @@ JITSymbol JITPrivate::Symbol(text name)
             .Arg(toString(sym.takeError()), "");
         return JITSymbol(nullptr);
     }
-    return *sym;
+    return JITSymbol(JITEvaluatedSymbol((*sym).getValue(), JITSymbolFlags::Exported));
 #endif // LLVM_VERSION 380
 }
+#endif // LLVM_VERSION < 1700
 
 
 JITTargetAddress JITPrivate::Address(text name)
@@ -835,6 +989,27 @@ JITTargetAddress JITPrivate::Address(text name)
 //   Return the address for the given symbol
 // ----------------------------------------------------------------------------
 {
+#if LLVM_VERSION >= 1700
+    if (module.get())
+    {
+        moduleTracker = lljit->getMainJITDylib().createResourceTracker();
+        cantFail(lljit->addIRModule(
+                     moduleTracker,
+                     orc::ThreadSafeModule(std::move(module), std::move(context))),
+                 "Unable to add module to ORCv2 JIT");
+    }
+
+    auto symbol = lljit->lookup(name);
+    if (!symbol)
+    {
+        text message = toString(symbol.takeError());
+        Ooops("Generating machine code for $1 failed: $2")
+            .Arg(name, "'")
+            .Arg(message, "");
+        return 0;
+    }
+    return (JITTargetAddress) symbol->getValue();
+#else
 #if LLVM_VERSION < 700
 # if LLVM_VERSION < 390
 #  define rtsym(sym)    RuntimeDyld::SymbolInfo((sym).getAddress(),     \
@@ -959,6 +1134,7 @@ JITTargetAddress JITPrivate::Address(text name)
 #undef rtsym
 #undef syminfo
 #undef optimizer
+#endif // LLVM_VERSION >= 1700
 }
 
 
@@ -1032,8 +1208,12 @@ JIT::Type_p JIT::PointedType(Type_p type)
 {
     if (type->isPointerTy())
     {
-        PointerType_p ptype = (PointerType_p) type;
+#if LLVM_VERSION >= 1700
+        return nullptr;
+#else
+        llvm::PointerType *ptype = cast<llvm::PointerType>(type);
         return ptype->getElementType();
+#endif
     }
     return nullptr;
 }
@@ -1153,7 +1333,7 @@ JIT::IntegerType_p JIT::IntegerType(unsigned bits)
 //   Create an integer type with the given number of bits
 // ----------------------------------------------------------------------------
 {
-    return IntegerType::get(p.context, bits);
+    return IntegerType::get(p.ContextRef(), bits);
 }
 
 
@@ -1164,10 +1344,10 @@ JIT::Type_p JIT::FloatType(unsigned bits)
 {
     assert (bits == 16 || bits == 32 || bits == 64);
     if (bits == 16)
-        return Type::getHalfTy(p.context);
+        return Type::getHalfTy(p.ContextRef());
     if (bits == 32)
-        return Type::getFloatTy(p.context);
-    return Type::getDoubleTy(p.context);
+        return Type::getFloatTy(p.ContextRef());
+    return Type::getDoubleTy(p.ContextRef());
 }
 
 
@@ -1176,7 +1356,7 @@ JIT::StructType_p JIT::OpaqueType(kstring name)
 //   Create an opaque type (i.e. a struct without a content)
 // ----------------------------------------------------------------------------
 {
-    return StructType::create(p.context, name);
+    return StructType::create(p.ContextRef(), name);
 }
 
 
@@ -1195,7 +1375,7 @@ JIT::StructType_p JIT::StructType(const Signature &items, kstring name)
 //    Define a structure type in one pass
 // ----------------------------------------------------------------------------
 {
-    StructType_p type = StructType::create(p.context,
+    StructType_p type = StructType::create(p.ContextRef(),
                                            ArrayRef<Type_p>(items),
                                            name);
     return type;
@@ -1218,7 +1398,56 @@ JIT::PointerType_p JIT::PointerType(Type_p rty)
 //    Create a pointer type (always in address space 0)
 // ----------------------------------------------------------------------------
 {
+#if LLVM_VERSION >= 1700
+    (void) rty;
+    return llvm::PointerType::get(p.ContextRef(), 0);
+#else
     return llvm::PointerType::get(rty, 0);
+#endif
+}
+
+
+JIT::PointerType_p JIT::TreePointerType(Type_p rty, kstring name)
+// ----------------------------------------------------------------------------
+//   Distinct logical tree-pointer type on opaque-pointer LLVM
+// ----------------------------------------------------------------------------
+{
+#if LLVM_VERSION >= 1700
+    text tname = name ? text(name) : text("tree");
+    if (tname.find(kTreePtrWrapperPrefix) != 0)
+        tname = text(kTreePtrWrapperPrefix) + tname;
+    JIT::Type_p wrapper = StructType({PointerType(rty)}, tname.c_str());
+    bool known = false;
+    for (auto &it : p.treeWrapperPointees)
+        if (it.first == wrapper)
+        {
+            known = true;
+            break;
+        }
+    if (!known)
+        p.treeWrapperPointees.push_back({wrapper, rty});
+    return wrapper;
+#else
+    (void) name;
+    return PointerType(rty);
+#endif
+}
+
+
+JIT::Type_p JIT::WrappedPointeeType(Type_p wrapper) const
+// ----------------------------------------------------------------------------
+//   Resolve pointee type associated with a logical pointer wrapper
+// ----------------------------------------------------------------------------
+{
+#if LLVM_VERSION >= 1700
+    for (auto it = p.treeWrapperPointees.rbegin();
+         it != p.treeWrapperPointees.rend(); ++it)
+        if (it->first == wrapper)
+            return it->second;
+#else
+    (void) wrapper;
+#endif
+    return nullptr;
 }
 
 
@@ -1227,7 +1456,7 @@ JIT::Type_p JIT::VoidType()
 //   Return the void type
 // ----------------------------------------------------------------------------
 {
-    return llvm::Type::getVoidTy(p.context);
+    return llvm::Type::getVoidTy(p.ContextRef());
 }
 
 
@@ -1394,7 +1623,7 @@ JITBlockPrivate::JITBlockPrivate(JIT &jit,
 //   Create private data for a JIT block
 // ----------------------------------------------------------------------------
     : jit(jit),
-      block(BasicBlock::Create(jit.p.context, name, function)),
+      block(BasicBlock::Create(jit.p.ContextRef(), name, function)),
       builder(new JITBuilder(block)),
       name(name)
 {
@@ -1408,7 +1637,7 @@ JITBlockPrivate::JITBlockPrivate(const JITBlockPrivate &other, kstring name)
 //   Create a new basic block in the same function as 'other'
 // ----------------------------------------------------------------------------
     : jit(other.jit),
-      block(BasicBlock::Create(jit.p.context, name, other.block->getParent())),
+      block(BasicBlock::Create(jit.p.ContextRef(), name, other.block->getParent())),
       builder(new JITBuilder(block)),
       name(name)
 {
@@ -1443,7 +1672,7 @@ JITBlockPrivate &JITBlockPrivate::operator=(const JITBlockPrivate &o)
 // ----------------------------------------------------------------------------
 {
     XL_ASSERT(&jit == &o.jit);
-    block = BasicBlock::Create(jit.p.context, o.name, o.block->getParent());
+    block = BasicBlock::Create(jit.p.ContextRef(), o.name, o.block->getParent());
     delete builder;
     builder = new JITBuilder(block);
     name = o.name;
@@ -1503,7 +1732,7 @@ JIT::Constant_p JITBlock::BooleanConstant(bool value)
 //   Build a boolean integer constant
 // ----------------------------------------------------------------------------
 {
-    JIT::Type_p ty = llvm::Type::getInt1Ty(p.context);
+    JIT::Type_p ty = llvm::Type::getInt1Ty(p.ContextRef());
     JIT::Constant_p result = ConstantInt::get(ty, value);
     record(llvm_constants, "Unsigned constant %v for %llu", result, value);
     return result;
@@ -1569,7 +1798,16 @@ JIT::Constant_p JITBlock::PointerConstant(JIT::Type_p type, void *pointer)
 // ----------------------------------------------------------------------------
 {
     llvm::APInt addr(JIT::BitsPerByte * sizeof(void *), (uintptr_t) pointer);
-    JIT::Constant_p result = llvm::Constant::getIntegerValue(type, addr);
+    JIT::Type_p rawTy = WrappedRawPointerType(type);
+    JIT::Constant_p result = llvm::Constant::getIntegerValue(rawTy, addr);
+#if LLVM_VERSION >= 1700
+    result = llvm::ConstantExpr::getIntToPtr(result, rawTy);
+    if (IsTreePtrWrapperType(type))
+    {
+        auto st = cast<llvm::StructType>(type);
+        result = llvm::ConstantStruct::get(st, {result});
+    }
+#endif
     record(llvm_constants, "Pointer constant %v for %p", result, pointer);
     return result;
 }
@@ -1580,7 +1818,16 @@ JIT::Value_p JITBlock::TextConstant(text value)
 //   Return a constant array of characters for the input text
 // ----------------------------------------------------------------------------
 {
+#if LLVM_VERSION >= 1700
+    llvm::GlobalVariable *gv = b->CreateGlobalString(value);
+    llvm::Constant *z = llvm::ConstantInt::get(
+        llvm::Type::getInt32Ty(b->getContext()), 0);
+    llvm::Constant *idx[] = {z, z};
+    JIT::Value_p result = llvm::ConstantExpr::getInBoundsGetElementPtr(
+        gv->getValueType(), gv, idx);
+#else
     JIT::Value_p result = b->CreateGlobalStringPtr(value);
+#endif
     record(llvm_constants, "Text constant %v for %s", result, value.c_str());
     return result;
 }
@@ -1624,11 +1871,17 @@ static inline llvm::FunctionCallee Callee(JIT::Value_p callee)
     }
 
     assert(type->isPointerTy() && "Callee requires a callable value");
-    JIT::PointerType_p ptype = (JIT::PointerType_p) type;
+#if LLVM_VERSION >= 1700
+    if (auto fn = llvm::dyn_cast<llvm::Function>(callee))
+        return llvm::FunctionCallee(fn);
+    return llvm::FunctionCallee(nullptr, callee);
+#else
+    llvm::PointerType *ptype = cast<llvm::PointerType>(type);
     type = ptype->getElementType();
     assert(type->isFunctionTy() && "Callee require function type for callee");
     JIT::FunctionType_p ftype = (JIT::FunctionType_p) type;
     return llvm::FunctionCallee(ftype, callee);
+#endif
 }
 #endif
 
@@ -1702,7 +1955,7 @@ JIT::BasicBlock_p JITBlock::NewBlock(kstring name)
 //   Create a new basic block in the same function as current block
 // ----------------------------------------------------------------------------
 {
-    return BasicBlock::Create(p.context, name, b.block->getParent());
+    return BasicBlock::Create(p.ContextRef(), name, b.block->getParent());
 }
 
 
@@ -1809,12 +2062,70 @@ JIT::Value_p JITBlock::AllocateReturnValue(JIT::Function_p f, kstring name)
 }
 
 
+static JIT::Type_p PointerElementTypeFromValue(JIT::Value_p ptr,
+                                               LLVMContext &ctx,
+                                               JIT *jit = nullptr)
+// ----------------------------------------------------------------------------
+//   Best effort inference of pointee type with opaque pointers
+// ----------------------------------------------------------------------------
+{
+    if (!ptr)
+        return llvm::Type::getInt8Ty(ctx);
+    if (auto alloca = dyn_cast<AllocaInst>(ptr))
+        return alloca->getAllocatedType();
+    if (auto ex = dyn_cast<ExtractValueInst>(ptr))
+    {
+        if (ex->getNumIndices() == 1 && *ex->idx_begin() == 0)
+            if (JIT::Type_p t = WrappedPointeeType(ex->getAggregateOperand()->getType(), jit))
+                return t;
+    }
+    if (auto bc = dyn_cast<BitCastInst>(ptr))
+        return PointerElementTypeFromValue(bc->getOperand(0), ctx, jit);
+    if (auto ce = dyn_cast<ConstantExpr>(ptr))
+        if (ce->getOpcode() == Instruction::BitCast)
+            return PointerElementTypeFromValue(ce->getOperand(0), ctx, jit);
+    if (auto gep = dyn_cast<GetElementPtrInst>(ptr))
+        return gep->getResultElementType();
+    if (auto global = dyn_cast<GlobalVariable>(ptr))
+        return global->getValueType();
+    if (auto fn = dyn_cast<Function>(ptr))
+        return fn->getFunctionType();
+    return llvm::Type::getInt8Ty(ctx);
+}
+
+
 JIT::Value_p JITBlock::StructGEP(JIT::Value_p ptr, unsigned idx, kstring name)
 // ----------------------------------------------------------------------------
 //   Accessing a struct element used to be complicated. Now it's incompatible.
 // ----------------------------------------------------------------------------
 {
-    auto inst = b->CreateStructGEP(nullptr, ptr, idx, name);
+    ptr = PointerValue(ptr);
+#if LLVM_VERSION >= 1700
+    JIT::Type_p ty = PointerElementTypeFromValue(ptr, b.jit.p.ContextRef(), &b.jit);
+    auto inst = b->CreateStructGEP(ty, ptr, idx, name);
+#else
+    auto inst = b->CreateStructGEP(ptr, idx, name);
+#endif
+    record(llvm_ir, "StructGEP %+s(%v, %u) is %v", name, ptr, idx, inst);
+    return inst;
+}
+
+
+JIT::Value_p JITBlock::StructGEP(JIT::Value_p ptr,
+                                 unsigned idx,
+                                 JIT::Type_p aggregateTy,
+                                 kstring name)
+// ----------------------------------------------------------------------------
+//   Opaque pointers: caller supplies aggregate type
+// ----------------------------------------------------------------------------
+{
+    ptr = PointerValue(ptr);
+#if LLVM_VERSION >= 1700
+    auto inst = b->CreateStructGEP(aggregateTy, ptr, idx, name);
+#else
+    (void) aggregateTy;
+    auto inst = b->CreateStructGEP(ptr, idx, name);
+#endif
     record(llvm_ir, "StructGEP %+s(%v, %u) is %v", name, ptr, idx, inst);
     return inst;
 }
@@ -1825,9 +2136,116 @@ JIT::Value_p JITBlock::ArrayGEP(JIT::Value_p ptr, uint32_t idx, kstring name)
 //   Accessing an array element with a fixed index
 // ----------------------------------------------------------------------------
 {
-    auto inst =  b->CreateConstGEP1_32(nullptr, ptr, idx, name);
+    ptr = PointerValue(ptr);
+#if LLVM_VERSION >= 1700
+    JIT::Type_p ty = PointerElementTypeFromValue(ptr, b.jit.p.ContextRef(), &b.jit);
+    auto inst = b->CreateConstGEP1_32(ty, ptr, idx, name);
+#else
+    auto inst =  b->CreateConstGEP1_32(ptr, idx, name);
+#endif
     record(llvm_ir, "ArrayGEP %+s(%v, %u) is %v", name, ptr, idx, inst);
     return inst;
+}
+
+JIT::Value_p JITBlock::Load(JIT::Type_p ty, JIT::Value_p ptr, kstring name)
+// ----------------------------------------------------------------------------
+//   Explicitly typed load for opaque pointers
+// ----------------------------------------------------------------------------
+{
+    ptr = PointerValue(ptr);
+#if LLVM_VERSION >= 1700
+    auto value = b->CreateLoad(ty, ptr, name);
+#else
+    (void) ty;
+    auto value = b->CreateLoad(ptr, name);
+#endif
+    record(llvm_ir, "Load %+s(type %T, %v) = %v", name, ty, ptr, value);
+    return value;
+}
+
+
+JIT::Value_p JITBlock::PointerValue(JIT::Value_p ptr)
+// ----------------------------------------------------------------------------
+//   Extract raw pointer from logical wrapper when required
+// ----------------------------------------------------------------------------
+{
+#if LLVM_VERSION >= 1700
+    if (IsTreePtrWrapperType(ptr->getType()))
+    {
+        return b->CreateExtractValue(ptr, {0}, "rawptr");
+    }
+#endif
+    return ptr;
+}
+
+
+JIT::Value_p JITBlock::PointerAs(JIT::Value_p value, JIT::Type_p target)
+// ----------------------------------------------------------------------------
+//   Convert between raw pointers and logical tree-pointer wrappers
+// ----------------------------------------------------------------------------
+{
+    if (!value || !target)
+        return value;
+
+    JIT::Type_p srcTy = value->getType();
+    if (srcTy == target)
+        return value;
+
+    bool srcWrap = IsTreePtrWrapperType(srcTy);
+    bool dstWrap = IsTreePtrWrapperType(target);
+
+    JIT::Value_p raw = srcWrap ? PointerValue(value) : value;
+    JIT::Type_p rawTarget = dstWrap ? WrappedRawPointerType(target) : target;
+
+    if (raw->getType() != rawTarget)
+    {
+        if (raw->getType()->isPointerTy() && rawTarget->isPointerTy())
+            raw = b->CreateBitCast(raw, rawTarget, "ptrcast");
+        else
+            return value;
+    }
+
+    if (!dstWrap)
+        return raw;
+
+#if LLVM_VERSION >= 1700
+    if (auto cst = dyn_cast<Constant>(raw))
+    {
+        auto st = cast<StructType>(target);
+        return llvm::ConstantStruct::get(st, {cst});
+    }
+    JIT::Value_p out = UndefValue::get(target);
+    return b->CreateInsertValue(out, raw, {0}, "wrapptr");
+#else
+    return raw;
+#endif
+}
+
+JIT::Value_p JITBlock::BitCast(JIT::Value_p v, JIT::Type_p t, kstring name)
+// ----------------------------------------------------------------------------
+//   Bitcast with wrapper-awareness for LLVM 17+ logical pointer structs
+// ----------------------------------------------------------------------------
+{
+    if (!v || !t)
+        return v;
+
+    if (JIT::Type(v) == t)
+        return v;
+
+    if (IsTreePtrWrapperType(JIT::Type(v)) || IsTreePtrWrapperType(t))
+    {
+        JIT::Value_p converted = PointerAs(v, t);
+        if (converted && JIT::Type(converted) == t)
+        {
+            record(llvm_ir, "BitCast %+s(%v, type %T) = %v",
+                   name, v, t, converted);
+            return converted;
+        }
+    }
+
+    auto value = b->CreateBitCast(v, t, name);
+    record(llvm_ir, "BitCast %+s(%v, type %T) = %v", name, v, t, value);
+    return value;
 }
 
 
@@ -1856,7 +2274,6 @@ JIT::Value_p JITBlock::ArrayGEP(JIT::Value_p ptr, uint32_t idx, kstring name)
         return value;                                                   \
     }
 
-
 #define CAST(Name)                                                      \
 /* ------------------------------------------------------------ */      \
 /*  Create a cast operation                                     */      \
@@ -1871,7 +2288,37 @@ JIT::Value_p JITBlock::ArrayGEP(JIT::Value_p ptr, uint32_t idx, kstring name)
         return value;                                                   \
     }
 
+#if LLVM_VERSION >= 1700
+#define CreateLoad(PTR, NAME)                                           \
+    CreateLoad(PointerElementTypeFromValue(PointerValue(PTR),           \
+                                           b.jit.p.ContextRef(),         \
+                                           &b.jit),                      \
+               PointerValue(PTR), NAME)
+#define CreateGEP(L, R, NAME)                                           \
+    CreateGEP(PointerElementTypeFromValue(PointerValue(L),              \
+                                          b.jit.p.ContextRef(),          \
+                                          &b.jit),                       \
+              PointerValue(L), R, NAME)
+#endif
+
 #include "llvm-crap.tbl"
+
+#if LLVM_VERSION >= 1700
+#undef CreateLoad
+#undef CreateGEP
+#endif
+
+JITModule::JITModule(Compiler &compiler, text name)
+// ----------------------------------------------------------------------------
+//   Create a new named JIT module
+// ----------------------------------------------------------------------------
+    : jit(compiler.jit), module([&]()
+    {
+        JIT::ModuleID id = jit.CreateModule(name);
+        compiler.RebindTypesToJITContext();
+        return id;
+    }())
+{}
 
 } // namespace XL
 

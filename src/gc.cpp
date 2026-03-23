@@ -134,7 +134,7 @@ TypeAllocator::~TypeAllocator()
 }
 
 
-void *TypeAllocator::Allocate()
+void *TypeAllocator::Allocate() NEW_THROW
 // ----------------------------------------------------------------------------
 //   Allocate a chunk of the given size
 // ----------------------------------------------------------------------------

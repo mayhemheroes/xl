@@ -200,7 +200,7 @@ eval_fn FastCompiler::CompileAll(Scope *scope,
     record(compiler, "Fast compile all %t in %t", source, scope);
 
     Errors errors;
-    JITModule module(jit, "xl.fast");
+    JITModule module(*this, "xl.fast");
     TreeList noParms;
     const bool notClosure = false;
     O1CompileUnit unit (*this, scope, source, noParms, notClosure);
@@ -257,7 +257,7 @@ Tree *FastCompiler::CompileCall(Scope    *scope,
     if (found == calls.end())
     {
         // Not compiled yet, create machine code
-        JITModule module(jit, "xl.call");
+        JITModule module(*this, "xl.call");
         O1CompileUnit unit (*this, scope, source, argList, false);
         XL_ASSERT(!unit.IsForwardCall() && "A call is a forward call?");
 
@@ -306,7 +306,7 @@ adapter_fn FastCompiler::ArrayToArgsAdapter(uint numargs)
         return result;
 
     // We need a new independent module for this adapter with the MCJIT
-    JITModule module(jit, "xl.array2arg");
+    JITModule module(*this, "xl.array2arg");
 
     // Generate the function type:
     // Tree *generated(Scope *, native_fn, Tree *, Tree **)
@@ -395,7 +395,7 @@ eval_fn FastCompiler::ClosureAdapter(uint numtrees)
         return result;
 
     // We need a new independent module for this adapter with the MCJIT
-    JITModule module(jit, "xl.closure");
+    JITModule module(*this, "xl.closure");
     JIT::Signature fnsig { scopePtrTy, treePtrTy };
     JIT::FunctionType_p fnty = jit.FunctionType(evalFnTy, fnsig);
     JIT::Function_p function = jit.Function(fnty, "xl.closure");
@@ -2122,12 +2122,10 @@ O1CompileUnit::O1CompileUnit(FastCompiler &compiler,
     value[source] = inputArg;
 
     // Associate the value for the additional arguments (read-only, no alloca)
-    ulong parmsCount = 0;
     for (Tree *parm : parms)
     {
         inputArg = *args++;
         value[parm] = inputArg;
-        parmsCount++;
     }
 
     // Create the exit basic block, stack pop and return statement
