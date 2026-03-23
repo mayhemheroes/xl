@@ -85,43 +85,42 @@ Compiler::Compiler(kstring moduleName, unsigned opts, int argc, char **argv)
       real32Ty          (jit.FloatType(32)),
       real64Ty          (jit.FloatType(64)),
       characterTy       (jit.IntegerType<char>()),
-      charPtrTy         (jit.PointerType(characterTy)),
-      charPtrPtrTy      (jit.PointerType(charPtrTy)),
-      textTy            (jit.StructType({charPtrTy}, "text")),
-      textPtrTy         (jit.PointerType(textTy)),
-      infoTy            (jit.OpaqueType("Info")),
-      infoPtrTy         (jit.PointerType(infoTy)),
+      charPtrTy         (jit.PointerType(characterTy,           "charp")),
+      charPtrPtrTy      (jit.PointerType(charPtrTy,             "charpp")),
+      textTy            (jit.StructType({charPtrTy},            "text")),
+      textPtrTy         (jit.PointerType(textTy,                "textp")),
+      infoTy            (jit.OpaqueType(                        "info")),
+      infoPtrTy         (jit.PointerType(infoTy,                "info_p")),
 
 #define TREE    ulongTy, infoPtrTy
 #define TREE1   TREE, treePtrTy
 #define TREE2   TREE1, treePtrTy
       treeTy            (jit.StructType({TREE},                 "Tree")),
-      treePtrTy         (jit.TreePointerType(treeTy,            "tree")),
-      treePtrPtrTy      (jit.PointerType(treePtrTy)),
+      treePtrTy         (jit.PointerType(treeTy,                "Tree_p")),
       naturalTreeTy     (jit.StructType({TREE, ulonglongTy},    "Natural")),
-      naturalTreePtrTy  (jit.TreePointerType(naturalTreeTy,     "natural")),
+      naturalTreePtrTy  (jit.PointerType(naturalTreeTy,         "Natural_p")),
       realTreeTy        (jit.StructType({TREE, realTy},         "Real")),
-      realTreePtrTy     (jit.TreePointerType(realTreeTy,        "real")),
+      realTreePtrTy     (jit.PointerType(realTreeTy,            "Real_p")),
       textTreeTy        (jit.StructType({TREE, textTy},         "Text")),
-      textTreePtrTy     (jit.TreePointerType(textTreeTy,        "text")),
+      textTreePtrTy     (jit.PointerType(textTreeTy,            "Text_p")),
       nameTreeTy        (jit.StructType({TREE, textTy},         "Name")),
-      nameTreePtrTy     (jit.TreePointerType(nameTreeTy,        "name")),
+      nameTreePtrTy     (jit.PointerType(nameTreeTy,            "Name_p")),
       blockTreeTy       (jit.StructType({TREE1},                "Block")),
-      blockTreePtrTy    (jit.TreePointerType(blockTreeTy,       "block")),
+      blockTreePtrTy    (jit.PointerType(blockTreeTy,           "Block_p")),
       prefixTreeTy      (jit.StructType({TREE2},                "Prefix")),
-      prefixTreePtrTy   (jit.TreePointerType(prefixTreeTy,      "prefix")),
+      prefixTreePtrTy   (jit.PointerType(prefixTreeTy,          "Prefix_p")),
       postfixTreeTy     (jit.StructType({TREE2},                "Postfix")),
-      postfixTreePtrTy  (jit.TreePointerType(postfixTreeTy,     "postfix")),
+      postfixTreePtrTy  (jit.PointerType(postfixTreeTy,         "Postfix")),
       infixTreeTy       (jit.StructType({TREE2, textTy},        "Infix")),
-      infixTreePtrTy    (jit.TreePointerType(infixTreeTy,       "infix")),
+      infixTreePtrTy    (jit.PointerType(infixTreeTy,           "Infix_p")),
       scopeTy           (jit.StructType({TREE2},                "Scope")),
-      scopePtrTy        (prefixTreePtrTy),
+      scopePtrTy        (jit.PointerType(scopeTy,               "Scope_p")),
 #undef TREE
 #undef TREE1
 #undef TREE2
 
       evalTy            (jit.FunctionType(treePtrTy, {scopePtrTy, treePtrTy})),
-      evalFnTy          (jit.PointerType(evalTy))
+      evalFnTy          (jit.PointerType(evalTy,                "evalfn"))
 {
     record(compiler, "Created compiler %p", this);
 
@@ -135,59 +134,60 @@ void Compiler::RebindTypesToJITContext()
 //   Recreate cached LLVM type handles for the JIT current context
 // ----------------------------------------------------------------------------
 {
-    voidTy = jit.VoidType();
-    booleanTy = jit.IntegerType(1);
-    naturalTy = jit.IntegerType<longlong>();
-    natural8Ty = jit.IntegerType(8);
-    natural16Ty = jit.IntegerType(16);
-    natural32Ty = jit.IntegerType(32);
-    natural64Ty = jit.IntegerType(64);
-    natural128Ty = jit.IntegerType(128);
-    unsignedTy = jit.IntegerType<unsigned>();
-    ulongTy = jit.IntegerType<ulong>();
-    ulonglongTy = jit.IntegerType<ulonglong>();
-    realTy = jit.FloatType(64);
-    real16Ty = jit.FloatType(16);
-    real32Ty = jit.FloatType(32);
-    real64Ty = jit.FloatType(64);
-    characterTy = jit.IntegerType<char>();
-    charPtrTy = jit.PointerType(characterTy);
-    charPtrPtrTy = jit.PointerType(charPtrTy);
-    textTy = jit.StructType({charPtrTy}, "text");
-    textPtrTy = jit.PointerType(textTy);
-    infoTy = jit.OpaqueType("Info");
-    infoPtrTy = jit.PointerType(infoTy);
+    voidTy           = jit.VoidType();
+    booleanTy        = jit.IntegerType(1);
+    naturalTy        = jit.IntegerType<longlong>();
+    natural8Ty       = jit.IntegerType(8);
+    natural16Ty      = jit.IntegerType(16);
+    natural32Ty      = jit.IntegerType(32);
+    natural64Ty      = jit.IntegerType(64);
+    natural128Ty     = jit.IntegerType(128);
+    unsignedTy       = jit.IntegerType<unsigned>();
+    ulongTy          = jit.IntegerType<ulong>();
+    ulonglongTy      = jit.IntegerType<ulonglong>();
+    realTy           = jit.FloatType(64);
+    real16Ty         = jit.FloatType(16);
+    real32Ty         = jit.FloatType(32);
+    real64Ty         = jit.FloatType(64);
+    characterTy      = jit.IntegerType<char>();
+    charPtrTy        = jit.PointerType(characterTy,             "charp");
+    charPtrPtrTy     = jit.PointerType(charPtrTy,               "charpp");
+    textTy           = jit.StructType({ charPtrTy },            "text");
+    textPtrTy        = jit.PointerType(textTy,                  "textp");
+    infoTy           = jit.OpaqueType(                          "info");
+    infoPtrTy        = jit.PointerType(infoTy,                  "info_p");
 
 #define TREE    ulongTy, infoPtrTy
 #define TREE1   TREE, treePtrTy
 #define TREE2   TREE1, treePtrTy
-    treeTy = jit.StructType({TREE}, "Tree");
-    treePtrTy = jit.TreePointerType(treeTy, "tree");
-    treePtrPtrTy = jit.PointerType(treePtrTy);
-    naturalTreeTy = jit.StructType({TREE, ulonglongTy}, "Natural");
-    naturalTreePtrTy = jit.TreePointerType(naturalTreeTy, "natural");
-    realTreeTy = jit.StructType({TREE, realTy}, "Real");
-    realTreePtrTy = jit.TreePointerType(realTreeTy, "real");
-    textTreeTy = jit.StructType({TREE, textTy}, "Text");
-    textTreePtrTy = jit.TreePointerType(textTreeTy, "text");
-    nameTreeTy = jit.StructType({TREE, textTy}, "Name");
-    nameTreePtrTy = jit.TreePointerType(nameTreeTy, "name");
-    blockTreeTy = jit.StructType({TREE1}, "Block");
-    blockTreePtrTy = jit.TreePointerType(blockTreeTy, "block");
-    prefixTreeTy = jit.StructType({TREE2}, "Prefix");
-    prefixTreePtrTy = jit.TreePointerType(prefixTreeTy, "prefix");
-    postfixTreeTy = jit.StructType({TREE2}, "Postfix");
-    postfixTreePtrTy = jit.TreePointerType(postfixTreeTy, "postfix");
-    infixTreeTy = jit.StructType({TREE2, textTy}, "Infix");
-    infixTreePtrTy = jit.TreePointerType(infixTreeTy, "infix");
-    scopeTy = jit.StructType({TREE2}, "Scope");
-    scopePtrTy = prefixTreePtrTy;
+
+    treeTy           = jit.StructType({ TREE },                 "Tree");
+    treePtrTy        = jit.PointerType(treeTy,                  "Tree_p");
+    treePtrPtrTy     = jit.PointerType(treePtrTy,               "Tree_pp");
+    naturalTreeTy    = jit.StructType({ TREE, ulonglongTy },    "Natural");
+    naturalTreePtrTy = jit.PointerType(naturalTreeTy,           "Natural_p");
+    realTreeTy       = jit.StructType({ TREE, realTy },         "Real");
+    realTreePtrTy    = jit.PointerType(realTreeTy,              "Real_p");
+    textTreeTy       = jit.StructType({ TREE, textTy },         "Text");
+    textTreePtrTy    = jit.PointerType(textTreeTy,              "Text_p");
+    nameTreeTy       = jit.StructType({ TREE, textTy },         "Name");
+    nameTreePtrTy    = jit.PointerType(nameTreeTy,              "Name_p");
+    blockTreeTy      = jit.StructType({ TREE1 },                "Block");
+    blockTreePtrTy   = jit.PointerType(blockTreeTy,             "Block_p");
+    prefixTreeTy     = jit.StructType({ TREE2 },                "Prefix");
+    prefixTreePtrTy  = jit.PointerType(prefixTreeTy,            "Prefix_p");
+    postfixTreeTy    = jit.StructType({ TREE2 },                "Postfix");
+    postfixTreePtrTy = jit.PointerType(postfixTreeTy,           "Postfix_p");
+    infixTreeTy      = jit.StructType({ TREE2, textTy },        "Infix");
+    infixTreePtrTy   = jit.PointerType(infixTreeTy,             "Infix_p");
+    scopeTy          = jit.StructType({ TREE2 },                "Scope");
+    scopePtrTy       = jit.PointerType(scopeTy,                 "Scope_p");
 #undef TREE
 #undef TREE1
 #undef TREE2
 
     evalTy = jit.FunctionType(treePtrTy, {scopePtrTy, treePtrTy});
-    evalFnTy = jit.PointerType(evalTy);
+    evalFnTy = jit.PointerType(evalTy, "evalfn");
 }
 
 

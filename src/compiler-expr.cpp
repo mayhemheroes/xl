@@ -121,7 +121,7 @@ JIT::Value_p CompilerExpression::Do(Text *what)
         char c = what->value.length() ? what->value[0] : 0;
         return code.IntegerConstant(compiler.characterTy, c);
     }
-    return code.TextConstant(what->value);
+    return code.TextConstant(compiler.charPtrTy, what->value);
 }
 
 
@@ -358,7 +358,7 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
             code.Store(result, storage);
             code.Branch(isDone);
             code.SwitchTo(isDone);
-            result = code.Load(storage);
+            result = code.Load(storageType, storage);
             return result;
         }
     }
@@ -367,7 +367,7 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
     function.CallFormError(call);
     code.Branch(isDone);
     code.SwitchTo(isDone);
-    result = code.Load(storage);
+    result = code.Load(storageType, storage);
     record(compiler_expr, "No match for call %t, inserted form error: %v",
            call, result);
     return result;

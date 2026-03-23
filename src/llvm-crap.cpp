@@ -272,60 +272,6 @@ using namespace llvm::legacy;
 using namespace llvm::orc;
 #endif // LLVM_CRAP_MCJIT
 
-static const char *kTreePtrWrapperPrefix = "xl.ptr.";
-
-static inline bool IsTreePtrWrapperType(JIT::Type_p type)
-// ----------------------------------------------------------------------------
-//   Return true for strucs wrapping a pointer
-// ----------------------------------------------------------------------------
-//   This is made necessary for LLVM after LLVM17, because the IR now uses
-//   opaque pointers (ptr) as opposed to typed pointers (tree *), making it
-//   impossible to distinguish for example Text * from char *.
-{
-#if LLVM_VERSION >= 1700
-    if (auto st = dyn_cast<StructType>(type))
-    {
-        if (!st->hasName() || st->getNumElements() != 1)
-            return false;
-        if (!st->getElementType(0)->isPointerTy())
-            return false;
-        return st->getName().starts_with(kTreePtrWrapperPrefix);
-    }
-#else
-    (void) type;
-#endif
-    return false;
-}
-
-static inline JIT::Type_p WrappedRawPointerType(JIT::Type_p type)
-// ----------------------------------------------------------------------------
-//   Extract the raw pointer from a struct wrapper
-// ----------------------------------------------------------------------------
-{
-#if LLVM_VERSION >= 1700
-    if (IsTreePtrWrapperType(type))
-        return cast<StructType>(type)->getElementType(0);
-#else
-    (void) type;
-#endif
-    return type;
-}
-
-static inline JIT::Type_p WrappedPointeeType(JIT::Type_p type, JIT *jit)
-// ----------------------------------------------------------------------------
-//   Resolve pointee type recorded for a logical tree-pointer wrapper
-// ----------------------------------------------------------------------------
-{
-#if LLVM_VERSION >= 1700
-    if (!jit || !IsTreePtrWrapperType(type))
-        return nullptr;
-    return jit->WrappedPointeeType(type);
-#else
-    (void) type;
-    (void) jit;
-#endif
-    return nullptr;
-}
 
 #if LLVM_VERSION < 400
 typedef TargetAddress                                JITTargetAddress;
@@ -431,9 +377,9 @@ class JITPrivate
 //   JIT private data (from Kaleidoscope)
 // ----------------------------------------------------------------------------
 {
-    friend class        JIT;
-    friend class        JITBlock;
-    friend class        JITBlockPrivate;
+    friend class JIT;
+    friend class JITBlock;
+    friend class JITBlockPrivate;
 
     JITInitializer      initializer;
     unsigned            optLevel;
@@ -448,7 +394,7 @@ class JITPrivate
     std::unique_ptr<LLJIT> lljit;
     orc::ResourceTrackerSP moduleTracker;
     ModuleHandle        nextModuleHandle;
-    std::map<JIT::Type_p, JIT::Type_p> treeWrapperPointees;
+    std::map<JIT::Type_p, JIT::PointerType_p> machineType;
 #elif LLVM_VERSION < 900
 #if LLVM_VERSION >= 700
     ExecutionSession    session;
@@ -1400,50 +1346,54 @@ JIT::FunctionType_p JIT::FunctionType(Type_p rty,
 }
 
 
-JIT::PointerType_p JIT::PointerType(Type_p rty)
+JIT::PointerType_p JIT::FunctionPointerType(Type_p rty,
+                                            const JIT::Signature &parms,
+                                            bool va)
+// ----------------------------------------------------------------------------
+//    Create a function pointer type
+// ----------------------------------------------------------------------------
+{
+#if LLVM_VERSION >= 1700
+    return llvm::PointerType::get(p.ContextRef(), 0);
+#else
+    JIT::FunctionType_p fty = FunctionType(rty, parms, va);
+    return llvm::PointerType::get(fty, 0);
+#endif
+}
+
+
+JIT::PointerType_p JIT::PointerType(Type_p rty, kstring name)
 // ----------------------------------------------------------------------------
 //    Create a pointer type (always in address space 0)
 // ----------------------------------------------------------------------------
 {
 #if LLVM_VERSION >= 1700
-    (void) rty;
-    return llvm::PointerType::get(p.ContextRef(), 0);
+    // After LLVM17, all pointer types are `ptr` instead of being distinct
+    // This means that we cannot rely on `ty == treePtrTy` to distinguish the
+    // type from `ty == charPtrTy`. To workaround this, we wrapp all the types
+    // in a struct. We rely on the fact that, according to Grok, passing a
+    // wrapper struct is ABI-compatible with passing the pointer itself
+    JIT::PointerType_p pty = llvm::PointerType::get(p.ContextRef(), 0);
+    JIT::Type_p wrapper = StructType({pty}, name);
+    p.machineType[wrapper] = pty;
+    return wrapper;
 #else
     return llvm::PointerType::get(rty, 0);
 #endif
 }
 
 
-JIT::PointerType_p JIT::TreePointerType(Type_p rty, kstring name)
+JIT::PointerType_p JIT::MachinePointerType(Type_p wrapper) const
 // ----------------------------------------------------------------------------
-//   Distinct logical tree-pointer type on opaque-pointer LLVM
-// ----------------------------------------------------------------------------
-{
-#if LLVM_VERSION >= 1700
-    text tname = name ? text(name) : text("tree");
-    if (tname.find(kTreePtrWrapperPrefix) != 0)
-        tname = text(kTreePtrWrapperPrefix) + tname;
-    JIT::Type_p wrapper = StructType({PointerType(rty)}, tname.c_str());
-    p.treeWrapperPointees[wrapper] = rty;
-    return wrapper;
-#else
-    (void) name;
-    return PointerType(rty);
-#endif
-}
-
-
-JIT::Type_p JIT::WrappedPointeeType(Type_p wrapper) const
-// ----------------------------------------------------------------------------
-//   Resolve pointee type associated with a logical pointer wrapper
+//   Turn a wrapper type into machine pointer type
 // ----------------------------------------------------------------------------
 {
 #if LLVM_VERSION >= 1700
-    return p.treeWrapperPointees[wrapper];
+    return p.machineType.count(wrapper) ? p.machineType[wrapper] : nullptr;
 #else
-    (void) wrapper;
+    assert (!wrapper || wrapper->isPointerTy());
+    return (JIT::PointerType_p) wrapper;
 #endif
-    return nullptr;
 }
 
 
@@ -1794,34 +1744,31 @@ JIT::Constant_p JITBlock::PointerConstant(JIT::Type_p type, void *pointer)
 // ----------------------------------------------------------------------------
 {
     llvm::APInt addr(JIT::BitsPerByte * sizeof(void *), (uintptr_t) pointer);
-    JIT::Type_p rawTy = WrappedRawPointerType(type);
+    JIT::Type_p rawTy = b.jit.MachinePointerType(type);
+    if (!rawTy)
+        rawTy = type;
     JIT::Constant_p result = llvm::Constant::getIntegerValue(rawTy, addr);
 #if LLVM_VERSION >= 1700
-    result = llvm::ConstantExpr::getIntToPtr(result, rawTy);
-    if (IsTreePtrWrapperType(type))
-    {
-        auto st = cast<llvm::StructType>(type);
-        result = llvm::ConstantStruct::get(st, {result});
-    }
+    if (type != rawTy)
+        if (auto st = dyn_cast<StructType>(type))
+            result = llvm::ConstantStruct::get(st, {result});
 #endif
     record(llvm_constants, "Pointer constant %v for %p", result, pointer);
     return result;
 }
 
 
-JIT::Value_p JITBlock::TextConstant(text value)
+JIT::Value_p JITBlock::TextConstant(JIT::Type_p type, text value)
 // ----------------------------------------------------------------------------
 //   Return a constant array of characters for the input text
 // ----------------------------------------------------------------------------
 {
 #if LLVM_VERSION >= 1700
     llvm::GlobalVariable *gv = b->CreateGlobalString(value);
-    llvm::Constant *z = llvm::ConstantInt::get(
-        llvm::Type::getInt32Ty(b->getContext()), 0);
-    llvm::Constant *idx[] = {z, z};
-    JIT::Value_p result = llvm::ConstantExpr::getInBoundsGetElementPtr(
-        gv->getValueType(), gv, idx);
+    JIT::StructType_p st = dyn_cast<StructType>(type);
+    JIT::Value_p result = llvm::ConstantStruct::get(st, {gv});
 #else
+    (void) type;
     JIT::Value_p result = b->CreateGlobalStringPtr(value);
 #endif
     record(llvm_constants, "Text constant %v for %s", result, value.c_str());
@@ -2058,68 +2005,19 @@ JIT::Value_p JITBlock::AllocateReturnValue(JIT::Function_p f, kstring name)
 }
 
 
-static JIT::Type_p PointerElementTypeFromValue(JIT::Value_p ptr,
-                                               LLVMContext &ctx,
-                                               JIT *jit = nullptr)
-// ----------------------------------------------------------------------------
-//   Best effort inference of pointee type with opaque pointers
-// ----------------------------------------------------------------------------
-{
-    if (!ptr)
-        return llvm::Type::getInt8Ty(ctx);
-    if (auto alloca = dyn_cast<AllocaInst>(ptr))
-        return alloca->getAllocatedType();
-    if (auto ex = dyn_cast<ExtractValueInst>(ptr))
-    {
-        if (ex->getNumIndices() == 1 && *ex->idx_begin() == 0)
-            if (JIT::Type_p t = WrappedPointeeType(ex->getAggregateOperand()->getType(), jit))
-                return t;
-    }
-    if (auto bc = dyn_cast<BitCastInst>(ptr))
-        return PointerElementTypeFromValue(bc->getOperand(0), ctx, jit);
-    if (auto ce = dyn_cast<ConstantExpr>(ptr))
-        if (ce->getOpcode() == Instruction::BitCast)
-            return PointerElementTypeFromValue(ce->getOperand(0), ctx, jit);
-    if (auto gep = dyn_cast<GetElementPtrInst>(ptr))
-        return gep->getResultElementType();
-    if (auto global = dyn_cast<GlobalVariable>(ptr))
-        return global->getValueType();
-    if (auto fn = dyn_cast<Function>(ptr))
-        return fn->getFunctionType();
-    return llvm::Type::getInt8Ty(ctx);
-}
-
-
-JIT::Value_p JITBlock::StructGEP(JIT::Value_p ptr, unsigned idx, kstring name)
-// ----------------------------------------------------------------------------
-//   Accessing a struct element used to be complicated. Now it's incompatible.
-// ----------------------------------------------------------------------------
-{
-    ptr = PointerValue(ptr);
-#if LLVM_VERSION >= 1700
-    JIT::Type_p ty = PointerElementTypeFromValue(ptr, b.jit.p.ContextRef(), &b.jit);
-    auto inst = b->CreateStructGEP(ty, ptr, idx, name);
-#else
-    auto inst = b->CreateStructGEP(ptr, idx, name);
-#endif
-    record(llvm_ir, "StructGEP %+s(%v, %u) is %v", name, ptr, idx, inst);
-    return inst;
-}
-
-
-JIT::Value_p JITBlock::StructGEP(JIT::Value_p ptr,
+JIT::Value_p JITBlock::StructGEP(JIT::Type_p structTy,
+                                 JIT::Value_p ptr,
                                  unsigned idx,
-                                 JIT::Type_p aggregateTy,
                                  kstring name)
 // ----------------------------------------------------------------------------
 //   Opaque pointers: caller supplies aggregate type
 // ----------------------------------------------------------------------------
 {
-    ptr = PointerValue(ptr);
 #if LLVM_VERSION >= 1700
-    auto inst = b->CreateStructGEP(aggregateTy, ptr, idx, name);
+    ptr = PointerValue(ptr);
+    auto inst = b->CreateStructGEP(structTy, ptr, idx, name);
 #else
-    (void) aggregateTy;
+    (void) structTy;
     auto inst = b->CreateStructGEP(ptr, idx, name);
 #endif
     record(llvm_ir, "StructGEP %+s(%v, %u) is %v", name, ptr, idx, inst);
@@ -2127,16 +2025,18 @@ JIT::Value_p JITBlock::StructGEP(JIT::Value_p ptr,
 }
 
 
-JIT::Value_p JITBlock::ArrayGEP(JIT::Value_p ptr, uint32_t idx, kstring name)
+JIT::Value_p JITBlock::ArrayGEP(JIT::Type_p  elementTy,
+                                JIT::Value_p ptr,
+                                uint32_t     idx,
+                                kstring      name)
 // ----------------------------------------------------------------------------
 //   Accessing an array element with a fixed index
 // ----------------------------------------------------------------------------
 {
-    ptr = PointerValue(ptr);
 #if LLVM_VERSION >= 1700
-    JIT::Type_p ty = PointerElementTypeFromValue(ptr, b.jit.p.ContextRef(), &b.jit);
-    auto inst = b->CreateConstGEP1_32(ty, ptr, idx, name);
+    auto inst = b->CreateConstInBoundsGEP1_32(elementTy, ptr, idx, name);
 #else
+    (void) elementTy;
     auto inst =  b->CreateConstGEP1_32(ptr, idx, name);
 #endif
     record(llvm_ir, "ArrayGEP %+s(%v, %u) is %v", name, ptr, idx, inst);
@@ -2148,8 +2048,8 @@ JIT::Value_p JITBlock::Load(JIT::Type_p ty, JIT::Value_p ptr, kstring name)
 //   Explicitly typed load for opaque pointers
 // ----------------------------------------------------------------------------
 {
-    ptr = PointerValue(ptr);
 #if LLVM_VERSION >= 1700
+    ptr = PointerValue(ptr);
     auto value = b->CreateLoad(ty, ptr, name);
 #else
     (void) ty;
@@ -2160,62 +2060,61 @@ JIT::Value_p JITBlock::Load(JIT::Type_p ty, JIT::Value_p ptr, kstring name)
 }
 
 
+JIT::Value_p JITBlock::StructLoad(JIT::Type_p structTy,
+                                  JIT::Value_p ptr,
+                                  unsigned idx,
+                                  kstring name)
+// ----------------------------------------------------------------------------
+//   For opaque pointers, we need to get the item type from struct
+// ----------------------------------------------------------------------------
+{
+#if LLVM_VERSION >= 1700
+    ptr = PointerValue(ptr);
+    JIT::StructType_p st = dyn_cast<StructType>(structTy);
+    assert(st);
+    auto value = b->CreateExtractValue(ptr, {idx}, name);
+#else
+    (void) structTy;
+    auto itemp = b->CreateStructGEP(ptr, idx, name);
+    auto value = b->CreateLoad(itemp, name);
+#endif
+    record(llvm_ir, "StructLoad %+s(%v, %u) is %v", name, ptr, idx, value);
+    return value;
+}
+
+
 JIT::Value_p JITBlock::PointerValue(JIT::Value_p ptr)
 // ----------------------------------------------------------------------------
 //   Extract raw pointer from logical wrapper when required
 // ----------------------------------------------------------------------------
 {
 #if LLVM_VERSION >= 1700
-    if (IsTreePtrWrapperType(ptr->getType()))
+    if (ptr)
     {
-        return b->CreateExtractValue(ptr, {0}, "rawptr");
+        JIT::Type_p wty = ptr->getType();
+        JIT::Type_p rty = b.jit.MachinePointerType(wty);
+        if (rty)
+            return b->CreateExtractValue(ptr, {0}, "rawptr");
     }
-#endif
+#endif // LLVM_VERSION >= 1700
     return ptr;
 }
 
 
-JIT::Value_p JITBlock::PointerAs(JIT::Value_p value, JIT::Type_p target)
+JIT::Value_p JITBlock::WrappedValue(JIT::Value_p ptr, JIT::Type_p type)
 // ----------------------------------------------------------------------------
-//   Convert between raw pointers and logical tree-pointer wrappers
+//  Convert to wrapper type in case we need it
 // ----------------------------------------------------------------------------
 {
-    if (!value || !target)
-        return value;
-
-    JIT::Type_p srcTy = value->getType();
-    if (srcTy == target)
-        return value;
-
-    bool srcWrap = IsTreePtrWrapperType(srcTy);
-    bool dstWrap = IsTreePtrWrapperType(target);
-
-    JIT::Value_p raw = srcWrap ? PointerValue(value) : value;
-    JIT::Type_p rawTarget = dstWrap ? WrappedRawPointerType(target) : target;
-
-    if (raw->getType() != rawTarget)
-    {
-        if (raw->getType()->isPointerTy() && rawTarget->isPointerTy())
-            raw = b->CreateBitCast(raw, rawTarget, "ptrcast");
-        else
-            return value;
-    }
-
-    if (!dstWrap)
-        return raw;
-
 #if LLVM_VERSION >= 1700
-    if (auto cst = dyn_cast<Constant>(raw))
-    {
-        auto st = cast<StructType>(target);
-        return llvm::ConstantStruct::get(st, {cst});
-    }
-    JIT::Value_p out = UndefValue::get(target);
-    return b->CreateInsertValue(out, raw, {0}, "wrapptr");
-#else
-    return raw;
-#endif
+    auto storage = Alloca(type, "wrap");
+    auto field = b->CreateStructGEP(type, storage, 0, "fieldp");
+    b->CreateStore(ptr, field);
+    ptr = b->CreateLoad(type, storage, "wrapper");
+#endif // LLVM_VERSION >= 1700
+    return ptr;
 }
+
 
 JIT::Value_p JITBlock::BitCast(JIT::Value_p v, JIT::Type_p t, kstring name)
 // ----------------------------------------------------------------------------
@@ -2228,18 +2127,17 @@ JIT::Value_p JITBlock::BitCast(JIT::Value_p v, JIT::Type_p t, kstring name)
     if (JIT::Type(v) == t)
         return v;
 
-    if (IsTreePtrWrapperType(JIT::Type(v)) || IsTreePtrWrapperType(t))
+    v = PointerValue(v);
+    JIT::Value_p value = v;
+    if (JIT::PointerType_p mty = b.jit.MachinePointerType(t))
     {
-        JIT::Value_p converted = PointerAs(v, t);
-        if (converted && JIT::Type(converted) == t)
-        {
-            record(llvm_ir, "BitCast %+s(%v, type %T) = %v",
-                   name, v, t, converted);
-            return converted;
-        }
+        value = b->CreateBitCast(value, mty, name);
+        value = WrappedValue(value, t);
     }
-
-    auto value = b->CreateBitCast(v, t, name);
+    else
+    {
+        value = b->CreateBitCast(v, t, name);
+    }
     record(llvm_ir, "BitCast %+s(%v, type %T) = %v", name, v, t, value);
     return value;
 }
@@ -2284,25 +2182,9 @@ JIT::Value_p JITBlock::BitCast(JIT::Value_p v, JIT::Type_p t, kstring name)
         return value;                                                   \
     }
 
-#if LLVM_VERSION >= 1700
-#define CreateLoad(PTR, NAME)                                           \
-    CreateLoad(PointerElementTypeFromValue(PointerValue(PTR),           \
-                                           b.jit.p.ContextRef(),         \
-                                           &b.jit),                      \
-               PointerValue(PTR), NAME)
-#define CreateGEP(L, R, NAME)                                           \
-    CreateGEP(PointerElementTypeFromValue(PointerValue(L),              \
-                                          b.jit.p.ContextRef(),          \
-                                          &b.jit),                       \
-              PointerValue(L), R, NAME)
-#endif
 
 #include "llvm-crap.tbl"
 
-#if LLVM_VERSION >= 1700
-#undef CreateLoad
-#undef CreateGEP
-#endif
 
 JITModule::JITModule(Compiler &compiler, text name)
 // ----------------------------------------------------------------------------

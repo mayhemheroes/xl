@@ -127,6 +127,31 @@ public:
     JIT::PointerType_p  scopePtrTy;
     JIT::FunctionType_p evalTy;
     JIT::PointerType_p  evalFnTy;
+
+    bool                IsTreeType(JIT::Type_p ty) const
+    {
+        return (ty == treeTy            ||
+                ty == naturalTreeTy     ||
+                ty == realTreeTy        ||
+                ty == textTreeTy        ||
+                ty == nameTreeTy        ||
+                ty == blockTreeTy       ||
+                ty == prefixTreeTy      ||
+                ty == postfixTreeTy     ||
+                ty == infixTreeTy);
+    }
+    bool                IsTreePointerType(JIT::Type_p ty) const
+    {
+        return (ty == treePtrTy         ||
+                ty == naturalTreePtrTy  ||
+                ty == realTreePtrTy     ||
+                ty == textTreePtrTy     ||
+                ty == nameTreePtrTy     ||
+                ty == blockTreePtrTy    ||
+                ty == prefixTreePtrTy   ||
+                ty == postfixTreePtrTy  ||
+                ty == infixTreePtrTy);
+    }
 };
 
 

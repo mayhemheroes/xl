@@ -84,7 +84,7 @@ typedef struct Interpreter_Value *      Value_p;
 #include <string>
 
 #define LLVM_CRAP_DIAPER_CLOSE
-#include "llvm-crap.h"
+#    include "llvm-crap.h"
 
 
 // ============================================================================
@@ -219,10 +219,12 @@ public:
     StructType_p        OpaqueType(kstring name = nullptr);
     StructType_p        StructType(StructType_p base, const Signature &body);
     StructType_p        StructType(const Signature &items, kstring n = nullptr);
-    FunctionType_p      FunctionType(Type_p r,const Signature &p,bool va=false);
-    PointerType_p       PointerType(Type_p rty);
-    PointerType_p       TreePointerType(Type_p rty, kstring name = nullptr);
-    Type_p              WrappedPointeeType(Type_p wrapper) const;
+    FunctionType_p      FunctionType(Type_p r,
+                                     const Signature &p,bool va=false);
+    PointerType_p       FunctionPointerType(Type_p r,
+                                            const Signature &p,bool va=false);
+    Type_p              PointerType(Type_p rty, kstring name);
+    PointerType_p       MachinePointerType(Type_p wrapper) const;
     Type_p              VoidType();
 
     // Modules
@@ -250,7 +252,7 @@ struct JITArguments
     JITArguments(JIT::Function_p function)
         : args(function->arg_begin()), count(function->arg_size()) {}
 
-    JIT::Value_p             operator*(void)         { return &*args; }
+    JIT::Value_p        operator*(void)         { return &*args; }
     JITArguments &      operator++(void)        { ++args; return *this; }
     JITArguments        operator++(int)
     {
@@ -325,7 +327,7 @@ public:
     JIT::Constant_p     IntegerConstant(JIT::Type_p ty, int value);
     JIT::Constant_p     FloatConstant(JIT::Type_p ty, double value);
     JIT::Constant_p     PointerConstant(JIT::Type_p pty, void *address);
-    JIT::Value_p        TextConstant(text value);
+    JIT::Value_p        TextConstant(JIT::Type_p pty, text value);
 
     void                SwitchTo(JITBlock &block);
     void                SwitchTo(JIT::BasicBlock_p block);
@@ -354,21 +356,23 @@ public:
     JIT::Value_p        Alloca(JIT::Type_p type, kstring name = "");
     JIT::Value_p        AllocateReturnValue(JIT::Function_p f,
                                             kstring name = "");
-    JIT::Value_p        StructGEP(JIT::Value_p ptr,
+    JIT::Value_p        StructGEP(JIT::Type_p structTy,
+                                  JIT::Value_p ptr,
                                   unsigned idx,
                                   kstring name="");
-    JIT::Value_p        StructGEP(JIT::Value_p ptr,
-                                  unsigned idx,
-                                  JIT::Type_p aggregateTy,
-                                  kstring name="");
-    JIT::Value_p        ArrayGEP(JIT::Value_p ptr,
+    JIT::Value_p        ArrayGEP(JIT::Type_p elementTy,
+                                  JIT::Value_p ptr,
                                  uint32_t idx,
                                  kstring name="");
     JIT::Value_p        Load(JIT::Type_p ty,
                              JIT::Value_p ptr,
                              kstring name = "");
+    JIT::Value_p        StructLoad(JIT::Type_p structTy,
+                                   JIT::Value_p ptr,
+                                   unsigned idx,
+                                   kstring name="");
     JIT::Value_p        PointerValue(JIT::Value_p ptr);
-    JIT::Value_p        PointerAs(JIT::Value_p value, JIT::Type_p target);
+    JIT::Value_p        WrappedValue(JIT::Value_p ptr, JIT::Type_p type);
     JIT::Value_p        BitCast(JIT::Value_p v,
                                 JIT::Type_p t,
                                 kstring name = "");

@@ -109,17 +109,18 @@ private:
     JIT::Value_p        Compile(Tree *call,
                                 CompilerRewriteCandidate *rc,
                                 const JIT::Values &args);
-    JIT::Value_p        Data(Tree *pattern,
+    JIT::Value_p        Data(Tree        *pattern,
                              JIT::Value_p box,
-                             unsigned &index);
-    JIT::Value_p        Autobox(Tree *source,
+                             JIT::Type_p  boxTy,
+                             unsigned    &index);
+    JIT::Value_p        Autobox(Tree        *source,
                                 JIT::Value_p value,
-                                JIT::Type_p requested);
-    JIT::Function_p     UnboxFunction(JIT::Type_p type,
-                                      Tree *pattern);
+                                JIT::Type_p  requested);
+    JIT::Function_p     UnboxFunction(JIT::Type_p type, Tree *pattern);
     JIT::Value_p        Unbox(JIT::Value_p arg,
-                              Tree *pattern,
-                              uint &index);
+                              JIT::Type_p  type,
+                              Tree        *pattern,
+                              uint        &index);
     JIT::Value_p        Primitive(Tree *,
                                   text name,
                                   uint arity,

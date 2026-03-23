@@ -34,8 +34,6 @@
 // If not, see <https://www.gnu.org/licenses/>.
 // *****************************************************************************
 
-BINARY(GEP)
-
 BINARY(Add)
 BINARY(Sub)
 BINARY(Mul)
@@ -62,7 +60,6 @@ UNARY(Neg)
 UNARY(Not)
 UNARY(FNeg)
 
-UNARY(Load)
 BINARY(Store)
 
 CAST(Trunc)

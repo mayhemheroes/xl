@@ -324,8 +324,8 @@ adapter_fn FastCompiler::ArrayToArgsAdapter(uint numargs)
     called.push_back(treePtrTy);
     for (uint a = 0; a < numargs; a++)
         called.push_back(treePtrTy);
-    JIT::FunctionType_p calledType = jit.FunctionType(treePtrTy, called);
-    JIT::PointerType_p calledPtrType = jit.PointerType(calledType);
+    JIT::PointerType_p calledPtrType =
+        jit.FunctionPointerType(treePtrTy, called);
 
     // Create the entry for the function we generate
     JITBlock code(jit, adapter, "adapt");
@@ -348,8 +348,9 @@ adapter_fn FastCompiler::ArrayToArgsAdapter(uint numargs)
     // Read other arguments from the input array
     for (uint a = 0; a < numargs; a++)
     {
-        JIT::Value_p elementPtr = code.ArrayGEP(treeArray, a, "argp");
-        JIT::Value_p fromArray = code.Load(elementPtr, "arg");
+        JIT::Value_p elementPtr = code.ArrayGEP(treePtrTy,
+                                                treeArray, a, "argp");
+        JIT::Value_p fromArray = code.Load(treePtrTy, elementPtr, "arg");
         outArgs.push_back(fromArray);
     }
 
@@ -428,37 +429,38 @@ eval_fn FastCompiler::ClosureAdapter(uint numtrees)
 
     // Extract child of surrounding block
     JIT::Value_p block = code.BitCast(ptr, blockTreePtrTy);
-    ptr = code.StructGEP(block, BLOCK_CHILD_INDEX, "closure_child");
-    ptr = code.Load(ptr);
+    ptr = code.StructGEP(blockTreeTy,
+                         block, BLOCK_CHILD_INDEX, "closure_child");
+    ptr = code.Load(treePtrTy, ptr);
 
     // Build additional arguments
     for (uint i = 0; i < numtrees; i++)
     {
         // Load the left of the \n which is a decl of the form P->V
         JIT::Value_p infix = code.BitCast(ptr, infixTreePtrTy);
-        JIT::Value_p lf = code.StructGEP(infix, LEFT_VALUE_INDEX, "closure_lt");
-        JIT::Value_p decl = code.Load(lf);
+        JIT::Value_p lf = code.StructGEP(infixTreeTy,
+                                         infix, LEFT_VALUE_INDEX, "closure_lt");
+        JIT::Value_p decl = code.Load(treePtrTy, lf);
         decl = code.BitCast(decl, infixTreePtrTy);
 
         // Load the value V out of [P is V] and pass it as an argument
-        JIT::Value_p arg = code.StructGEP(decl,
+        JIT::Value_p arg = code.StructGEP(infixTreeTy, decl,
                                           RIGHT_VALUE_INDEX, "closure_rt");
-        arg = code.Load(arg);
+        arg = code.Load(treePtrTy, arg);
         argV.push_back(arg);
         signature.push_back(treeTy);
 
         // Load the next element in the list
-        JIT::Value_p rt = code.StructGEP(infix,
+        JIT::Value_p rt = code.StructGEP(infixTreeTy, infix,
                                          RIGHT_VALUE_INDEX, "closure_next");
-        ptr = code.Load(rt);
+        ptr = code.Load(treePtrTy, rt);
     }
 
     // Replace the 'self' argument with the expression sans closure
     argV[1] = ptr;
 
     // Call the resulting function
-    JIT::FunctionType_p fnTy = jit.FunctionType(treeTy, signature, false);
-    JIT::PointerType_p fnPtrTy = jit.PointerType(fnTy);
+    JIT::PointerType_p fnPtrTy = jit.FunctionPointerType(treeTy, signature);
     JIT::Value_p toCall = code.BitCast(callCode, fnPtrTy);
     JIT::Value_p callVal = code.Call(toCall, argV);
     code.Return(callVal);
@@ -2141,7 +2143,7 @@ O1CompileUnit::O1CompileUnit(FastCompiler &compiler,
     // Create the exit basic block, stack pop and return statement
     JITBlock exitcode(jit, function, "exit");
     exitbb = exitcode.Block();
-    JIT::Value_p retVal = exitcode.Load(resultStorage, "retval");
+    JIT::Value_p retVal = exitcode.Load(treePtrTy, resultStorage, "retval");
     exitcode.Return(retVal);
 
     // Record current entry/exit points for the current expression
@@ -2304,7 +2306,7 @@ JIT::Value_p O1CompileUnit::Known(Tree *tree, uint which)
     if ((which & knowLocals) && storage.count(tree) > 0)
     {
         // Value is stored in a local variable
-        result = code.Load(storage[tree], "loc");
+        result = code.Load(compiler.treePtrTy, storage[tree], "loc");
     }
     else if ((which & knowValues) && value.count(tree) > 0)
     {
@@ -2404,7 +2406,7 @@ JIT::BasicBlock_p O1CompileUnit::BeginLazy(Tree *subexpr)
     record(labels, "For %t: %v is skip, %v is work", subexpr, skip, work);
 
     JIT::Value_p lazyFlagPtr = NeedLazy(subexpr);
-    JIT::Value_p lazyFlag = code.Load(lazyFlagPtr, "lazy");
+    JIT::Value_p lazyFlag = code.Load(compiler.booleanTy, lazyFlagPtr, "lazy");
     record(labels, "%v is lazy flag for %t", lazyFlag, subexpr);
     code.IfBranch(lazyFlag, skip, work);
     code.SwitchTo(work);
@@ -2512,8 +2514,9 @@ JIT::Value_p O1CompileUnit::Left(Tree *tree)
         JIT::Value_p pptr = code.BitCast(parent,
                                          compiler.prefixTreePtrTy,
                                          "pfxl");
-        result = code.StructGEP(pptr, LEFT_VALUE_INDEX, "lptr");
-        result = code.Load(result, "left");
+        result = code.StructGEP(compiler.prefixTreeTy,
+                                pptr, LEFT_VALUE_INDEX, "lptr");
+        result = code.Load(compiler.treePtrTy, result, "left");
         code.Store(result, ptr);
     }
     else
@@ -2549,8 +2552,9 @@ JIT::Value_p O1CompileUnit::Right(Tree *tree)
 
         // WARNING: This relies on the layout of all nodes beginning the same
         JIT::Value_p pptr = code.BitCast(parent, compiler.prefixTreePtrTy, "pfxr");
-        result = code.StructGEP(pptr,RIGHT_VALUE_INDEX, "rptr");
-        result = code.Load(result, "right");
+        result = code.StructGEP(compiler.prefixTreeTy,
+                                pptr,RIGHT_VALUE_INDEX, "rptr");
+        result = code.Load(compiler.treePtrTy, result, "right");
         code.Store(result, ptr);
     }
     else
@@ -2581,7 +2585,7 @@ JIT::Value_p O1CompileUnit::Copy(Tree *source, Tree *dest, bool markDone)
     {
         // Copy the flag from the source
         JIT::Value_p newDoneFlag = NeedLazy(dest);
-        JIT::Value_p computed = code.Load(oldDoneFlag);
+        JIT::Value_p computed = code.Load(compiler.booleanTy, oldDoneFlag);
         code.Store(computed, newDoneFlag);
     }
 
@@ -2770,8 +2774,9 @@ JIT::BasicBlock_p O1CompileUnit::TagTest(Tree *tree, unsigned tagValue)
         Ooops("No value for $1", tree);
         return nullptr;
     }
-    JIT::Value_p tagPtr = code.StructGEP(treeValue, 0, "tagPtr");
-    JIT::Value_p tag = code.Load(tagPtr, "tag");
+    JIT::Value_p tagPtr = code.StructGEP(compiler.treeTy,
+                                         treeValue, 0, "tagPtr");
+    JIT::Value_p tag = code.Load(compiler.naturalTy, tagPtr, "tag");
     JIT::Type_p tagTy = code.Type(tag);
     JIT::Value_p mask = code.IntegerConstant(tagTy, Tree::KINDMASK);
     JIT::Value_p kind = code.And(tag, mask, "tagAndMask");
@@ -2802,14 +2807,16 @@ JIT::BasicBlock_p O1CompileUnit::NaturalTest(Tree *tree, longlong value)
     JIT::Value_p treeValue = Known(tree);
     assert(treeValue);
     treeValue = code.BitCast(treeValue, compiler.naturalTreePtrTy);
-    JIT::Value_p valueFieldPtr = code.StructGEP(treeValue,
-                                           NATURAL_VALUE_INDEX,
-                                           "valuePtr");
-    JIT::Value_p tval = code.Load(valueFieldPtr, "treeValue");
+    JIT::Value_p valueFieldPtr = code.StructGEP(compiler.naturalTreeTy,
+                                                treeValue,
+                                                NATURAL_VALUE_INDEX,
+                                                "np");
+    JIT::Value_p tval          = code.Load(compiler.naturalTy,
+                                  valueFieldPtr, "nv");
     JIT::Constant_p rval = code.IntegerConstant(tval->getType(),
                                                 (int64_t) value);
-    JIT::Value_p isGood = code.ICmpEQ(tval, rval, "isGood");
-    JIT::BasicBlock_p isGoodBB = code.NewBlock("isGood");
+    JIT::Value_p isGood = code.ICmpEQ(tval, rval, "good");
+    JIT::BasicBlock_p isGoodBB = code.NewBlock("good");
     code.IfBranch(isGood, isGoodBB, notGood);
 
     // If the value is the same, then go on, switch to the isGood basic block
@@ -2835,10 +2842,11 @@ JIT::BasicBlock_p O1CompileUnit::RealTest(Tree *tree, double value)
     JIT::Value_p treeValue = Known(tree);
     assert(treeValue);
     treeValue = code.BitCast(treeValue, compiler.realTreePtrTy);
-    JIT::Value_p valueFieldPtr = code.StructGEP(treeValue,
-                                           REAL_VALUE_INDEX,
-                                           "valuePtr");
-    JIT::Value_p tval = code.Load(valueFieldPtr, "treeValue");
+    JIT::Value_p valueFieldPtr = code.StructGEP(compiler.realTreeTy,
+                                                treeValue,
+                                                REAL_VALUE_INDEX,
+                                                "rp");
+    JIT::Value_p tval = code.Load(compiler.realTy, valueFieldPtr, "rv");
     JIT::Constant_p rval = code.FloatConstant(tval->getType(), value);
     JIT::Value_p isGood = code.FCmpOEQ(tval, rval, "isGood");
     JIT::BasicBlock_p isGoodBB = code.NewBlock("isGood");
@@ -2866,7 +2874,7 @@ JIT::BasicBlock_p O1CompileUnit::TextTest(Tree *tree, text value)
     // Check if the value is the same, call xl_same_text
     JIT::Value_p treeValue = Known(tree);
     assert(treeValue);
-    JIT::Value_p refVal = data.TextConstant(value);
+    JIT::Value_p refVal = data.TextConstant(compiler.charPtrTy, value);
     JIT::Value_p isGood = code.Call(xl_same_text, treeValue, refVal);
     JIT::BasicBlock_p isGoodBB = code.NewBlock("isGood");
     code.IfBranch(isGood, isGoodBB, notGood);
@@ -2911,7 +2919,8 @@ JIT::BasicBlock_p O1CompileUnit::InfixMatchTest(Tree *actual, Infix *reference)
     JIT::Value_p refVal = NeedStorage(reference);     assert (refVal);
 
     // Extract the name of the reference
-    JIT::Value_p refName = data.TextConstant(reference->name);
+    JIT::Type_p       charPtrTy = compiler.charPtrTy;
+    JIT::Value_p      refName   = data.TextConstant(charPtrTy, reference->name);
 
     // Where we go if the tests fail
     JIT::BasicBlock_p notGood = NeedTest();
@@ -2953,8 +2962,9 @@ JIT::BasicBlock_p O1CompileUnit::TypeTest(Tree *value, Tree *type)
     JIT::Value_p treeValue = Known(value);     assert(treeValue);
 
     // Quick inline check with the tag to see if need runtime test
-    JIT::Value_p tagPtr = code.StructGEP(treeValue, TAG_INDEX, "tagPtr");
-    JIT::Value_p tag = code.Load(tagPtr, "tag");
+    JIT::Value_p tagPtr = code.StructGEP(compiler.treeTy,
+                                         treeValue, TAG_INDEX, "tagp");
+    JIT::Value_p tag = code.Load(compiler.naturalTy, tagPtr, "tag");
     JIT::Type_p tagTy = code.Type(tag);
     JIT::Value_p mask = code.IntegerConstant(tagTy, Tree::KINDMASK);
     JIT::Value_p kindValue = code.And(tag, mask, "tagAndMask");

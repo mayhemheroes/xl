@@ -66,7 +66,7 @@ CompilerFunction::CompilerFunction(CompilerUnit &unit,
       code(jit, function, "code"),
       exit(jit, function, "exit"),
       entry(code.Block()),
-      returned(data.AllocateReturnValue(function)),
+      returned(data.AllocateReturnValue(function, "retval")),
       closure(nullptr)
 {
     InitializeArgs();
@@ -91,7 +91,7 @@ CompilerFunction::CompilerFunction(CompilerFunction &caller,
       code(jit, function, "code"),
       exit(jit, function, "exit"),
       entry(code.Block()),
-      returned(data.AllocateReturnValue(function)),
+      returned(data.AllocateReturnValue(function, "retval")),
       closure(nullptr)
 {
     InitializeArgs(rc);
@@ -187,8 +187,6 @@ JIT::Value_p CompilerFunction::Return(Tree *tree, JIT::Value_p value)
 {
     JIT::Type_p retTy = jit.ReturnType(function);
     value = Autobox(tree, value, retTy);
-
-    value = code.PointerAs(value, retTy);
     code.Store(value, returned);
     return value;
 }
@@ -210,7 +208,8 @@ eval_fn CompilerFunction::Finalize(bool createCode)
     // Insert return in exit block
     if (returned)
     {
-        JIT::Value_p retVal = exit.Load(returned, "retval");
+        JIT::Value_p retVal = exit.Load(JIT::ReturnType(function),
+                                        returned, "retval");
         exit.Return(retVal);
     }
     else
@@ -354,9 +353,9 @@ JIT::Value_p CompilerFunction::Compile(Tree *call,
                 // Constructor for a 'data' form, e.g. [X,Y is self]
                 unsigned index = 0;
                 Tree *pattern = PatternBase(rc->RewritePattern());
-                JIT::Value_p box = evalfn.returned;
-                JIT::Value_p retv = evalfn.Data(pattern, box, index);
-                evalfn.Return(body, retv);
+                JIT::Value_p box     = evalfn.returned;
+                JIT::Type_p  boxTy   = JIT::ReturnType(function);
+                evalfn.Data(pattern, box, boxTy, index);
             }
 
             evalfn.Finalize(false);
@@ -367,8 +366,9 @@ JIT::Value_p CompilerFunction::Compile(Tree *call,
 }
 
 
-JIT::Value_p CompilerFunction::Data(Tree *expr,
+JIT::Value_p CompilerFunction::Data(Tree        *expr,
                                     JIT::Value_p box,
+                                    JIT::Type_p boxTy,
                                     unsigned &index)
 // ----------------------------------------------------------------------------
 //    Generate a constructor for a data pattern, e.g. [X,Y is self]
@@ -385,7 +385,7 @@ JIT::Value_p CompilerFunction::Data(Tree *expr,
         // For all these cases, simply compute the corresponding value
         CompilerExpression subexpr(*this);
         JIT::Value_p result = subexpr.Evaluate(expr);
-        JIT::Value_p ptr = code.StructGEP(box, index++, "resultp");
+        JIT::Value_p ptr = code.StructGEP(boxTy, box, index++, "resultp");
         result = code.Store(result, ptr);
         return result;
     }
@@ -403,7 +403,7 @@ JIT::Value_p CompilerFunction::Data(Tree *expr,
         if (JIT::Value_p result = Known(existing))
         {
             // Store that in the result tree
-            JIT::Value_p ptr = code.StructGEP(box, index++, "resultp");
+            JIT::Value_p ptr = code.StructGEP(boxTy, box, index++, "resultp");
             result = code.Store(result, ptr);
             return result;
         }
@@ -415,8 +415,8 @@ JIT::Value_p CompilerFunction::Data(Tree *expr,
     case INFIX:
     {
         Infix *infix = (Infix *) expr;
-        left = Data(infix->left, box, index);
-        right = Data(infix->right, box, index);
+        left = Data(infix->left, box, boxTy, index);
+        right = Data(infix->right, box, boxTy, index);
         return right;
     }
 
@@ -424,8 +424,8 @@ JIT::Value_p CompilerFunction::Data(Tree *expr,
     {
         Prefix *prefix = (Prefix *) expr;
         if (prefix->left->Kind() != NAME)
-            left = Data(prefix->left, box, index);
-        right = Data(prefix->right, box, index);
+            left = Data(prefix->left, box, boxTy, index);
+        right = Data(prefix->right, box, boxTy, index);
         return right;
     }
 
@@ -433,15 +433,15 @@ JIT::Value_p CompilerFunction::Data(Tree *expr,
     {
         Postfix *postfix = (Postfix *) expr;
         if (postfix->right->Kind() != NAME)
-            right = Data(postfix->right, box, index);
-        left = Data(postfix->left, box, index);
+            right = Data(postfix->right, box, boxTy, index);
+        left = Data(postfix->left, box, boxTy, index);
         return left;
     }
 
     case BLOCK:
     {
         Block *block = (Block *) expr;
-        child = Data(block->child, box, index);
+        child = Data(block->child, box, boxTy, index);
         return child;
     }
     }
@@ -451,9 +451,9 @@ JIT::Value_p CompilerFunction::Data(Tree *expr,
 }
 
 
-JIT::Value_p CompilerFunction::Autobox(Tree *source,
+JIT::Value_p CompilerFunction::Autobox(Tree        *source,
                                        JIT::Value_p value,
-                                       JIT::Type_p req)
+                                       JIT::Type_p  req)
 // ----------------------------------------------------------------------------
 //   Automatically box/unbox types
 // ----------------------------------------------------------------------------
@@ -482,16 +482,20 @@ JIT::Value_p CompilerFunction::Autobox(Tree *source,
         if (req == compiler.characterTy && type == compiler.textTreePtrTy)
         {
             // Convert text constant to character
-            result = code.StructGEP(result, TEXT_VALUE_INDEX, "ubox_text");
-            result = code.StructGEP(result, 0, "ubox_charpp");
-            result = code.StructGEP(result, 0, "ubox_charp");
-            result = code.Load(result, "ubox_char");
+            result = code.StructGEP(compiler.textTreeTy,
+                                    result, TEXT_VALUE_INDEX, "ubox_text");
+            result = code.StructGEP(compiler.textTy,
+                                    result, 0, "ubox_charpp");
+            result = code.StructGEP(compiler.charPtrTy,
+                                    result, 0, "ubox_charp");
+            result = code.Load(compiler.characterTy, result, "ubox_char");
         }
         else
         {
             // Convert natural constants
             assert (type == compiler.naturalTreePtrTy);
-            result = code.StructGEP(value, NATURAL_VALUE_INDEX, "ubox_int");
+            result = code.StructGEP(compiler.naturalTreeTy,
+                                    value, NATURAL_VALUE_INDEX, "ubox_int");
             if (req != compiler.naturalTy)
                 result = code.Trunc(result, req);
         }
@@ -499,21 +503,25 @@ JIT::Value_p CompilerFunction::Autobox(Tree *source,
     else if (req->isFloatingPointTy())
     {
         assert(type == compiler.realTreePtrTy);
-        result = code.StructGEP(value, REAL_VALUE_INDEX, "ubox_real");
+        result = code.StructGEP(compiler.realTreeTy,
+                                value, REAL_VALUE_INDEX, "ubox_real");
         if (req != compiler.realTy)
             result = code.FPTrunc(result, req);
     }
     else if (req == compiler.charPtrTy)
     {
         assert(type == compiler.textTreePtrTy);
-        result = code.StructGEP(result, TEXT_VALUE_INDEX, "ubox_text");
-        result = code.StructGEP(result, 0, "ubox_charpp");
-        result = code.Load(result, "ubox_charp");
+        result = code.StructGEP(compiler.textTreeTy,
+                                result, TEXT_VALUE_INDEX, "ubox_text");
+        result = code.StructGEP(compiler.textTy,
+                                result, 0, "ubox_charpp");
+        result = code.Load(compiler.charPtrTy, result, "ubox_charp");
     }
     else if (req == compiler.textTy || req == compiler.textPtrTy)
     {
         assert (type == compiler.textTreePtrTy);
-        result = code.StructGEP(result, TEXT_VALUE_INDEX, "ubox_text");
+        result = code.StructGEP(compiler.textTreeTy,
+                                result, TEXT_VALUE_INDEX, "ubox_text");
     }
 
     // Boxing cases
@@ -560,18 +568,27 @@ JIT::Value_p CompilerFunction::Autobox(Tree *source,
         assert(req == compiler.treePtrTy || req == compiler.textTreePtrTy);
         boxFn = unit.xl_new_ctext;
     }
-    else if (req == compiler.blockTreePtrTy   ||
-             req == compiler.infixTreePtrTy   ||
-             req == compiler.prefixTreePtrTy  ||
-             req == compiler.postfixTreePtrTy ||
-             req == compiler.treePtrTy)
+    else if (compiler.IsTreePointerType(req))
     {
-        boxFn = unit.CompiledUnbox(type);
-        if (boxFn)
+        if (type->isVoidTy() && req == compiler.treePtrTy)
         {
-            JIT::Value_p storage = NeedStorage(source, type);
-            code.Store(result, storage);
-            result = storage;
+            result = ConstantTree(xl_nil);
+            type = req;
+        }
+        else if (compiler.IsTreePointerType(type))
+        {
+            result = code.BitCast(result, req, "treep");
+        }
+        else
+        {
+            boxFn = unit.CompiledUnbox(type);
+            if (boxFn)
+            {
+                JIT::Value_p storage = NeedStorage(source, type);
+                code.Store(result, storage);
+                result = storage;
+                result = code.Load(type, result, "box");
+            }
         }
     }
 
@@ -585,20 +602,13 @@ JIT::Value_p CompilerFunction::Autobox(Tree *source,
     type = JIT::Type(result);
 
     // Check if a tree type cast is required
-    if (req == compiler.treePtrTy && type != req)
+    if (type != req && compiler.IsTreePointerType(req))
     {
-        if (type == compiler.naturalTreePtrTy ||
-            type == compiler.realTreePtrTy    ||
-            type == compiler.textTreePtrTy    ||
-            type == compiler.nameTreePtrTy    ||
-            type == compiler.blockTreePtrTy   ||
-            type == compiler.prefixTreePtrTy  ||
-            type == compiler.postfixTreePtrTy ||
-            type == compiler.infixTreePtrTy)
-            result = code.PointerAs(result, req);
+        if (compiler.IsTreePointerType(type))
+            result = code.BitCast(result, req, "treep");
         else
             // If there was some inconsistency, return an error
-            result = ConstantTree(xl_nil);
+            result = CallFormError(source);
     }
 
     // Return what we built if anything
@@ -622,10 +632,9 @@ JIT::Function_p CompilerFunction::UnboxFunction(JIT::Type_p type,
 
         // Get original form representing that data type
         JIT::Type_p mtype = compiler.treePtrTy;
-        JIT::Type_p ptype = unit.jit.PointerType(type);
 
         // Create a function that looks like [Tree *unboxfn(boxtype *)]
-        JIT::Signature sig { compiler.ulongTy, ptype };
+        JIT::Signature sig { compiler.ulongTy, type };
         JIT::FunctionType_p fty = jit.FunctionType(mtype, sig);
         CompilerFunction unbox(unit, pattern, pattern, types, fty, "xl.unbox");
 
@@ -637,7 +646,7 @@ JIT::Function_p CompilerFunction::UnboxFunction(JIT::Type_p type,
 
         // Generate the code to create the unboxed tree
         unsigned index = 0;
-        JIT::Value_p rval = unbox.Unbox(arg, pattern, index);
+        JIT::Value_p rval = unbox.Unbox(arg, type, pattern, index);
         rval = unbox.Autobox(pattern, rval, mtype);
         unbox.Return(pattern, rval);
 
@@ -654,6 +663,7 @@ JIT::Function_p CompilerFunction::UnboxFunction(JIT::Type_p type,
 
 
 JIT::Value_p CompilerFunction::Unbox(JIT::Value_p boxed,
+                                     JIT::Type_p boxedTy,
                                      Tree *pattern,
                                      uint &index)
 // ----------------------------------------------------------------------------
@@ -679,8 +689,7 @@ JIT::Value_p CompilerFunction::Unbox(JIT::Value_p boxed,
     case NAME:
     {
         // Get element from input argument
-        JIT::Value_p result = code.StructGEP(boxed, index++, "boxedp");
-        result = code.Load(result);
+        JIT::Value_p result = code.StructLoad(boxedTy, boxed, index++, "boxp");
         return result;
     }
 
@@ -688,11 +697,11 @@ JIT::Value_p CompilerFunction::Unbox(JIT::Value_p boxed,
     {
         Infix *infix = (Infix *) pattern;
         if (IsTypeAnnotation(infix) || IsPatternCondition(infix))
-            return Unbox(boxed, infix->left, index);
+            return Unbox(boxed, boxedTy, infix->left, index);
         ref = ConstantTree(infix);
         ref = code.BitCast(ref, compiler.infixTreePtrTy);
-        left = Unbox(boxed, infix->left, index);
-        right = Unbox(boxed, infix->right, index);
+        left = Unbox(boxed, boxedTy, infix->left, index);
+        right = Unbox(boxed, boxedTy, infix->right, index);
         left = Autobox(infix->left, left, ttp);
         right = Autobox(infix->right, right, ttp);
         return code.Call(unit.xl_new_infix, ref, left, right);
@@ -706,8 +715,8 @@ JIT::Value_p CompilerFunction::Unbox(JIT::Value_p boxed,
         if (prefix->left->Kind() == NAME)
             left = ConstantTree(prefix->left);
         else
-            left = Unbox(boxed, prefix->left, index);
-        right = Unbox(boxed, prefix->right, index);
+            left = Unbox(boxed, boxedTy, prefix->left, index);
+        right = Unbox(boxed, boxedTy, prefix->right, index);
         left = Autobox(prefix->left, left, ttp);
         right = Autobox(prefix->right, right, ttp);
         return code.Call(unit.xl_new_prefix, ref, left, right);
@@ -718,11 +727,11 @@ JIT::Value_p CompilerFunction::Unbox(JIT::Value_p boxed,
         Postfix *postfix = (Postfix *) pattern;
         ref = ConstantTree(postfix);
         ref = code.BitCast(ref, compiler.postfixTreePtrTy);
-        left = Unbox(boxed, postfix->left, index);
+        left = Unbox(boxed, boxedTy, postfix->left, index);
         if (postfix->right->Kind() == NAME)
             right = ConstantTree(postfix->right);
         else
-            right = Unbox(boxed, postfix->right, index);
+            right = Unbox(boxed, boxedTy, postfix->right, index);
         left = Autobox(postfix->left, left, ttp);
         right = Autobox(postfix->right, right, ttp);
         return code.Call(unit.xl_new_postfix, ref, left, right);
@@ -733,7 +742,7 @@ JIT::Value_p CompilerFunction::Unbox(JIT::Value_p boxed,
         Block *block = (Block *) pattern;
         ref = ConstantTree(block);
         ref = code.BitCast(ref, compiler.blockTreePtrTy);
-        child = Unbox(boxed, block->child, index);
+        child = Unbox(boxed, boxedTy, block->child, index);
         child = Autobox(block->child, child, ttp);
         return code.Call(unit.xl_new_block, ref, child);
     }
@@ -794,7 +803,7 @@ JIT::Value_p CompilerFunction::Known(Tree *tree, uint which)
     {
         auto it = storage.find(tree);
         if (it != storage.end())
-            return code.Load(it->second, "loc");
+            return code.Load(compiler.treePtrTy, it->second, "loc");
     }
     if (which & knowValues)
     {
@@ -806,7 +815,7 @@ JIT::Value_p CompilerFunction::Known(Tree *tree, uint which)
     {
         auto it = unit.globals.find(tree);
         if (it != unit.globals.end())
-            return code.Load(it->second, "glob");
+            return code.Load(compiler.treePtrTy, it->second, "glob");
     }
     return nullptr;
 }
@@ -1119,9 +1128,9 @@ JIT::Value_p CompilerFunction::BoxedTree(Tree *what)
     // Generate the data
     unsigned index = 0;
     JIT::Value_p box = NeedStorage(what, sty);
-    JIT::Value_p result = Data(what, box, index);
+    JIT::Value_p result = Data(what, box, sty, index);
 
-    result = code.Load(box);
+    result = code.Load(sty, box);
     return result;
 }
 
