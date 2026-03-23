@@ -165,7 +165,6 @@ public:
     // LLVM data types required for the JIT interface
     typedef llvm::Type                  *Type_p;
     typedef llvm::IntegerType           *IntegerType_p;
-    // LLVM 17+ may represent XL logical pointers with wrapper structs.
     typedef llvm::Type                  *PointerType_p;
     typedef llvm::ArrayType             *ArrayType_p;
     typedef llvm::StructType            *StructType_p;

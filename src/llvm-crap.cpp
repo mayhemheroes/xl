@@ -276,6 +276,11 @@ static const char *kTreePtrWrapperPrefix = "xl.ptr.";
 
 static inline bool IsTreePtrWrapperType(JIT::Type_p type)
 // ----------------------------------------------------------------------------
+//   Return true for strucs wrapping a pointer
+// ----------------------------------------------------------------------------
+//   This is made necessary for LLVM after LLVM17, because the IR now uses
+//   opaque pointers (ptr) as opposed to typed pointers (tree *), making it
+//   impossible to distinguish for example Text * from char *.
 {
 #if LLVM_VERSION >= 1700
     if (auto st = dyn_cast<StructType>(type))
@@ -293,6 +298,8 @@ static inline bool IsTreePtrWrapperType(JIT::Type_p type)
 }
 
 static inline JIT::Type_p WrappedRawPointerType(JIT::Type_p type)
+// ----------------------------------------------------------------------------
+//   Extract the raw pointer from a struct wrapper
 // ----------------------------------------------------------------------------
 {
 #if LLVM_VERSION >= 1700
@@ -441,7 +448,7 @@ class JITPrivate
     std::unique_ptr<LLJIT> lljit;
     orc::ResourceTrackerSP moduleTracker;
     ModuleHandle        nextModuleHandle;
-    std::vector<std::pair<JIT::Type_p, JIT::Type_p>> treeWrapperPointees;
+    std::map<JIT::Type_p, JIT::Type_p> treeWrapperPointees;
 #elif LLVM_VERSION < 900
 #if LLVM_VERSION >= 700
     ExecutionSession    session;
@@ -1417,15 +1424,7 @@ JIT::PointerType_p JIT::TreePointerType(Type_p rty, kstring name)
     if (tname.find(kTreePtrWrapperPrefix) != 0)
         tname = text(kTreePtrWrapperPrefix) + tname;
     JIT::Type_p wrapper = StructType({PointerType(rty)}, tname.c_str());
-    bool known = false;
-    for (auto &it : p.treeWrapperPointees)
-        if (it.first == wrapper)
-        {
-            known = true;
-            break;
-        }
-    if (!known)
-        p.treeWrapperPointees.push_back({wrapper, rty});
+    p.treeWrapperPointees[wrapper] = rty;
     return wrapper;
 #else
     (void) name;
@@ -1440,10 +1439,7 @@ JIT::Type_p JIT::WrappedPointeeType(Type_p wrapper) const
 // ----------------------------------------------------------------------------
 {
 #if LLVM_VERSION >= 1700
-    for (auto it = p.treeWrapperPointees.rbegin();
-         it != p.treeWrapperPointees.rend(); ++it)
-        if (it->first == wrapper)
-            return it->second;
+    return p.treeWrapperPointees[wrapper];
 #else
     (void) wrapper;
 #endif
