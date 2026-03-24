@@ -359,6 +359,11 @@ adapter_fn FastCompiler::ArrayToArgsAdapter(uint numargs)
     // Return the result
     code.Return(retVal);
 
+    if (jit.VerifyFunction(adapter))
+    {
+        Ooops("Internal: ArrayToArgs adapter verification failed");
+        return nullptr;
+    }
     // Enter the result in the map
     jit.Finalize(adapter);
     record(llvm_code, "Code for ArrayToArgs(%u) is %v", numargs, adapter);
@@ -458,6 +463,11 @@ eval_fn FastCompiler::ClosureAdapter(uint numtrees)
     JIT::Value_p callVal = code.Call(toCall, argV);
     code.Return(callVal);
 
+    if (jit.VerifyFunction(function))
+    {
+        Ooops("Internal: closure adapter verification failed");
+        return nullptr;
+    }
     // Generate machine code for the function
     jit.Finalize(function);
     result = (eval_fn) jit.ExecutableCode(function);
@@ -2213,6 +2223,12 @@ eval_fn O1CompileUnit::Finalize(bool topLevel)
     // Generate the code
     if (RECORDER_TRACE(llvm_code) & 1)
         jit.Print("Unoptimized (fast compiler):\n", function);
+    if (jit.VerifyFunction(function))
+    {
+        Ooops("Fast compiler: generated code verification failed for $1 (internal)",
+              source);
+        return nullptr;
+    }
     jit.Finalize(function);
     if (RECORDER_TRACE(llvm_code) & 2)
         jit.Print("Optimized (fast compiler):\n", function);
