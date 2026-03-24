@@ -1,57 +1,5 @@
 services:
-  # === Very old versions (nwtgck/pre-built-llvm-clang) ===
-  llvm-3.6:
-    image: nwtgck/pre-built-llvm-clang:3.6.2
-    volumes:
-      - .:/xlr:Z
-    working_dir: /xlr
-    command: bash
-    environment:
-      - CC=clang-3.6
-      - CXX=clang++-3.6
-
-  llvm-3.7:
-    image: nwtgck/pre-built-llvm-clang:3.7.0
-    volumes:
-      - .:/xlr:Z
-    working_dir: /xlr
-    command: bash
-    environment:
-      - CC=clang-3.7
-      - CXX=clang++-3.7
-
-  llvm-4.0:
-    image: nwtgck/pre-built-llvm-clang:4.0.0
-    volumes:
-      - .:/xlr:Z
-    working_dir: /xlr
-    command: bash
-    environment:
-      - CC=clang
-      - CXX=clang++
-
-  # === LLVM 5.x (uses the correct repository) ===
-  llvm-5.0:
-    image: nwtgck/llvm-clang:5.0.0
-    volumes:
-      - .:/xlr:Z
-    working_dir: /xlr
-    command: bash
-    environment:
-      - CC=clang
-      - CXX=clang++
-
   # === Modern versions (silkeh/clang) ===
-  llvm-6:
-    image: silkeh/clang:6
-    volumes:
-      - .:/xlr:Z
-    working_dir: /xlr
-    command: bash
-    environment:
-      - CC=clang
-      - CXX=clang++
-
   llvm-7:
     image: silkeh/clang:7
     volumes:

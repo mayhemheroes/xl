@@ -2109,17 +2109,17 @@ JIT::Value_p JITBlock::StructLoad(JIT::Type_p structTy,
 // ----------------------------------------------------------------------------
 //   Field load from a boxed struct. Unbox() passes the function argument
 //   as a first-class aggregate (%boxed), not %boxed* — GEP+Load is invalid
-//   (LLVM may emit bogus addrspacecast). Use ExtractValue for LLVM 12+.
+//   (LLVM may emit bogus addrspacecast). Use ExtractValue for LLVM 10+.
 {
-#if LLVM_VERSION >= 1200
+#if LLVM_VERSION >= 700
     ptr = PointerValue(ptr);
     assert(isa<StructType>(structTy) && "StructLoad expects a struct type");
     auto value = b->CreateExtractValue(ptr, {idx}, name);
-#else // LLVM_VERSION < 1200
+#else // LLVM_VERSION < 700
     (void) structTy;
     auto itemp = b->CreateStructGEP(ptr, idx, name);
     auto value = b->CreateLoad(itemp, name);
-#endif // LLVM_VERSION >= 1200 / < 1200 (StructLoad)
+#endif // LLVM_VERSION >= 700 (StructLoad)
     record(llvm_ir, "StructLoad %+s(%v, %u) is %v", name, ptr, idx, value);
     return value;
 }

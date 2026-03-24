@@ -170,8 +170,16 @@ CPPFLAGS_llvm360=-std=c++11 $(LDFLAGS_CPPLIB_$(BUILDENV))
 # Since LLVM is compiled without RTTI, we need to compile llvm-crap.cpp
 # without it as well, or get unresolved symbol on some LLVM RTTI symbols
 # (_ZTIN4llvm3orc14SymbolResolverE aka typeinfo for llvm::orc::SymbolResolver)
-CXXFLAGS_llvm-crap=-fno-rtti
+#
+# llvm-crap.cpp includes LinkAllIR.h / LinkAllPasses.h. Many distro llvm-config
+# --cxxflags omit -DNDEBUG; without it, those headers can reference debug-only
+# APIs (e.g. llvm::cfg::Update<*>::dump) that are not in release libLLVM,
+# breaking the final link of xl against libxl.so. Scope -DNDEBUG to this file
+# only so the rest of XL can still use assert() in non-LLVM TUs.
+CXXFLAGS_llvm-crap=-fno-rtti -DNDEBUG
 DEFINES_llvm-crap=DISABLE_RTTI
+
+DEFINES_TARGET_release=OPTIMIZED RELEASE
 
 # Additional dependencies
 MINGW_LIBS_mingw=-lws2_32

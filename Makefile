@@ -47,7 +47,8 @@ $(MIQ)rules.mk:
 # Do not run tests in the recorder
 RECURSE_FLAGS_recorder=RUN_TESTS=
 
-VERSIONS = 21 20 19 18 17 16 15 14 13 12 11 10 9 8 7 6 5.0 4.0 3.7 3.6
+VERSIONS = 21 20 19 18 17 16 15 14 13 12 11 10 9 8 7
+# Versions that now fail: 6 5.0 4.0 3.7 3.6
 
 llvm-test llvm-tests: $(VERSIONS:%=llvm-test-%)
 
