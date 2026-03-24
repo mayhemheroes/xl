@@ -165,7 +165,10 @@
 # include "llvm/ExecutionEngine/SectionMemoryManager.h"
 # include <llvm/IR/LegacyPassManager.h>
 # include <llvm/IR/Mangler.h>
-# if LLVM_VERSION >= 1700
+// OrcV1 utilities (LambdaResolver, LazyEmittingLayer, etc.) were deprecated
+// then removed (LLVM 11+). LLVM 9+ JIT code here uses ORCv2 (LLLazyJIT /
+// LLJIT) and only needs the LLJIT umbrella headers — same as LLVM 17+.
+# if LLVM_VERSION >= 900
 #  include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 #  include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
 #  include "llvm/ExecutionEngine/Orc/LLJIT.h"
@@ -180,8 +183,12 @@
 # endif
 #endif // >= 370
 
-#if LLVM_VERSION > 381 && LLVM_VERSION < 1700
+// OrcRemoteTargetClient went away with other remote Orc experiments well
+// before LLVM 11; keep the include only where the header still exists.
+#if LLVM_VERSION > 381 && LLVM_VERSION < 1100
 # include "llvm/ExecutionEngine/Orc/OrcRemoteTargetClient.h"
+#endif
+#if LLVM_VERSION > 381 && LLVM_VERSION < 1700
 # include <llvm/Transforms/Scalar/GVN.h>
 #endif // 381
 
@@ -320,10 +327,12 @@ typedef LazyEmittingLayer::ModuleSetHandleT          ModuleHandle;
 typedef CompileLayer::ModuleSetHandleT               ModuleHandle;
 #elif LLVM_VERSION < 700
 typedef CompileLayer::ModuleHandleT                  ModuleHandle;
-#elif LLVM_VERSION < 1700
+#elif LLVM_VERSION < 900
+// ORCv1 (LLVM 7-8): VModuleKey and a resolver; removed in ORCv2.
 typedef std::shared_ptr<SymbolResolver>              SymbolResolver_s;
 typedef VModuleKey                                   ModuleHandle;
-#else // LLVM_VERSION >= 1700
+#else
+// LLVM 9+: ORCv2 (LLLazyJIT or LLJIT); no VModuleKey / SymbolResolver typedefs.
 typedef intptr_t                                     ModuleHandle;
 #endif // LLVM_VERSION vs. 700
 
@@ -419,6 +428,10 @@ class JITPrivate
     ThreadSafeContext   threadSafeContext;
     LLVMContext &       context;
     MangleAndInterner   mangle;
+# if LLVM_VERSION >= 1500
+    std::map<JIT::Type_p, JIT::PointerType_p> machineType;
+# endif
+    ModuleHandle        nextModuleHandle;
 #endif // LLVM_VERSION >= 1700
 
     Module_s            module;
@@ -443,7 +456,7 @@ private:
 };
 
 
-#if LLVM_VERSION < 1700
+#if LLVM_VERSION < 900
 static inline uint64_t globalSymbolAddress(const text &name)
 // ----------------------------------------------------------------------------
 //    Return the address of the symbol in the current address space
@@ -454,7 +467,7 @@ static inline uint64_t globalSymbolAddress(const text &name)
            name.c_str(), (void *) result);
     return result;
 }
-#endif // LLVM_VERSION < 1700
+#endif // LLVM_VERSION < 900
 
 
 #if LLVM_VERSION >= 380 && LLVM_VERSION < 1700
@@ -630,6 +643,10 @@ JITPrivate::JITPrivate(int argc, char **argv)
 #endif // LLVM_VERSION vs 1000
       context(*threadSafeContext.getContext()),
       mangle(session, layout),
+# if LLVM_VERSION >= 1500
+      machineType(),
+# endif
+      nextModuleHandle(1),
 #endif // LLVM_VERSION >= 1700
       module(),
       moduleHandle()
@@ -764,8 +781,10 @@ JIT::ModuleID JITPrivate::CreateModule(text name)
     moduleHandle = nextModuleHandle++;
 #else
     module->setDataLayout(layout);
-#if LLVM_VERSION >= 700
+#if LLVM_VERSION >= 700 && LLVM_VERSION < 900
     moduleHandle = session.allocateVModule();
+#elif LLVM_VERSION >= 900 && LLVM_VERSION < 1700
+    moduleHandle = nextModuleHandle++;
 #endif
 #endif
     return (intptr_t) moduleHandle;
@@ -778,7 +797,7 @@ void JITPrivate::DeleteModule(JIT::ModuleID modID)
 // ----------------------------------------------------------------------------
 {
     assert(modID == (intptr_t) moduleHandle && "Removing an unknown module");
-#if LLVM_VERSION >= 700 && LLVM_VERSION < 1700
+#if LLVM_VERSION >= 700 && LLVM_VERSION < 900
     assert(moduleHandle && "Removing a module with null VModKey");
 #endif
 
@@ -1161,7 +1180,8 @@ JIT::Type_p JIT::PointedType(Type_p type)
 {
     if (type->isPointerTy())
     {
-#if LLVM_VERSION >= 1700
+#if LLVM_VERSION >= 1500
+        // Opaque pointers: no distinct pointee type on llvm::PointerType.
         return nullptr;
 #else
         llvm::PointerType *ptype = cast<llvm::PointerType>(type);
@@ -1353,7 +1373,7 @@ JIT::PointerType_p JIT::FunctionPointerType(Type_p rty,
 //    Create a function pointer type
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1700
+#if LLVM_VERSION >= 1500
     return llvm::PointerType::get(p.ContextRef(), 0);
 #else
     JIT::FunctionType_p fty = FunctionType(rty, parms, va);
@@ -1367,12 +1387,9 @@ JIT::PointerType_p JIT::PointerType(Type_p rty, kstring name)
 //    Create a pointer type (always in address space 0)
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1700
-    // After LLVM17, all pointer types are `ptr` instead of being distinct
-    // This means that we cannot rely on `ty == treePtrTy` to distinguish the
-    // type from `ty == charPtrTy`. To workaround this, we wrapp all the types
-    // in a struct. We rely on the fact that, according to Grok, passing a
-    // wrapper struct is ABI-compatible with passing the pointer itself
+#if LLVM_VERSION >= 1500
+    // Opaque pointers: all LLVM IR pointers are `ptr`; we wrap logical XL
+    // pointer types in single-field structs so they stay distinguishable.
     JIT::PointerType_p pty = llvm::PointerType::get(p.ContextRef(), 0);
     JIT::Type_p wrapper = StructType({pty}, name);
     p.machineType[wrapper] = pty;
@@ -1388,7 +1405,7 @@ JIT::PointerType_p JIT::MachinePointerType(Type_p wrapper) const
 //   Turn a wrapper type into machine pointer type
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1700
+#if LLVM_VERSION >= 1500
     return p.machineType.count(wrapper) ? p.machineType[wrapper] : nullptr;
 #else
     assert (!wrapper || wrapper->isPointerTy());
@@ -1748,7 +1765,7 @@ JIT::Constant_p JITBlock::PointerConstant(JIT::Type_p type, void *pointer)
     if (!rawTy)
         rawTy = type;
     JIT::Constant_p result = llvm::Constant::getIntegerValue(rawTy, addr);
-#if LLVM_VERSION >= 1700
+#if LLVM_VERSION >= 1500
     if (type != rawTy)
         if (auto st = dyn_cast<StructType>(type))
             result = llvm::ConstantStruct::get(st, {result});
@@ -1763,7 +1780,7 @@ JIT::Value_p JITBlock::TextConstant(JIT::Type_p type, text value)
 //   Return a constant array of characters for the input text
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1700
+#if LLVM_VERSION >= 1500
     llvm::GlobalVariable *gv = b->CreateGlobalString(value);
     JIT::StructType_p st = dyn_cast<StructType>(type);
     JIT::Value_p result = llvm::ConstantStruct::get(st, {gv});
@@ -1814,7 +1831,7 @@ static inline llvm::FunctionCallee Callee(JIT::Value_p callee)
     }
 
     assert(type->isPointerTy() && "Callee requires a callable value");
-#if LLVM_VERSION >= 1700
+#if LLVM_VERSION >= 1500
     if (auto fn = llvm::dyn_cast<llvm::Function>(callee))
         return llvm::FunctionCallee(fn);
     return llvm::FunctionCallee(nullptr, callee);
@@ -2013,7 +2030,7 @@ JIT::Value_p JITBlock::StructGEP(JIT::Type_p structTy,
 //   Opaque pointers: caller supplies aggregate type
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1700
+#if LLVM_VERSION >= 1500
     ptr = PointerValue(ptr);
     auto inst = b->CreateStructGEP(structTy, ptr, idx, name);
 #else
@@ -2033,7 +2050,7 @@ JIT::Value_p JITBlock::ArrayGEP(JIT::Type_p  elementTy,
 //   Accessing an array element with a fixed index
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1700
+#if LLVM_VERSION >= 1500
     auto inst = b->CreateConstInBoundsGEP1_32(elementTy, ptr, idx, name);
 #else
     (void) elementTy;
@@ -2048,7 +2065,7 @@ JIT::Value_p JITBlock::Load(JIT::Type_p ty, JIT::Value_p ptr, kstring name)
 //   Explicitly typed load for opaque pointers
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1700
+#if LLVM_VERSION >= 1500
     ptr = PointerValue(ptr);
     auto value = b->CreateLoad(ty, ptr, name);
 #else
@@ -2068,7 +2085,7 @@ JIT::Value_p JITBlock::StructLoad(JIT::Type_p structTy,
 //   For opaque pointers, we need to get the item type from struct
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1700
+#if LLVM_VERSION >= 1500
     ptr = PointerValue(ptr);
     JIT::StructType_p st = dyn_cast<StructType>(structTy);
     assert(st);
@@ -2088,7 +2105,7 @@ JIT::Value_p JITBlock::PointerValue(JIT::Value_p ptr)
 //   Extract raw pointer from logical wrapper when required
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1700
+#if LLVM_VERSION >= 1500
     if (ptr)
     {
         JIT::Type_p wty = ptr->getType();
@@ -2096,7 +2113,7 @@ JIT::Value_p JITBlock::PointerValue(JIT::Value_p ptr)
         if (rty)
             return b->CreateExtractValue(ptr, {0}, "rawptr");
     }
-#endif // LLVM_VERSION >= 1700
+#endif // LLVM_VERSION >= 1500
     return ptr;
 }
 
@@ -2106,19 +2123,19 @@ JIT::Value_p JITBlock::WrappedValue(JIT::Value_p ptr, JIT::Type_p type)
 //  Convert to wrapper type in case we need it
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1700
+#if LLVM_VERSION >= 1500
     auto storage = Alloca(type, "wrap");
     auto field = b->CreateStructGEP(type, storage, 0, "fieldp");
     b->CreateStore(ptr, field);
     ptr = b->CreateLoad(type, storage, "wrapper");
-#endif // LLVM_VERSION >= 1700
+#endif // LLVM_VERSION >= 1500
     return ptr;
 }
 
 
 JIT::Value_p JITBlock::BitCast(JIT::Value_p v, JIT::Type_p t, kstring name)
 // ----------------------------------------------------------------------------
-//   Bitcast with wrapper-awareness for LLVM 17+ logical pointer structs
+//   Bitcast with wrapper-awareness for opaque-pointer logical struct types
 // ----------------------------------------------------------------------------
 {
     if (!v || !t)

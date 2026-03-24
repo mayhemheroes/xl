@@ -32,7 +32,7 @@
 // If not, see <https://www.gnu.org/licenses/>.
 // *****************************************************************************
 // OPT=-O3 -nobuiltins
-// FILTER=sed -e 's/_some_unknown_symbol/some_unknown_symbol/g' -e '/^JIT session error:/d' -e 's/Failed to materialize symbols:.*$/Unresolved symbols: some_unknown_symbol/' -e 's/Symbols not found.*some_unknown_symbol.*/Unresolved symbols: some_unknown_symbol/g'
+// FILTER=sed -e 's/_some_unknown_symbol/some_unknown_symbol/g' -e '/^JIT session error:/d' -e 's/Failed to materialize symbols:.*$/Unresolved symbols: some_unknown_symbol/' -e 's/Symbols not found.*some_unknown_symbol.*/Unresolved symbols: some_unknown_symbol/g' | uniq
 // EXIT=1
 invalid_function X:text is C some_unknown_symbol
 invalid_function "Hello"
