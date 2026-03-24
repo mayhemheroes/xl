@@ -91,7 +91,7 @@
 // Sometimes, headers magically disappear
 #if LLVM_VERSION < 27
 # include <llvm/ModuleProvider.h>
-#endif
+#endif // LLVM_VERSION < 27
 
 // Sometimes, headers are renamed. With a really different name.
 // Not that it contains exactly the same thing, but it's the replacement.
@@ -99,7 +99,7 @@
 # include <llvm/Support/StandardPasses.h>
 #elif LLVM_VERSION < 1700
 # include <llvm/Transforms/IPO/PassManagerBuilder.h>
-#endif
+#endif // LLVM_VERSION < 30 / PassManagerBuilder
 
 // It sometimes takes more than one version to decide where to put things
 // For example, knowing your target is completely unoptional.
@@ -112,10 +112,10 @@
 #elif LLVM_VERSION < 33
 # include <llvm/IRBuilder.h>
 # include <llvm/DataLayout.h>
-#else
+#else // LLVM_VERSION >= 33
 # include <llvm/IR/IRBuilder.h>
 # include <llvm/IR/DataLayout.h>
-#endif
+#endif // LLVM_VERSION < 32 (IRBuilder / TargetData)
 
 // It's also funny to move headers around for really no good reason at all,
 // including core features that absolutely everybody has to use.
@@ -127,7 +127,7 @@
 # include <llvm/Instructions.h>
 # include <llvm/LLVMContext.h>
 # include <llvm/Module.h>
-#else
+#else // LLVM_VERSION >= 33
 # include <llvm/IR/CallingConv.h>
 # include <llvm/IR/Constants.h>
 # include <llvm/IR/DerivedTypes.h>
@@ -135,22 +135,22 @@
 # include <llvm/IR/Instructions.h>
 # include <llvm/IR/LLVMContext.h>
 # include <llvm/IR/Module.h>
-#endif
+#endif // LLVM_VERSION < 33 (IR includes)
 
 // Let's avoid doing all the renaming at once.
 // TargetSelect no longer in Target? This is perfectly logical, trust me!
 #if LLVM_VERSION < 342
 # include <llvm/Target/TargetSelect.h>
-#else
+#else // LLVM_VERSION >= 342
 # include <llvm/Support/TargetSelect.h>
-#endif
+#endif // LLVM_VERSION < 342
 
 // Repeat at nauseam. Can you figure out why "Verifier" is not "Analysis" ?
 #if LLVM_VERSION < 350
 #include <llvm/Analysis/Verifier.h>
-#else
+#else // LLVM_VERSION >= 350
 #include <llvm/IR/Verifier.h>
-#endif
+#endif // LLVM_VERSION < 350
 
 // Apparently, nobody complained loudly enough that LLVM would stop moving
 // headers around. So around 370, they thought they needed to step things up.
@@ -173,24 +173,24 @@
 #  include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
 #  include "llvm/ExecutionEngine/Orc/LLJIT.h"
 #  include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
-# else
+# else // LLVM_VERSION < 900 (OrcV1 headers)
 #  include "llvm/ExecutionEngine/Orc/CompileUtils.h"
 #  include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
 #  include "llvm/ExecutionEngine/Orc/IRTransformLayer.h"
 #  include "llvm/ExecutionEngine/Orc/IndirectionUtils.h"
 #  include "llvm/ExecutionEngine/Orc/LambdaResolver.h"
 #  include "llvm/ExecutionEngine/Orc/LazyEmittingLayer.h"
-# endif
-#endif // >= 370
+# endif // LLVM_VERSION >= 900 (Orc umbrella headers)
+#endif // LLVM_VERSION < 370 / >= 370
 
 // OrcRemoteTargetClient went away with other remote Orc experiments well
 // before LLVM 11; keep the include only where the header still exists.
 #if LLVM_VERSION > 381 && LLVM_VERSION < 1100
 # include "llvm/ExecutionEngine/Orc/OrcRemoteTargetClient.h"
-#endif
+#endif // LLVM_VERSION > 381 && LLVM_VERSION < 1100
 #if LLVM_VERSION > 381 && LLVM_VERSION < 1700
 # include <llvm/Transforms/Scalar/GVN.h>
-#endif // 381
+#endif // LLVM_VERSION > 381 && LLVM_VERSION < 1700
 
 #if   LLVM_VERSION < 380
 # include "llvm/ExecutionEngine/Orc/OrcTargetSupport.h"
@@ -210,7 +210,7 @@
 
 #if LLVM_VERSION >= 1700
 # include <llvm/Transforms/Scalar/GVN.h>
-#endif
+#endif // LLVM_VERSION >= 1700
 
 // Finally, link everything together.
 // That, apart for the warnings, has remained somewhat stable
@@ -282,7 +282,7 @@ using namespace llvm::orc;
 
 #if LLVM_VERSION < 400
 typedef TargetAddress                                JITTargetAddress;
-#endif // LLVM_VERSION
+#endif // LLVM_VERSION < 400
 
 #if LLVM_VERSION < 500
 typedef std::unique_ptr<Module>                      Module_s;
@@ -319,7 +319,7 @@ typedef std::unique_ptr<JITCompileCallbackManager>   CompileCallbacks_u;
 
 #if LLVM_VERSION >= 380
 typedef std::unique_ptr<IndirectStubsManager>        IndirectStubs_u;
-#endif
+#endif // LLVM_VERSION >= 380
 
 #if LLVM_VERSION < 380
 typedef LazyEmittingLayer::ModuleSetHandleT          ModuleHandle;
@@ -331,10 +331,10 @@ typedef CompileLayer::ModuleHandleT                  ModuleHandle;
 // ORCv1 (LLVM 7-8): VModuleKey and a resolver; removed in ORCv2.
 typedef std::shared_ptr<SymbolResolver>              SymbolResolver_s;
 typedef VModuleKey                                   ModuleHandle;
-#else
+#else // LLVM_VERSION >= 900
 // LLVM 9+: ORCv2 (LLLazyJIT or LLJIT); no VModuleKey / SymbolResolver typedefs.
 typedef intptr_t                                     ModuleHandle;
-#endif // LLVM_VERSION vs. 700
+#endif // LLVM_VERSION < 380 / ModuleHandle
 
 
 
@@ -396,7 +396,7 @@ class JITPrivate
     std::unique_ptr<LLVMContext> context;
 #elif LLVM_VERSION < 900
     LLVMContext         context;
-#endif
+#endif // LLVM_VERSION >= 1700 / < 900 (context storage)
     TargetMachine_u     target;
     const DataLayout    layout;
 #if LLVM_VERSION >= 1700
@@ -421,8 +421,8 @@ class JITPrivate
     CompileCallbacks_u  callbacks;
 #if LLVM_VERSION >= 380
     IndirectStubs_u     stubs;
-#endif // LLVM_VERSION
-#else
+#endif // LLVM_VERSION >= 380 && < 900
+#else // LLVM_VERSION >= 900 && LLVM_VERSION < 1700
     std::unique_ptr<LLLazyJIT> magic;
     ExecutionSession &  session;
     ThreadSafeContext   threadSafeContext;
@@ -430,7 +430,7 @@ class JITPrivate
     MangleAndInterner   mangle;
 # if LLVM_VERSION >= 1500
     std::map<JIT::Type_p, JIT::PointerType_p> machineType;
-# endif
+# endif // LLVM_VERSION >= 1500 (machineType map)
     ModuleHandle        nextModuleHandle;
 #endif // LLVM_VERSION >= 1700
 
@@ -450,7 +450,7 @@ private:
     text                Mangle(text name);
 #if LLVM_VERSION < 1700
     JITSymbol           Symbol(text name);
-#endif
+#endif // LLVM_VERSION < 1700
     JITTargetAddress    Address(text name);
     void                PrintCode();
 };
@@ -544,7 +544,7 @@ static void logErrorsToStdErr(llvm::Error err)
     record(llvm_symbols, "Error: %s", llvmSymbolError);
 }
 #endif // LLVM_VERSION < 1700
-#endif
+#endif // LLVM_VERSION >= 900 (exitOnError / logErrorsToStdErr)
 
 
 extern "C" Natural *xl_new_natural(TreePosition pos, ulonglong value);
@@ -563,7 +563,7 @@ JITPrivate::JITPrivate(int argc, char **argv)
       context(std::make_unique<LLVMContext>()),
 #elif LLVM_VERSION < 900
       context(),
-#endif
+#endif // LLVM_VERSION >= 1700 / < 900 (initializer list)
       target(EngineBuilder().selectTarget()),
       layout(target->createDataLayout()),
 #if LLVM_VERSION >= 1700
@@ -645,7 +645,7 @@ JITPrivate::JITPrivate(int argc, char **argv)
       mangle(session, layout),
 # if LLVM_VERSION >= 1500
       machineType(),
-# endif
+# endif // LLVM_VERSION >= 1500 (machineType map)
       nextModuleHandle(1),
 #endif // LLVM_VERSION >= 1700
       module(),
@@ -691,7 +691,7 @@ JITPrivate::JITPrivate(int argc, char **argv)
 #define EXTERNAL(Name, RetTy, ...)      session.intern(Mangle(#Name)),
 #include "compiler-primitives.tbl"
         });
-#endif
+#endif // XL_WHITELISTING
 
     auto generator = DynamicLibrarySearchGenerator::GetForCurrentProcess(
         layout.getGlobalPrefix(),
@@ -712,7 +712,7 @@ JITPrivate::JITPrivate(int argc, char **argv)
         session.getMainJITDylib().setGenerator(*generator);
 #else // LLVM_VERSION >= 1000
         magic->getMainJITDylib().addGenerator(std::move(*generator));
-#endif
+#endif // LLVM_VERSION < 1000 / >= 1000 (JITPrivate ctor generator)
     }
     session.setErrorReporter(logErrorsToStdErr);
 #endif // LLVM_VERSION >= 900
@@ -739,9 +739,9 @@ LLVMContext &JITPrivate::ContextRef()
 #if LLVM_VERSION >= 1700
     assert(context && "No active LLVM context");
     return *context;
-#else
+#else // LLVM_VERSION < 1700
     return context;
-#endif
+#endif // LLVM_VERSION >= 1700 (ContextRef)
 }
 
 
@@ -774,19 +774,19 @@ JIT::ModuleID JITPrivate::CreateModule(text name)
     module = llvm::make_unique<llvm::Module>(name, context);
 #elif LLVM_VERSION >= 1000
     module = std::make_unique<llvm::Module>(name, context);
-#endif // LLVM_VERSION 500
+#endif // LLVM_VERSION (CreateModule: module allocation)
     record(llvm_modules, "Created module %p in %p", module.get(), this);
 #if LLVM_VERSION >= 1700
     module->setDataLayout(lljit->getDataLayout());
     moduleHandle = nextModuleHandle++;
-#else
+#else // LLVM_VERSION < 1700
     module->setDataLayout(layout);
 #if LLVM_VERSION >= 700 && LLVM_VERSION < 900
     moduleHandle = session.allocateVModule();
 #elif LLVM_VERSION >= 900 && LLVM_VERSION < 1700
     moduleHandle = nextModuleHandle++;
-#endif
-#endif
+#endif // LLVM_VERSION (moduleHandle assignment)
+#endif // LLVM_VERSION >= 1700 (CreateModule layout)
     return (intptr_t) moduleHandle;
 }
 
@@ -799,7 +799,7 @@ void JITPrivate::DeleteModule(JIT::ModuleID modID)
     assert(modID == (intptr_t) moduleHandle && "Removing an unknown module");
 #if LLVM_VERSION >= 700 && LLVM_VERSION < 900
     assert(moduleHandle && "Removing a module with null VModKey");
-#endif
+#endif // LLVM_VERSION >= 700 && LLVM_VERSION < 900
 
     // If we have transferred the module, let the optimizer cleanup,
     // else simply delete it here
@@ -821,19 +821,19 @@ void JITPrivate::DeleteModule(JIT::ModuleID modID)
 #elif LLVM_VERSION < 900
         cantFail(optimizer.removeModule(moduleHandle),
                  "Unable to remove module");
-#endif // LLVM_VERSION
+#endif // LLVM_VERSION (DeleteModule: remove from optimizer)
     }
 
 #if LLVM_VERSION >= 700 && LLVM_VERSION < 1700
     moduleHandle = 0;
 #elif LLVM_VERSION >= 1700
     moduleHandle = 0;
-#endif // LLVM_VERSION >= 700
+#endif // LLVM_VERSION >= 700 && LLVM_VERSION < 1700 / >= 1700 (clear moduleHandle)
 
     module = nullptr;
 #if LLVM_VERSION >= 1700
     context = std::make_unique<LLVMContext>();
-#endif
+#endif // LLVM_VERSION >= 1700 (DeleteModule reset context)
 }
 
 
@@ -858,7 +858,7 @@ Module_s JITPrivate::OptimizeModule(Module_s module)
     if (Opt::emitIR)
         module->print(llvm::outs(), nullptr);
     return module;
-#else
+#else // LLVM_VERSION < 1700
     if (RECORDER_TRACE(llvm_code) & 0x10)
         dumpModule(module.get(), "Dump of module before optimizations");
 
@@ -914,7 +914,7 @@ Module_s JITPrivate::OptimizeModule(Module_s module)
         dumpModule(module.get(), "Dump of module after optimizations");
 
     return module;
-#endif
+#endif // LLVM_VERSION >= 1700 (OptimizeModule)
 }
 
 
@@ -987,7 +987,7 @@ JITTargetAddress JITPrivate::Address(text name)
         return 0;
     }
     return (JITTargetAddress) symbol->getValue();
-#else
+#else // LLVM_VERSION < 1700 (Address)
 #if LLVM_VERSION < 700
 # if LLVM_VERSION < 390
 #  define rtsym(sym)    RuntimeDyld::SymbolInfo((sym).getAddress(),     \
@@ -1004,7 +1004,7 @@ JITTargetAddress JITPrivate::Address(text name)
 
 # if LLVM_VERSION < 380
 #  define optimizer lazyEmitter
-# endif
+# endif // LLVM_VERSION < 380 (optimizer alias for Address)
 
     static text hadErrorWith = "";
     if (module.get())
@@ -1088,7 +1088,7 @@ JITTargetAddress JITPrivate::Address(text name)
             return 0;
         }
     }
-#endif
+#endif // LLVM_VERSION (Address: add module / ORC branch)
 #endif // LLVM_VERSION < 700
 
     auto r = Symbol(name).getAddress();
@@ -1146,7 +1146,7 @@ JIT::JIT(int argc, char **argv)
     recorder_configure_type('T', print_type);
 #if LLVM_VERSION >= 900
     exitOnError.setBanner(text(argv[0]) + " error:");
-#endif
+#endif // LLVM_VERSION >= 900 (JIT ctor exitOnError banner)
 }
 
 
@@ -1189,14 +1189,14 @@ JIT::Type_p JIT::PointedType(Type_p type)
 #if LLVM_VERSION >= 1500
         // Opaque pointers: no distinct pointee type on llvm::PointerType.
         return nullptr;
-#else
+#else // LLVM_VERSION < 1500
         llvm::PointerType *ptype = cast<llvm::PointerType>(type);
 # if LLVM_VERSION >= 1400
         return ptype->getPointerElementType();
-# else
+# else // LLVM_VERSION < 1400
         return ptype->getElementType();
-# endif
-#endif
+# endif // LLVM_VERSION >= 1400 (PointedType)
+#endif // LLVM_VERSION >= 1500 (PointedType)
     }
     return nullptr;
 }
@@ -1385,10 +1385,10 @@ JIT::PointerType_p JIT::FunctionPointerType(Type_p rty,
 {
 #if LLVM_VERSION >= 1500
     return llvm::PointerType::get(p.ContextRef(), 0);
-#else
+#else // LLVM_VERSION < 1500
     JIT::FunctionType_p fty = FunctionType(rty, parms, va);
     return llvm::PointerType::get(fty, 0);
-#endif
+#endif // LLVM_VERSION >= 1500 (FunctionPointerType)
 }
 
 
@@ -1404,9 +1404,9 @@ JIT::PointerType_p JIT::PointerType(Type_p rty, kstring name)
     JIT::Type_p wrapper = StructType({pty}, name);
     p.machineType[wrapper] = pty;
     return wrapper;
-#else
+#else // LLVM_VERSION < 1500
     return llvm::PointerType::get(rty, 0);
-#endif
+#endif // LLVM_VERSION >= 1500 (PointerType)
 }
 
 
@@ -1417,10 +1417,10 @@ JIT::PointerType_p JIT::MachinePointerType(Type_p wrapper) const
 {
 #if LLVM_VERSION >= 1500
     return p.machineType.count(wrapper) ? p.machineType[wrapper] : nullptr;
-#else
+#else // LLVM_VERSION < 1500
     assert (!wrapper || wrapper->isPointerTy());
     return (JIT::PointerType_p) wrapper;
-#endif
+#endif // LLVM_VERSION >= 1500 (MachinePointerType)
 }
 
 
@@ -1488,7 +1488,7 @@ void *JIT::ExecutableCode(JIT::Function_p f)
     JITTargetAddress address = p.Address(f->getName());
 #else // LLVM_VERSION >= 1100
     JITTargetAddress address = p.Address(f->getName().str());
-#endif // LLVM_VERSION
+#endif // LLVM_VERSION < 1100 (ExecutableCode function name)
     record(llvm_functions, "Address of %v is %p", f, (void *) address);
     return (void *) address;
 }
@@ -1519,7 +1519,7 @@ JIT::Function_p JIT::Prototype(JIT::Function_p function)
     text          name   = function->getName();
 #else // LLVM_VERSION >= 1100
     text          name   = function->getName().str();
-#endif
+#endif // LLVM_VERSION < 1100 (Prototype function name)
 
     // First check if we don't already have it in the current module
     if (module)
@@ -1779,7 +1779,7 @@ JIT::Constant_p JITBlock::PointerConstant(JIT::Type_p type, void *pointer)
     if (type != rawTy)
         if (auto st = dyn_cast<StructType>(type))
             result = llvm::ConstantStruct::get(st, {result});
-#endif
+#endif // LLVM_VERSION >= 1500 (PointerConstant wrapper)
     record(llvm_constants, "Pointer constant %v for %p", result, pointer);
     return result;
 }
@@ -1794,10 +1794,10 @@ JIT::Value_p JITBlock::TextConstant(JIT::Type_p type, text value)
     llvm::GlobalVariable *gv = b->CreateGlobalString(value);
     JIT::StructType_p st = dyn_cast<StructType>(type);
     JIT::Value_p result = llvm::ConstantStruct::get(st, {gv});
-#else
+#else // LLVM_VERSION < 1500
     (void) type;
     JIT::Value_p result = b->CreateGlobalStringPtr(value);
-#endif
+#endif // LLVM_VERSION >= 1500 (TextConstant)
     record(llvm_constants, "Text constant %v for %s", result, value.c_str());
     return result;
 }
@@ -1827,7 +1827,7 @@ void JITBlock::SwitchTo(JIT::BasicBlock_p block)
 
 #if LLVM_VERSION < 1100
 #define Callee(V)       (V)
-#else // LLVM_VERSION >= 1100
+#else // LLVM_VERSION >= 1100 (FunctionCallee Callee)
 static inline llvm::FunctionCallee Callee(JIT::Value_p callee)
 // ----------------------------------------------------------------------------
 //   Another totally useless wrapper with more damage to come
@@ -1845,19 +1845,19 @@ static inline llvm::FunctionCallee Callee(JIT::Value_p callee)
     if (auto fn = llvm::dyn_cast<llvm::Function>(callee))
         return llvm::FunctionCallee(fn);
     return llvm::FunctionCallee(nullptr, callee);
-#else
+#else // LLVM_VERSION < 1500
     llvm::PointerType *ptype = cast<llvm::PointerType>(type);
 # if LLVM_VERSION >= 1400
     type = ptype->getPointerElementType();
-# else
+# else // LLVM_VERSION < 1400
     type = ptype->getElementType();
-# endif
+# endif // LLVM_VERSION >= 1400 (Callee pointee type)
     assert(type->isFunctionTy() && "Callee require function type for callee");
     JIT::FunctionType_p ftype = (JIT::FunctionType_p) type;
     return llvm::FunctionCallee(ftype, callee);
-#endif
+#endif // LLVM_VERSION >= 1500 (Callee helper)
 }
-#endif
+#endif // LLVM_VERSION < 1100 / >= 1100 (Callee macro vs function)
 
 
 JIT::Value_p JITBlock::Call(JIT::Value_p callee, JIT::Value_p arg1)
@@ -2016,9 +2016,9 @@ JIT::Value_p JITBlock::Alloca(JIT::Type_p type, kstring name)
 {
 #if LLVM_VERSION < 500
     auto inst = b->CreateAlloca(type, 0, name);
-#else // LLVM_VERSION >= 500
+#else // LLVM_VERSION >= 500 (Alloca)
     auto inst = b->CreateAlloca(type, 0, nullptr, name);
-#endif // LLVM_VERSION 500
+#endif // LLVM_VERSION < 500 / >= 500 (Alloca)
     record(llvm_ir, "Alloca %s(%T) is %v", name, type, inst);
     return inst;
 }
@@ -2056,10 +2056,10 @@ JIT::Value_p JITBlock::StructGEP(JIT::Type_p structTy,
     if (ptr->getType() != wantPtr)
         ptr = b->CreatePointerCast(ptr, wantPtr);
     auto inst = b->CreateStructGEP(structTy, ptr, idx, name);
-#else
+#else // LLVM_VERSION < 1400
     (void) structTy;
     auto inst = b->CreateStructGEP(ptr, idx, name);
-#endif
+#endif // LLVM_VERSION >= 1500 / >= 1400 / < 1400 (StructGEP)
     record(llvm_ir, "StructGEP %+s(%v, %u) is %v", name, ptr, idx, inst);
     return inst;
 }
@@ -2075,10 +2075,10 @@ JIT::Value_p JITBlock::ArrayGEP(JIT::Type_p  elementTy,
 {
 #if LLVM_VERSION >= 1400
     auto inst = b->CreateConstInBoundsGEP1_32(elementTy, ptr, idx, name);
-#else
+#else // LLVM_VERSION < 1400
     (void) elementTy;
     auto inst =  b->CreateConstGEP1_32(ptr, idx, name);
-#endif
+#endif // LLVM_VERSION >= 1400 (ArrayGEP)
     record(llvm_ir, "ArrayGEP %+s(%v, %u) is %v", name, ptr, idx, inst);
     return inst;
 }
@@ -2091,10 +2091,10 @@ JIT::Value_p JITBlock::Load(JIT::Type_p ty, JIT::Value_p ptr, kstring name)
 #if LLVM_VERSION >= 1400
     ptr = PointerValue(ptr);
     auto value = b->CreateLoad(ty, ptr, name);
-#else
+#else // LLVM_VERSION < 1400
     (void) ty;
     auto value = b->CreateLoad(ptr, name);
-#endif
+#endif // LLVM_VERSION >= 1400 (Load)
     record(llvm_ir, "Load %+s(type %T, %v) = %v", name, ty, ptr, value);
     return value;
 }
@@ -2113,11 +2113,11 @@ JIT::Value_p JITBlock::StructLoad(JIT::Type_p structTy,
     JIT::StructType_p st = dyn_cast<StructType>(structTy);
     assert(st);
     auto value = b->CreateExtractValue(ptr, {idx}, name);
-#else
+#else // LLVM_VERSION < 1400
     (void) structTy;
     auto itemp = b->CreateStructGEP(ptr, idx, name);
     auto value = b->CreateLoad(itemp, name);
-#endif
+#endif // LLVM_VERSION >= 1400 (StructLoad)
     record(llvm_ir, "StructLoad %+s(%v, %u) is %v", name, ptr, idx, value);
     return value;
 }
@@ -2176,7 +2176,7 @@ JIT::Value_p JITBlock::BitCast(JIT::Value_p v, JIT::Type_p t, kstring name)
         value = WrappedValue(value, t);
     }
     else
-#endif
+#endif // LLVM_VERSION >= 1500 (BitCast opaque wrapper branch)
     {
         value = b->CreateBitCast(v, t, name);
     }

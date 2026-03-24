@@ -68,7 +68,7 @@ typedef struct Interpreter_Value *      Value_p;
 // At some point, I have only so much time to waste on this.
 // Feel free to enhance if you care about earlier versions of LLVM.
 #error "LLVM 3.6 and earlier are not supported in this code."
-#endif
+#endif // LLVM_VERSION (see #ifndef LLVM_VERSION / #elif above)
 
 #define LLVM_CRAP_DIAPER_OPEN
 #include "llvm-crap.h"
@@ -427,7 +427,7 @@ extern XL::JIT::Type_p  xldebug(XL::JIT::Type_p);
 // Ignore badly indented 'if' in 3.52
 # if LLVM_VERSION >= 350 && LLVM_VERSION < 360
 #  pragma GCC diagnostic ignored "-Wmisleading-indentation"
-# endif
+# endif // LLVM_VERSION >= 350 && LLVM_VERSION < 360
 
 // All over the place
 // # pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -435,12 +435,12 @@ extern XL::JIT::Type_p  xldebug(XL::JIT::Type_p);
 // Binding dereferenced null pointer in 3.7.1 LinkAllPasses.h
 # if LLVM_VERSION >= 370 && LLVM_VERSION < 380
 #  pragma GCC diagnostic ignored "-Wnull-dereference"
-# endif
+# endif // LLVM_VERSION >= 370 && LLVM_VERSION < 380
 
 // memcpy in SmallVector for std::pair with non-trivial copy ctor (ongoing)
 # if LLVM_VERSION >= 400
 #  pragma GCC diagnostic ignored "-Wclass-memaccess"
-# endif
+# endif // LLVM_VERSION >= 400
 
 // Some recent drops of LLVM have the EXTRAORINARY idea of defining DEBUG(x)
 # ifdef DEBUG
@@ -459,6 +459,6 @@ extern XL::JIT::Type_p  xldebug(XL::JIT::Type_p);
 # undef DEBUG
 # ifdef LLVM_CRAP_DIAPER_DEBUG
 #  define DEBUG LLVM_CRAP_DIAPER_DEBUG
-# endif
+# endif // LLVM_CRAP_DIAPER_DEBUG
 # undef LLVM_CRAP_DIAPER_CLOSE
 #endif // LLVM_CRAP_DIAPER_CLOSE
