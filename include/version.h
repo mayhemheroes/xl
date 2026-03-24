@@ -37,6 +37,7 @@
 // *****************************************************************************
 
 #include <string>
+#include <cstdint>
 
 // Some variants of the GNU library define major and minor macros
 #undef major
