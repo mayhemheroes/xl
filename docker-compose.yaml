@@ -1,0 +1,203 @@
+services:
+  # === Very old versions (nwtgck/pre-built-llvm-clang) ===
+  llvm-3.6:
+    image: nwtgck/pre-built-llvm-clang:3.6.2
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang-3.6
+      - CXX=clang++-3.6
+
+  llvm-3.7:
+    image: nwtgck/pre-built-llvm-clang:3.7.0
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang-3.7
+      - CXX=clang++-3.7
+
+  llvm-4.0:
+    image: nwtgck/pre-built-llvm-clang:4.0.0
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  # === LLVM 5.x (uses the correct repository) ===
+  llvm-5.0:
+    image: nwtgck/llvm-clang:5.0.0
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  # === Modern versions (silkeh/clang) ===
+  llvm-6:
+    image: silkeh/clang:6
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-7:
+    image: silkeh/clang:7
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-8:
+    image: silkeh/clang:8
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-9:
+    image: silkeh/clang:9
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-10:
+    image: silkeh/clang:10
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-11:
+    image: silkeh/clang:11
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-12:
+    image: silkeh/clang:12
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-13:
+    image: silkeh/clang:13
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-14:
+    image: silkeh/clang:14
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-15:
+    image: silkeh/clang:15
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-16:
+    image: silkeh/clang:16
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-17:
+    image: silkeh/clang:17
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-18:
+    image: silkeh/clang:18
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-19:
+    image: silkeh/clang:19
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-20:
+    image: silkeh/clang:20
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++
+
+  llvm-21:
+    image: silkeh/clang:21
+    volumes:
+      - .:/xlr:Z
+    working_dir: /xlr
+    command: bash
+    environment:
+      - CC=clang
+      - CXX=clang++

@@ -46,3 +46,13 @@ $(MIQ)rules.mk:
 
 # Do not run tests in the recorder
 RECURSE_FLAGS_recorder=RUN_TESTS=
+
+VERSIONS = 21 20 19 18 17 16 15 14 13 12 11 10 9 8 7 6 5.0 4.0 3.7 3.6
+
+llvm-test llvm-tests: $(VERSIONS:%=llvm-test-%)
+
+CTOOL ?= docker
+NPROC:=$(shell nproc)
+NPROC_OPT:=$(NPROC:%=-j%)
+llvm-test-%:
+	$(CTOOL) compose run --user $(shell id -u):$(shell id -g) --rm llvm-$* bash -c 'make clean && make $(NPROC_OPT) CC=$$CC CXX=$$CXX tests'
