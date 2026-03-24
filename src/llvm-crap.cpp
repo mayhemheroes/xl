@@ -1191,11 +1191,11 @@ JIT::Type_p JIT::PointedType(Type_p type)
         return nullptr;
 #else // LLVM_VERSION < 1500
         llvm::PointerType *ptype = cast<llvm::PointerType>(type);
-# if LLVM_VERSION >= 1400
+# if LLVM_VERSION >= 1300
         return ptype->getPointerElementType();
-# else // LLVM_VERSION < 1400
+# else // LLVM_VERSION < 1300
         return ptype->getElementType();
-# endif // LLVM_VERSION >= 1400 (PointedType)
+# endif // LLVM_VERSION >= 1300 (PointedType)
 #endif // LLVM_VERSION >= 1500 (PointedType)
     }
     return nullptr;
@@ -1847,11 +1847,11 @@ static inline llvm::FunctionCallee Callee(JIT::Value_p callee)
     return llvm::FunctionCallee(nullptr, callee);
 #else // LLVM_VERSION < 1500
     llvm::PointerType *ptype = cast<llvm::PointerType>(type);
-# if LLVM_VERSION >= 1400
+# if LLVM_VERSION >= 1300
     type = ptype->getPointerElementType();
-# else // LLVM_VERSION < 1400
+# else // LLVM_VERSION < 1300
     type = ptype->getElementType();
-# endif // LLVM_VERSION >= 1400 (Callee pointee type)
+# endif // LLVM_VERSION >= 1300 (Callee pointee type)
     assert(type->isFunctionTy() && "Callee require function type for callee");
     JIT::FunctionType_p ftype = (JIT::FunctionType_p) type;
     return llvm::FunctionCallee(ftype, callee);
@@ -2043,23 +2043,23 @@ JIT::Value_p JITBlock::StructGEP(JIT::Type_p structTy,
 // ----------------------------------------------------------------------------
 //   Opaque pointers: caller supplies aggregate type
 // ----------------------------------------------------------------------------
-//   IRBuilder gained Type-first GEP/load helpers in LLVM 14; use them so we
-//   are not resolved to the wrong overload once opaque-pointer APIs appear.
-//   PointerValue only unwraps opaque-pointer logical types (LLVM 15+).
+//   IRBuilder gained Type-first GEP/load helpers in LLVM 13 (old overloads
+//   deprecated); LLVM 14+ needs the cast path; PointerValue only unwraps
+//   opaque-pointer logical types (LLVM 15+).
 {
 #if LLVM_VERSION >= 1500
     ptr = PointerValue(ptr);
     auto inst = b->CreateStructGEP(structTy, ptr, idx, name);
-#elif LLVM_VERSION >= 1400
+#elif LLVM_VERSION >= 1300
     ptr = PointerValue(ptr);
     llvm::PointerType *wantPtr = llvm::PointerType::get(structTy, 0);
     if (ptr->getType() != wantPtr)
         ptr = b->CreatePointerCast(ptr, wantPtr);
     auto inst = b->CreateStructGEP(structTy, ptr, idx, name);
-#else // LLVM_VERSION < 1400
+#else // LLVM_VERSION < 1300
     (void) structTy;
     auto inst = b->CreateStructGEP(ptr, idx, name);
-#endif // LLVM_VERSION >= 1500 / >= 1400 / < 1400 (StructGEP)
+#endif // LLVM_VERSION >= 1500 / >= 1300 / < 1300 (StructGEP)
     record(llvm_ir, "StructGEP %+s(%v, %u) is %v", name, ptr, idx, inst);
     return inst;
 }
@@ -2073,12 +2073,12 @@ JIT::Value_p JITBlock::ArrayGEP(JIT::Type_p  elementTy,
 //   Accessing an array element with a fixed index
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1400
+#if LLVM_VERSION >= 1300
     auto inst = b->CreateConstInBoundsGEP1_32(elementTy, ptr, idx, name);
-#else // LLVM_VERSION < 1400
+#else // LLVM_VERSION < 1300
     (void) elementTy;
     auto inst =  b->CreateConstGEP1_32(ptr, idx, name);
-#endif // LLVM_VERSION >= 1400 (ArrayGEP)
+#endif // LLVM_VERSION >= 1300 (ArrayGEP)
     record(llvm_ir, "ArrayGEP %+s(%v, %u) is %v", name, ptr, idx, inst);
     return inst;
 }
@@ -2088,13 +2088,13 @@ JIT::Value_p JITBlock::Load(JIT::Type_p ty, JIT::Value_p ptr, kstring name)
 //   Explicitly typed load for opaque pointers
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1400
+#if LLVM_VERSION >= 1300
     ptr = PointerValue(ptr);
     auto value = b->CreateLoad(ty, ptr, name);
-#else // LLVM_VERSION < 1400
+#else // LLVM_VERSION < 1300
     (void) ty;
     auto value = b->CreateLoad(ptr, name);
-#endif // LLVM_VERSION >= 1400 (Load)
+#endif // LLVM_VERSION >= 1300 (Load)
     record(llvm_ir, "Load %+s(type %T, %v) = %v", name, ty, ptr, value);
     return value;
 }
@@ -2107,17 +2107,19 @@ JIT::Value_p JITBlock::StructLoad(JIT::Type_p structTy,
 // ----------------------------------------------------------------------------
 //   For opaque pointers, we need to get the item type from struct
 // ----------------------------------------------------------------------------
+//   Field load from a boxed struct. Unbox() passes the function argument
+//   as a first-class aggregate (%boxed), not %boxed* — GEP+Load is invalid
+//   (LLVM may emit bogus addrspacecast). Use ExtractValue for LLVM 12+.
 {
-#if LLVM_VERSION >= 1400
+#if LLVM_VERSION >= 1200
     ptr = PointerValue(ptr);
-    JIT::StructType_p st = dyn_cast<StructType>(structTy);
-    assert(st);
+    assert(isa<StructType>(structTy) && "StructLoad expects a struct type");
     auto value = b->CreateExtractValue(ptr, {idx}, name);
-#else // LLVM_VERSION < 1400
+#else // LLVM_VERSION < 1200
     (void) structTy;
     auto itemp = b->CreateStructGEP(ptr, idx, name);
     auto value = b->CreateLoad(itemp, name);
-#endif // LLVM_VERSION >= 1400 (StructLoad)
+#endif // LLVM_VERSION >= 1200 / < 1200 (StructLoad)
     record(llvm_ir, "StructLoad %+s(%v, %u) is %v", name, ptr, idx, value);
     return value;
 }
