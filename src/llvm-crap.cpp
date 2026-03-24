@@ -950,8 +950,14 @@ JITSymbol JITPrivate::Symbol(text name)
             .Arg(toString(sym.takeError()), "");
         return JITSymbol(nullptr);
     }
+#if LLVM_VERSION >= 1500
+    // LLVM 15+: lookup() returns ExecutorAddr; use getValue().  LLVM 14 and
+    // below return JITEvaluatedSymbol; use getAddress() on that.
     return JITSymbol(JITEvaluatedSymbol((*sym).getValue(), JITSymbolFlags::Exported));
-#endif // LLVM_VERSION 380
+#else // LLVM_VERSION < 1500 (JITEvaluatedSymbol from lookup)
+    return JITSymbol(JITEvaluatedSymbol((*sym).getAddress(), JITSymbolFlags::Exported));
+#endif // LLVM_VERSION >= 1500 (lookup result type)
+#endif // LLVM_VERSION (Symbol lookup implementation)
 }
 #endif // LLVM_VERSION < 1700
 
@@ -1185,7 +1191,11 @@ JIT::Type_p JIT::PointedType(Type_p type)
         return nullptr;
 #else
         llvm::PointerType *ptype = cast<llvm::PointerType>(type);
+# if LLVM_VERSION >= 1400
+        return ptype->getPointerElementType();
+# else
         return ptype->getElementType();
+# endif
 #endif
     }
     return nullptr;
@@ -1837,7 +1847,11 @@ static inline llvm::FunctionCallee Callee(JIT::Value_p callee)
     return llvm::FunctionCallee(nullptr, callee);
 #else
     llvm::PointerType *ptype = cast<llvm::PointerType>(type);
+# if LLVM_VERSION >= 1400
+    type = ptype->getPointerElementType();
+# else
     type = ptype->getElementType();
+# endif
     assert(type->isFunctionTy() && "Callee require function type for callee");
     JIT::FunctionType_p ftype = (JIT::FunctionType_p) type;
     return llvm::FunctionCallee(ftype, callee);
@@ -2029,9 +2043,18 @@ JIT::Value_p JITBlock::StructGEP(JIT::Type_p structTy,
 // ----------------------------------------------------------------------------
 //   Opaque pointers: caller supplies aggregate type
 // ----------------------------------------------------------------------------
+//   IRBuilder gained Type-first GEP/load helpers in LLVM 14; use them so we
+//   are not resolved to the wrong overload once opaque-pointer APIs appear.
+//   PointerValue only unwraps opaque-pointer logical types (LLVM 15+).
 {
 #if LLVM_VERSION >= 1500
     ptr = PointerValue(ptr);
+    auto inst = b->CreateStructGEP(structTy, ptr, idx, name);
+#elif LLVM_VERSION >= 1400
+    ptr = PointerValue(ptr);
+    llvm::PointerType *wantPtr = llvm::PointerType::get(structTy, 0);
+    if (ptr->getType() != wantPtr)
+        ptr = b->CreatePointerCast(ptr, wantPtr);
     auto inst = b->CreateStructGEP(structTy, ptr, idx, name);
 #else
     (void) structTy;
@@ -2050,7 +2073,7 @@ JIT::Value_p JITBlock::ArrayGEP(JIT::Type_p  elementTy,
 //   Accessing an array element with a fixed index
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1500
+#if LLVM_VERSION >= 1400
     auto inst = b->CreateConstInBoundsGEP1_32(elementTy, ptr, idx, name);
 #else
     (void) elementTy;
@@ -2065,7 +2088,7 @@ JIT::Value_p JITBlock::Load(JIT::Type_p ty, JIT::Value_p ptr, kstring name)
 //   Explicitly typed load for opaque pointers
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1500
+#if LLVM_VERSION >= 1400
     ptr = PointerValue(ptr);
     auto value = b->CreateLoad(ty, ptr, name);
 #else
@@ -2085,7 +2108,7 @@ JIT::Value_p JITBlock::StructLoad(JIT::Type_p structTy,
 //   For opaque pointers, we need to get the item type from struct
 // ----------------------------------------------------------------------------
 {
-#if LLVM_VERSION >= 1500
+#if LLVM_VERSION >= 1400
     ptr = PointerValue(ptr);
     JIT::StructType_p st = dyn_cast<StructType>(structTy);
     assert(st);
@@ -2146,12 +2169,14 @@ JIT::Value_p JITBlock::BitCast(JIT::Value_p v, JIT::Type_p t, kstring name)
 
     v = PointerValue(v);
     JIT::Value_p value = v;
+#if LLVM_VERSION >= 1500
     if (JIT::PointerType_p mty = b.jit.MachinePointerType(t))
     {
         value = b->CreateBitCast(value, mty, name);
         value = WrappedValue(value, t);
     }
     else
+#endif
     {
         value = b->CreateBitCast(v, t, name);
     }
