@@ -116,7 +116,6 @@ if (echo "$OS" | grep -iq "mingw"); then LN="cp"; fi
 $LN $SRC/*.stylesheet .
 $LN $SRC/xl.syntax .
 $LN $SRC/builtins.xl .
-$LN $SRC/opt-builtins.xl .
 export LD_LIBRARY_PATH=$LIBPATH
 export DYLD_LIBRARY_PATH=$LIBPATH
 
