@@ -10,7 +10,7 @@ builtins.xl:51:11:    Pattern [X:integer + Y:integer as integer] does not match 
 O3/fibonacci-type-conflict.xl:40:14:     The type of [fib (N - 1)] is conflicting because
 O3/fibonacci-type-conflict.xl:40:14:      Cannot unify type [natural] of [fib (N - 1)]
 O3/fibonacci-type-conflict.xl:39:5:      with type [text] of [fib 1]
-builtins.xl:66:8:    Pattern [X:real + Y:real as real] does not match [fib (N - 1) + fib (N - 2)]:
+builtins.xl:67:8:    Pattern [X:real + Y:real as real] does not match [fib (N - 1) + fib (N - 2)]:
 O3/fibonacci-type-conflict.xl:40:14:     The type of [fib (N - 1)] is conflicting because
 O3/fibonacci-type-conflict.xl:40:14:      Cannot unify type [natural] of [fib (N - 1)]
 O3/fibonacci-type-conflict.xl:39:5:      with type [text] of [fib 1]

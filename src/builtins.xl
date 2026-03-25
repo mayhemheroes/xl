@@ -59,6 +59,7 @@ X:integer or  Y:integer         as integer is builtin Or
 X:integer xor Y:integer         as integer is builtin Xor
 X:integer shl Y:natural         as integer is builtin Shl
 X:integer shr Y:natural         as integer is builtin AShr
+X:integer ashr Y:natural        as integer is builtin AShr
 -X:integer                      as integer is builtin Neg
 not X:integer                   as integer is builtin Not
 

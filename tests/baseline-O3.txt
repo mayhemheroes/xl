@@ -1,3 +1,2 @@
 O3/builtin-mod.xl
-O3/builtin-ashr.xl
 O3/library-writeln-list.xl
