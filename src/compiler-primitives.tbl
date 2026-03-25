@@ -292,6 +292,9 @@ ALIAS(BOr,    2, Or)
 ALIAS(BXor,   2, Xor)
 ALIAS(BNot,   1, Not)
 
+// builtins.xl names this UMod; LLVM only has URem (unsigned remainder).
+ALIAS(UMod,   2, URem)
+
 
 // ============================================================================
 //

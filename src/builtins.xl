@@ -53,7 +53,7 @@ X:integer - Y:integer           as integer is builtin Sub
 X:integer * Y:integer           as integer is builtin Mul
 X:integer / Y:integer           as integer is builtin UDiv
 X:integer rem Y:integer         as integer is builtin URem
-X:integer mod Y:integer         as integer is builtin UMod
+X:integer mod Y:integer         as integer is builtin SMod
 X:integer and Y:integer         as integer is builtin And
 X:integer or  Y:integer         as integer is builtin Or
 X:integer xor Y:integer         as integer is builtin Xor
