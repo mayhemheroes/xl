@@ -67,6 +67,7 @@ public:
 
     // Create rewrite calls for this class
     virtual RewriteCalls *NewRewriteCalls();
+    Types                *EvaluationInProgress(Tree *expr);
 
 public:
     // Main entry point: perform type analysis on a whole program
@@ -137,7 +138,6 @@ public:
     // Access to rewrite calls
     RewriteCalls *      TreeRewriteCalls(Tree *what, bool recurse = true);
     void                TreeRewriteCalls(Tree *what, RewriteCalls *rc);
-
 
 protected:
     struct TypeEvaluator

@@ -912,7 +912,7 @@ void Context::Dump(std::ostream &out, Scope *scope, bool recurse)
         Rewrite *rw = ScopeRewrites(scope);
         Dump(out, rw);
         if (parent)
-            out << "// Parent " << (void *) parent << "\n";
+            out << "// === Parent " << (void *) parent << " ================\n";
         if (!recurse)
             break;
         scope = parent;

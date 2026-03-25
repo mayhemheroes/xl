@@ -174,9 +174,14 @@ struct RewriteCalls
     RewriteCandidate *  Candidate(unsigned i)   { return candidates[i]; }
     RewriteCandidates & Candidates()            { return candidates; }
 
+    // Indicate if we are evaluating this one
+    bool                Evaluated() const       { return evaluated; }
+    void                Evaluated(bool eval)    { evaluated = eval; }
+
 private:
     Types_p             types;
     RewriteCandidates   candidates;
+    bool                evaluated;
 public:
     GARBAGE_COLLECT(RewriteCalls);
 };

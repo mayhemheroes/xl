@@ -227,6 +227,7 @@ BindingStrength RewriteCandidate::Bind(Tree *pattern, Tree *value)
                    "Binding name %t to %t in %p context %p",
                    pattern, value, this, (Context *) context);
             context->Define(pattern, value, true);
+            binding_types->AssignType(name, vtype);
             bindings.push_back(RewriteBinding(name, value));
         }
         else
@@ -553,7 +554,8 @@ RewriteCalls::RewriteCalls(Types *types)
 //   Create a new type context to evaluate the calls for a rewrite
 // ----------------------------------------------------------------------------
     : types(types),
-      candidates()
+      candidates(),
+      evaluated(false)
 {}
 
 
@@ -587,10 +589,10 @@ Tree *RewriteCalls::Check (Scope *scope, Tree *what, Infix *candidate)
     // Create local type inference deriving from ours
     RewriteCandidate *rc = Candidate(candidate, scope, types);
 
-    // All the following is in candidate types
-    Types *binding_types = rc->binding_types;
+    // All the following is in candidate binding types
+    Types *btypes = rc->binding_types;
     record(types, "Types %p created for bindings of %t in candidate %t",
-           binding_types, what, candidate->left);
+           btypes, what, candidate->left);
 
     // Attempt binding / unification of parameters to arguments
     Tree *pattern = candidate->left;
@@ -612,8 +614,8 @@ Tree *RewriteCalls::Check (Scope *scope, Tree *what, Infix *candidate)
         // Check if we have a type to match
         if (type)
         {
-            type = binding_types->AssignType(init, type);
-            type = binding_types->AssignType(what, type);
+            type = btypes->AssignType(init, type);
+            type = btypes->AssignType(what, type);
             if (!type || type == xl_error)
                 binding = FAILED;
         }
@@ -628,9 +630,9 @@ Tree *RewriteCalls::Check (Scope *scope, Tree *what, Infix *candidate)
             case Types::Decl::NORMAL:
             case Types::Decl::DATA:
                 // Process declarations in the initializer
-                bcontext = binding_types->TypesContext();
+                bcontext = btypes->TypesContext();
                 bcontext->ProcessDeclarations(init);
-                type = binding_types->Type(init);
+                type = btypes->Type(init);
                 if (!type || type == xl_error)
                     binding = FAILED;
                 break;
@@ -639,8 +641,7 @@ Tree *RewriteCalls::Check (Scope *scope, Tree *what, Infix *candidate)
                 // For builtins, use the declared type, or nil if none given
                 if (!declaredType)
                     type = declaredType = xl_nil;
-                type = binding_types->Unify(type, declaredType,
-                                            what, defined);
+                type = btypes->Unify(type, declaredType, what, defined);
                 break;
             }
         }
@@ -649,9 +650,9 @@ Tree *RewriteCalls::Check (Scope *scope, Tree *what, Infix *candidate)
     // Match the type of the pattern and declared entity
     if (binding != FAILED && type != nullptr)
     {
-        type = binding_types->AssignType(pattern, type);
+        type = btypes->AssignType(pattern, type);
         if (defined && pattern != defined)
-            type = binding_types->AssignType(defined, type);
+            type = btypes->AssignType(defined, type);
     }
 
     // If we had some errors in the process, binding fails,

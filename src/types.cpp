@@ -41,6 +41,7 @@
 
 XL_BEGIN
 
+
 Types::Types(Scope *scope)
 // ----------------------------------------------------------------------------
 //   Constructor for top-level type inferences
@@ -115,6 +116,28 @@ RewriteCalls *Types::NewRewriteCalls()
 // ----------------------------------------------------------------------------
 {
     return new RewriteCalls(this);
+}
+
+
+Types *Types::EvaluationInProgress(Tree *what)
+// ----------------------------------------------------------------------------
+//   Check if any type chain in the parent chain is still inferring [what].
+// ----------------------------------------------------------------------------
+//   Child CompilerTypes from LocalTypes() keep evalInProgress only on their
+//   own object. Walking ancestor Types matches EvaluatingGuard so nested
+//   Evaluate sees the same subtree as recursive and returns a fresh unknown
+//   for HM unification instead of re-entering Lookup until stack overflow.
+{
+    for (Types *ts = this; ts; ts = ts->parent)
+    {
+        if (auto it = ts->rcalls.find(what); it != ts->rcalls.end())
+        {
+            RewriteCalls_p rc = (*it).second;
+            if (!rc->Evaluated())
+                return ts;
+        }
+    }
+    return nullptr;
 }
 
 
@@ -788,9 +811,9 @@ Tree *Types::Evaluate(Tree *what, bool mayFail)
     if (declaration)
         return UnknownType(what->Position());
 
-    // Test if we are already trying to evaluate this particular pattern
-    // Need to assign a type name, which will be unified by the outer Evaluate()
-    if (RewriteCalls_p existingRC = TreeRewriteCalls(what))
+    // Test if we are already trying to evaluate this particular pattern.
+    // If so, assign a type name which will be unified by outer evaluate.
+    if (EvaluationInProgress(what))
     {
         Tree *type = UnknownType(what->Position());
         type = AssignType(what, type);
@@ -804,6 +827,7 @@ Tree *Types::Evaluate(Tree *what, bool mayFail)
     Errors errors;
     errors.Log (Error("Unable to evaluate $1:", what), true);
     context->Lookup(what, lookupRewriteCalls, rc);
+    rc->Evaluated(true);
 
     // If we have no candidate, this is a failure
     count = rc->Size();
@@ -1563,7 +1587,7 @@ void Types::Dump()
 //   Dump the list of types in this
 // ----------------------------------------------------------------------------
 {
-    std::cout << "TYPES " << (void *) this << ":\n";
+    std::cout << "=== TYPES " << (void *) this << ": =======================\n";
     for (auto &t : types)
     {
         Tree *value = t.first;

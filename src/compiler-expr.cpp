@@ -268,7 +268,13 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
     record(types_calls, "Looking up %t in %p: got %p", call, types, rc);
     if (mayfail && !rc)
         return nullptr;
-    XL_ASSERT(rc && "Type analysis botched on expression");
+    if (!rc)
+    {
+        // Types::Evaluate erased rewrite candidates after a failed unification;
+        // do not reach AddBoxedType with inconsistent types.
+        Ooops("No operator matches $1", call);
+        return nullptr;
+    }
 
     // Optimize the frequent case where we have a single call candidate
     uint i, max = rc->Size();

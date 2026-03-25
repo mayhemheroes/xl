@@ -149,7 +149,11 @@ void CompilerTypes::AddBoxedType(Tree *type, JIT::Type_p mtype)
     Tree *base = BaseType(type);
     record(types_boxing, "In %p add %T boxing %t (%t)",
            this, mtype, type, base);
-    assert(!boxed[base] || boxed[base] == mtype);
+    if (boxed[base] && boxed[base] != mtype)
+    {
+        Ooops("Incompatible machine representations for type $1", base);
+        return;
+    }
     boxed[base] = mtype;
 }
 

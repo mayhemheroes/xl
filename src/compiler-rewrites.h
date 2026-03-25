@@ -55,7 +55,7 @@ struct CompilerRewriteCandidate : RewriteCandidate
 {
     CompilerRewriteCandidate(Infix *rw, Scope *scope, CompilerTypes *types);
 
-    // REVIIST - Hacks from older implemnetation, remove
+    // REVISIT - Hacks from older implementation, remove
     Tree *              ValueType(Tree *value);
 
     // Code generation
