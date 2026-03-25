@@ -702,26 +702,27 @@ inline Infix *IsPatternCondition(Tree *tree)
 }
 
 
-inline bool IsPatternMatchingType(Prefix *prefix)
+inline Tree *IsPatternMatchingType(Prefix *prefix)
 // ----------------------------------------------------------------------------
 //   Check if a prefix is [matching Pattern]
 // ----------------------------------------------------------------------------
 {
-    if (Name *matching = prefix->left->AsName())
-        if (matching->value == "matching")
-            return true;
-    return false;
+    if (prefix)
+        if (Name *matching = prefix->left->AsName())
+            if (matching->value == "matching")
+                return prefix->right;
+    return nullptr;
 }
 
 
-inline Prefix *IsPatternMatchingType(Tree *tree)
+inline Tree *IsPatternMatchingType(Tree *tree)
 // ----------------------------------------------------------------------------
 //   Check if a tree is a [matching Pattern] prefix
 // ----------------------------------------------------------------------------
 {
-    if (Prefix *prefix = tree->AsPrefix())
-        if (IsPatternMatchingType(prefix))
-            return prefix;
+    if (tree)
+        if (Prefix *prefix = tree->AsPrefix())
+            return IsPatternMatchingType(prefix);
     return nullptr;
 }
 

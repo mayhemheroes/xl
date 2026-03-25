@@ -325,8 +325,16 @@ BindingStrength RewriteCandidate::Bind(Tree *pattern, Tree *value)
             defined_name = "infix[" + fi->name + "]";
         }
 
-        // If we match the infix name, we can bind left and right
-        if (Infix *infix = value->AsInfix())
+        // Check if the bound value has a well-defined type
+        Infix *infix = value->AsInfix();
+        vtype = binding_types->Type(value);
+        if (!infix)
+            if (Tree *matched = IsPatternMatchingType(vtype))
+                if (Infix *imatch = matched->AsInfix())
+                    infix = imatch;
+
+        // If we have an infix, check if we can bind left and right
+        if (infix)
         {
             if (fi->name == infix->name)
             {
@@ -346,10 +354,7 @@ BindingStrength RewriteCandidate::Bind(Tree *pattern, Tree *value)
             }
         }
 
-        // We may have an expression that evaluates as an infix
-
-        // Check if what we have as an expression evaluates correctly
-        vtype = binding_types->Type(value);
+        // Check if we have an expression that evaluates as an infix
         if (!vtype)
         {
             record(bindings,
@@ -483,7 +488,6 @@ BindingStrength RewriteCandidate::BindBinary(Tree *pattern1, Tree *value1,
         defined = patternName;
         defined_name = "xl." + patternName->value;
     }
-
 
     return Bind(pattern2, value2);
 }
