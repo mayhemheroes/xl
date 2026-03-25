@@ -255,6 +255,7 @@ RECORDER(llvm_globals,          16, "LLVM global variables");
 RECORDER(llvm_symbols,          16, "LLVM symbols");
 RECORDER(llvm_blocks,           16, "LLVM basic blocks");
 RECORDER(llvm_labels,           16, "LLVM labels for trees");
+RECORDER(llvm_error,            16, "LLVM internal errors");
 RECORDER(llvm_calls,            16, "LLVM calls");
 RECORDER(llvm_stats,            16, "LLVM statistics");
 RECORDER(llvm_code,             16, "LLVM code generation");
@@ -1840,7 +1841,11 @@ static inline llvm::FunctionCallee Callee(JIT::Value_p callee)
         return llvm::FunctionCallee(ftype, callee);
     }
 
-    assert(type->isPointerTy() && "Callee requires a callable value");
+    if (!type->isPointerTy())
+    {
+        record(llvm_error, "Can't call %v, has type %T", callee, type);
+        return nullptr;
+    }
 #if LLVM_VERSION >= 1500
     if (auto fn = llvm::dyn_cast<llvm::Function>(callee))
         return llvm::FunctionCallee(fn);
@@ -1852,7 +1857,12 @@ static inline llvm::FunctionCallee Callee(JIT::Value_p callee)
 # else // LLVM_VERSION < 1300
     type = ptype->getElementType();
 # endif // LLVM_VERSION >= 1300 (Callee pointee type)
-    assert(type->isFunctionTy() && "Callee require function type for callee");
+    if (!type->isFunctionTy())
+    {
+        record(llvm_error, "Callee %v requires function type, not %T",
+               callee, type);
+        return nullptr;
+    }
     JIT::FunctionType_p ftype = (JIT::FunctionType_p) type;
     return llvm::FunctionCallee(ftype, callee);
 #endif // LLVM_VERSION >= 1500 (Callee helper)
@@ -2113,7 +2123,13 @@ JIT::Value_p JITBlock::StructLoad(JIT::Type_p structTy,
 {
 #if LLVM_VERSION >= 700
     ptr = PointerValue(ptr);
-    assert(isa<StructType>(structTy) && "StructLoad expects a struct type");
+    if (!isa<StructType>(structTy))
+    {
+        record(llvm_error,
+               "StructLoad expects a struct type, got %T for pointer %v",
+               structTy, ptr);
+        return nullptr;
+    }
     auto value = b->CreateExtractValue(ptr, {idx}, name);
 #else // LLVM_VERSION < 700
     (void) structTy;
