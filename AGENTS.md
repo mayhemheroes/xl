@@ -1,0 +1,190 @@
+# XL (xlr) — notes for agents
+
+## Purpose
+
+This file records conventions and debugging context for automated assistants
+(Cursor, Copilot, etc.). Keep it factual and actionable.
+
+## Workflow (standing rule)
+
+- Before treating a change as **done**, run **`make tests`** from the repo root
+  and ensure it reports success. Inference or codegen tweaks can regress many
+  tests with exit **114** (crash) or wrong negatives; the suite is the gate.
+- Preferably build and test using `make tests` at least initially. Do not
+  try to optimize the build away: `make test` does build beforehand, so no point
+  in asking for two commands when one will do the two steps.
+
+- When dealing with LLVM, put as much of the llvm-specific code as possible
+  under `llvm-crap` files. This layer adds compatibility for all variants of
+  LLVM. XL presently builds and runs correctly with LLVM versions 7 through 22.
+  After any significant change to llvm-crap, this compatibility should be tested
+  with `make llvm-tests`, which runs the build through all the supported
+  releases.
+
+## How to maintain this file (standing rule)
+
+- **User-driven:** Whenever the user states something important about **style**,
+  **conventions**, **workflow**, **tooling**, or **project facts**, append or
+  revise `AGENTS.md` in the same session. Do not wait to be asked.
+- **Corrections:** If the user **corrects a mistake** the assistant made (wrong
+  API use, bad comment style, wrong file, etc.), record the **correct rule** or
+  fact here so it does not recur. Brief bullets are enough; link to files if
+  useful.
+- **Scope:** Prefer short, durable entries over chat transcripts. Skip one-off
+  task status unless it encodes a repeatable convention.
+
+## Comment style (boxed comments after functions)
+
+- **Cursor:** When editing `src/**/*.cpp` or `src/**/*.h`, follow
+  **`.cursor/rules/xl-cpp-boxed-comments.mdc`** (mirrors this section).
+- The box between `// -----------` lines is **one line only**: what the
+  function does, not how.
+- Do **not** put implementation detail inside that single boxed line.
+- After the closing `// -----------`, add further lines (still `//`) for
+  rationale, invariants, or “why” — including recursion, data structures, or
+  call-site expectations.
+- Keep every comment line **≤ 80 characters** (counting from column 1).
+
+Example (pattern only):
+
+```cpp
+bool Types::IsEvalInProgress(Tree *what) const
+// ----------------------------------------------------------------------------
+//   Check if any type chain in the parent chain is still inferring [what].
+// ----------------------------------------------------------------------------
+//   Child CompilerTypes from LocalTypes() keep evalInProgress only on their
+//   own object. Walking ancestor Types ...
+```
+
+- Larger boxes with 5 lines are used to mark larger sections of the code.
+  Use sparingly
+
+Example (pattern only):
+
+```cpp
+// ============================================================================
+//
+//   Diagnostic interactively adjusting progressive emergency response (DIAPER)
+//
+// ============================================================================
+//
+//   This wonderful code is designed to contain the diagnostic-related damage
+//   introduced, with ever increasing creativity, by the various iterations
+//   of the LLVM headers, e.g. LLVM clang warnings against LLVM headers,
+//   abuse and misuse of common macro names, and so on.
+```
+
+- The file header comment has a very clear structure, take it from an existing
+  file and keep the number of lines identical to what you found in the other
+  files, even if that means blank comment lines.
+
+- Comments in functions should be short, typically one line, and outline
+  special difficulties. Do not easily add comments in places that have
+  a lot of things without comments, e.g. if you have a long list of self-evident
+  declarations like in the JITBlock class, no point to prefix any addition with
+  a comment explaining why you added it. The name should be clear enough.
+
+## C++ style (integer types)
+
+- Prefer **`uint`** (`typedef unsigned int uint` in **`include/base.h`**) over
+  bare **`unsigned`** for locals, parameters, and loop indices when an unsigned
+  integer is intended. Keep **`unsigned`** only where required (e.g. C++
+  bit-fields, or an external / LLVM API that names `unsigned` explicitly).
+
+## Recorder traces (debugging)
+
+Run `xl -thelp` for the full list. Useful flags:
+
+- `-ttypes` — type inference steps (created `Types`, `Type` for trees).
+- `-ttypes_unifications` — unify/join (see `RECORDER(types_unifications, …)`
+  in `types.cpp`).
+- `-ttypes_calls` — rewrite call / evaluation logging.
+- `-tbindings` — pattern binding strength.
+- `-tcalls` — `RewriteCandidate::Unify` style traces.
+
+Add recorders for new topics liberally.
+
+Add recorder traces to investigate a problem liberally. Ideally they should be
+good enough that they can stay there forever. Keep the trace message short (1
+line) and without much context (a lot of context is given by the standard
+tracing mechanism already). Use custom data types like `%t` for XL trees, `%v`
+for LLVM values, `%T` for types.
+
+ **Recorder names must match** `RECORDER(…)` declarations
+
+A recorder used across `.cpp` files can be declared in a header using
+`RECORDER_DECLARE`.
+
+## Reference tests
+
+- The normal test to run reference tests is `make tests`. Prefer that and do
+  that at least once before submitting a solution, iterate until it comes clean
+  (as good as it was before or better).
+
+- The tests run multiple test suites for different optimization levels.
+  The "interpreter" runs the compiler with `-i` option, the `O3` option uses
+  type inference to generate low-level machine types, tree boxing / unboxing,
+  and highly efficient code.
+
+- Under `tests/`, `./alltests -O3 -xl ../xl PATTERN` runs O3 tests; `-i` runs
+  the interpreter tests `-u PATTERN` refreshes references `.ref` files, and with
+  `-O3` refreshes`*-O3.ref` reference files. Compare logs with `diff` after
+  `sed` rewrites paths as in `alltests`.
+
+- An in-progress description of the language is under `docs/`. This is somewhat
+  optimistic compared to the implementation, but it describes the intent and the
+  philosophy of the language. Refer to that in case of doubt about test expected
+  outcomes.
+
+- Never "fix" a problem by adjusting or silencing tests. The tests are the
+  reference, the code is where the fix happens.
+
+- When asked to add a new feature, you may *add* a test and its reference to
+  indicate indicating how you think the feature can be tested. Make sure that
+  the test fails before implementing the feature.
+
+
+## Type inference and Types class
+
+- XL uses type inference. This is implemented in the `Types` class.
+- `Types::Evaluate` registers `rcalls[what]` for codegen and for “already
+  looked up this subtree.”
+- **Recursion** during inference must return a fresh unknown (HM-style), not
+  re-run full `Lookup` on the same tree.
+- **Child** `CompilerTypes` from `LocalTypes()` have their own `evalInProgress`
+  set; the parent’s mark is **not** visible unless you walk `parent` on the
+  `Types` chain. Hence `IsEvalInProgress` walks ancestors.
+- **Do not** treat `TreeRewriteCalls(what)` as a second “recursive” shortcut
+  after `IsEvalInProgress`: `rcalls` outlive a finished `Evaluate`, so that
+  shortcut made later passes skip `Lookup` and return a fresh unknown as if the
+  first pass were still active, hiding conflicts (then bad codegen or crashes).
+  `IsEvalInProgress` + `EvaluatingGuard` are enough for real recursion.
+
+### Type inference related source files
+
+- `src/types.cpp` — `Types::Evaluate`, `IsEvalInProgress`, `EvaluatingGuard`
+  usage.
+- `src/compiler-expr.cpp` — codegen when `TreeRewriteCalls` is missing after
+  failed inference (`No operator matches`).
+- `src/compiler-types.cpp` — `AddBoxedType` should not assert on conflicting
+  machine types; prefer a clear error.
+
+## LLVM IR helpers and failure style (`llvm-crap.cpp`)
+
+- Anything LLVM-specific should go into llvm-crap
+- **`llvm_error` recorder:** Internal codegen mistakes (bad pointer constants,
+  non-pointer callees, `StructLoad` on non-struct) should log with
+  `record(llvm_error, …)` and return **`nullptr`** where the API returns.
+  `Value_p`/`Constant_p`, instead of `assert` alone — so release builds degrade
+  with traceable errors rather than silent UB. `assert()` does not work in
+  `llvm-crap` because it's compiled with `NDEBUG` intentionally, in order to
+  make sure that LLVM11 does not emit calls for `dump()` calls that do not exist
+  in the release library shipped with the distros.
+- **Null pointers:** `PointerConstant` uses `ConstantPointerNull` for a null
+  address when the target type is a pointer; invalid types log and return null.
+- **Wrapped pointers:** Tree/name values may be represented as one-field
+  structs; use `PointerValue` before comparing to null or to other pointers.
+  Prefer `JITBlock::IsNullPointer` / `IsOKPointer` for repeated null checks.
+- **Boolean autobox:** `CompilerFunction::Autobox` to `booleanTy` compares
+  **raw** pointer values (`PointerValue` + `ConstantTree` as pointer), not
+  struct-wrapped values compared directly to `xl_false`.

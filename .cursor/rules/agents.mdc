@@ -1,0 +1,19 @@
+---
+description: Read project agent notes (AGENTS.md)
+alwaysApply: true
+---
+
+# XL project context
+
+Before substantive edits to this repository, read **`AGENTS.md`** at the repo
+root. It documents comment style, type inference pitfalls (`Types::Evaluate`,
+`rcalls`, `evalInProgress`), and debugging with recorder traces.
+
+When the user gives important style or convention guidance—or corrects an
+assistant mistake—**update `AGENTS.md`** in that turn (see “How to maintain”
+there). Keep boxed function comments to one “what” line inside the box; put
+“why” and implementation detail below the closing rule line, with lines ≤ 80
+characters.
+
+Detailed enforcement for `src/**/*.cpp` and `src/**/*.h`: see
+**`.cursor/rules/xl-cpp-boxed-comments.mdc`**.
