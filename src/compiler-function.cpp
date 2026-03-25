@@ -474,7 +474,8 @@ JIT::Value_p CompilerFunction::Autobox(Tree        *source,
     if (req == compiler.booleanTy)
     {
         assert (type == compiler.treePtrTy || type == compiler.nameTreePtrTy);
-        JIT::Value_p falsePtr = ConstantTree(xl_false);
+        JIT::Value_p falsePtr = code.PointerValue(ConstantTree(xl_false));
+        value = code.PointerValue(value);
         result = code.ICmpNE(value, falsePtr, "notfalse");
     }
     else if (req->isIntegerTy())

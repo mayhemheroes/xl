@@ -2926,8 +2926,7 @@ JIT::BasicBlock_p O1CompileUnit::InfixMatchTest(Tree *actual, Infix *reference)
     JIT::BasicBlock_p notGood = NeedTest();
     JIT::Value_p afterExtract = code.Call(xl_infix_match_check,
                                      scopePtr, actualVal, refName);
-    JIT::Constant_p null = code.PointerConstant(compiler.treePtrTy, nullptr);
-    JIT::Value_p isGood = code.ICmpNE(afterExtract, null, "isGoodInfix");
+    JIT::Value_p isGood = code.IsOKPointer(afterExtract, "isGoodInfix");
     JIT::BasicBlock_p isGoodBB = code.NewBlock("isGood");
     code.IfBranch(isGood, isGoodBB, notGood);
 
@@ -3012,8 +3011,7 @@ JIT::BasicBlock_p O1CompileUnit::TypeTest(Tree *value, Tree *type)
     // Where we go if the tests fail
     JIT::BasicBlock_p notGood = NeedTest();
     JIT::Value_p afterCast = code.Call(xl_typecheck, scopePtr, treeValue, typeVal);
-    JIT::Constant_p null = code.PointerConstant(compiler.treePtrTy, nullptr);
-    JIT::Value_p isGood = code.ICmpNE(afterCast, null, "isGoodType");
+    JIT::Value_p isGood = code.IsOKPointer(afterCast, "isGoodType");
     JIT::BasicBlock_p isGoodBB = code.NewBlock("isGood");
     code.IfBranch(isGood, isGoodBB, notGood);
 

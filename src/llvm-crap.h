@@ -352,6 +352,8 @@ public:
                                  JIT::BasicBlock_p t, JIT::BasicBlock_p f);
     JIT::Value_p        Select(JIT::Value_p cond,
                                JIT::Value_p t, JIT::Value_p f);
+    JIT::Value_p        IsNullPointer(JIT::Value_p pointer, kstring name = "");
+    JIT::Value_p        IsOKPointer(JIT::Value_p pointer, kstring name = "");
 
     JIT::Value_p        Alloca(JIT::Type_p type, kstring name = "");
     JIT::Value_p        AllocateReturnValue(JIT::Function_p f,

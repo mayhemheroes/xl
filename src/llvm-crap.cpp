@@ -1771,11 +1771,21 @@ JIT::Constant_p JITBlock::PointerConstant(JIT::Type_p type, void *pointer)
 //    Create a constant pointer
 // ----------------------------------------------------------------------------
 {
-    llvm::APInt addr(JIT::BitsPerByte * sizeof(void *), (uintptr_t) pointer);
     JIT::Type_p rawTy = b.jit.MachinePointerType(type);
     if (!rawTy)
         rawTy = type;
-    JIT::Constant_p result = llvm::Constant::getIntegerValue(rawTy, addr);
+
+    if (!rawTy || !rawTy->isPointerTy())
+    {
+        record(llvm_error, "Creating a pointer constant for type %T", type);
+        return nullptr;
+    }
+
+    llvm::APInt addr(JIT::BitsPerByte * sizeof(void *), (uintptr_t) pointer);
+    JIT::Constant_p result = pointer
+        ? llvm::Constant::getIntegerValue(rawTy, addr)
+        : llvm::ConstantPointerNull::get(cast<PointerType>(rawTy));
+
 #if LLVM_VERSION >= 1500
     if (type != rawTy)
         if (auto st = dyn_cast<StructType>(type))
@@ -2016,6 +2026,34 @@ JIT::Value_p JITBlock::Select(JIT::Value_p cond,
            cond, t, f, inst);
     return inst;
 
+}
+
+
+JIT::Value_p JITBlock::IsNullPointer(JIT::Value_p pointer, kstring name)
+// ----------------------------------------------------------------------------
+//   Check if a value is a null pointer
+// ----------------------------------------------------------------------------
+//   With the wrapping of pointers in 1-field structures, checking if something
+//   is a null pointer can be a bit convoluted, and it's used in at least three
+//   distinct places.
+{
+    JIT::Value_p raw = PointerValue(pointer);
+    JIT::Value_p null = PointerConstant(JIT::Type(raw), nullptr);
+    return ICmpEQ(raw, null, name);
+}
+
+
+JIT::Value_p JITBlock::IsOKPointer(JIT::Value_p pointer, kstring name)
+// ----------------------------------------------------------------------------
+//   Check if a value is not a null pointer
+// ----------------------------------------------------------------------------
+//   With the wrapping of pointers in 1-field structures, checking if something
+//   is a null pointer can be a bit convoluted, and it's used in at least three
+//   distinct places.
+{
+    JIT::Value_p raw = PointerValue(pointer);
+    JIT::Value_p null = PointerConstant(JIT::Type(raw), nullptr);
+    return ICmpNE(raw, null, name);
 }
 
 

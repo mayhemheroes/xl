@@ -315,8 +315,7 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
             JIT::Value_p value = Value(tc.value);
             value = function.Autobox(tc.value, value, compiler.treePtrTy);
             JIT::Value_p cast = function.CallTypeCheck(tc.type, value);
-            JIT::Value_p zero = code.IntegerConstant(compiler.treePtrTy, 0);
-            JIT::Value_p compare = code.ICmpEQ(cast, zero);
+            JIT::Value_p compare = code.IsNullPointer(cast, "cast");
             record(compiler_expr, "Type test for %t for value %t type %t: %v",
                    call, tc.value, tc.type, compare);
             if (condition)
