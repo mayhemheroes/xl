@@ -217,7 +217,7 @@ Tree *Types::KnownType(Tree *expr, bool recurse)
 
 // ============================================================================
 //
-//    Tree::Do interface to
+//    Tree::Do interface to perform type analysis
 //
 // ============================================================================
 

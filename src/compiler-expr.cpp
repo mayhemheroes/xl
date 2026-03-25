@@ -46,7 +46,7 @@
 #include "llvm-crap.h"
 
 
-RECORDER(compiler_expr, 128, "Expression reduction (compilation of calls)");
+RECORDER(compiler_expr,   128, "Expression reduction (compilation of calls)");
 
 XL_BEGIN
 
@@ -425,20 +425,35 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
         else
         {
             text op = name->value;
-            uint sz = args.size();
+            size_t sz = args.size();
             JIT::Value_p *a = &args[0];
             result = function.Primitive(builtin, op, sz, a);
             record(compiler_expr, "Rewrite %t is builtin %t: %v",
                    rw, builtin, result);
         }
     }
-    else
+    else if (JIT::Value_p fn = function.Compile(call, cand, args))
     {
-        JIT::Value_p fn = function.Compile(call, cand, args);
-        if (fn)
-            result = code.Call(fn, args);
+        // Autobox arguments to expected arguments to avoid codegen failures
+        if (JIT::Function_p callee = llvm::dyn_cast<llvm::Function>(fn))
+        {
+            JIT::FunctionType_p fty = callee->getFunctionType();
+            size_t argc = args.size();
+            for (size_t a = 0; a < argc; a++)
+            {
+                JIT::Type_p want = fty->getParamType(a);
+                args[a] = function.Autobox(bnds[a].value, args[a], want);
+            }
+        }
+        result = code.Call(fn, args);
         record(compiler_expr, "Rewrite %t function %v call %v",
                rw, fn, result);
+    }
+    else
+    {
+        record(compiler_error,
+               "Could not compile %t for rewrite %t", call, rw);
+
     }
 
     // Save the type of the return value

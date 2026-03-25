@@ -220,7 +220,14 @@ void CompilerTypes::Dump()
 XL_END
 
 
-XL::CompilerTypes *xldebug(XL::CompilerTypes *ti)
+XL::Tree             *xldebug(XL::Tree *);
+XL::Types            *xldebug(XL::Types *);
+XL::Context          *xldebug(XL::Context *);
+XL::RewriteCalls     *xldebug(XL::RewriteCalls *);
+XL::RewriteCandidate *xldebug(XL::RewriteCandidate *);
+
+
+XL::CompilerTypes    *xldebug(XL::CompilerTypes *ti)
 // ----------------------------------------------------------------------------
 //   Dump a type inference
 // ----------------------------------------------------------------------------
@@ -238,7 +245,7 @@ XL::CompilerTypes *xldebug(XL::CompilerTypes *ti)
 }
 
 
-XL::CompilerTypes *xldebug(XL::CompilerTypes_p ti)
+XL::CompilerTypes    *xldebug(XL::CompilerTypes_p ti)
 // ----------------------------------------------------------------------------
 //   Dump a pointer to compiler types
 // ----------------------------------------------------------------------------
@@ -246,14 +253,8 @@ XL::CompilerTypes *xldebug(XL::CompilerTypes_p ti)
     return xldebug((XL::CompilerTypes *) ti);
 }
 
-XL::Tree *xldebug(XL::Tree *);
-XL::Types *xldebug(XL::Types *);
-XL::Context *xldebug(XL::Context *);
-XL::RewriteCalls *xldebug(XL::RewriteCalls *);
-XL::RewriteCandidate *xldebug(XL::RewriteCandidate *);
 
-
-void *xldebug(uintptr_t address)
+void                 *xldebug(uintptr_t address)
 // ----------------------------------------------------------------------------
 //   Debugger entry point to debug a garbage-collected pointer
 // ----------------------------------------------------------------------------
