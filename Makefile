@@ -57,3 +57,7 @@ NPROC:=$(shell nproc)
 NPROC_OPT:=$(NPROC:%=-j%)
 llvm-test-%:
 	$(CTOOL) compose run --user $(shell id -u):$(shell id -g) --rm llvm-$* bash -c 'make clean && make $(NPROC_OPT) CC=$$CC CXX=$$CXX tests'
+
+clangdb: clangdb-debug
+clangdb-%:
+	@make $*-clean && compiledb make v-$*
