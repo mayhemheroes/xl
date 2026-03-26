@@ -204,6 +204,8 @@ Tree *Types::KnownType(Tree *expr, bool recurse)
 //   Check if there is a type already recorded for this expression
 // ----------------------------------------------------------------------------
 {
+    if (declaration)
+        recurse = false;
     for (Types *ts = this; ts; ts = recurse ? ts->parent : nullptr)
     {
         auto it = ts->types.find(expr);
@@ -983,6 +985,9 @@ Tree *Types::TypeError(Tree *t1, Tree *t2, Tree *x1, Tree *x2)
     }
     else
     {
+        if (Name *n = t2->AsName())
+            if (n->value == "character")
+                record(types, "DDD: We got the hit for %t", n);
         if (x1)
             Ooops("Cannot unify type $2 of $1", x1, t1);
         else
