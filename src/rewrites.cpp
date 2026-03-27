@@ -261,7 +261,7 @@ BindingStrength RewriteCandidate::Bind(Tree *pattern, Tree *value)
             }
 
             // Add type binding with the given type
-            Tree *valueType = binding_types->Type(value);
+            Tree *valueType = value_types->Type(value);
             if (!Unify(valueType, vtype, value, pattern, true))
             {
                 record(bindings,
@@ -290,7 +290,7 @@ BindingStrength RewriteCandidate::Bind(Tree *pattern, Tree *value)
             }
 
             // Check if we can evaluate the guard
-            if (!binding_types->Type(fi->right))
+            if (!value_types->Type(fi->right))
             {
                 record(bindings,
                        "Guard of conditional %t to %t in %p type mismatch",
@@ -299,7 +299,7 @@ BindingStrength RewriteCandidate::Bind(Tree *pattern, Tree *value)
             }
 
             // Check that the type of the guard is a boolean
-            Tree *guardType = binding_types->Type(fi->right);
+            Tree *guardType = value_types->Type(fi->right);
             if (!Unify(guardType, boolean_type, fi->right, fi->left))
             {
                 record(bindings,
@@ -327,7 +327,7 @@ BindingStrength RewriteCandidate::Bind(Tree *pattern, Tree *value)
 
         // Check if the bound value has a well-defined type
         Infix *infix = value->AsInfix();
-        vtype = binding_types->Type(value);
+        vtype = value_types->Type(value);
         if (!infix)
             if (Tree *matched = IsPatternMatchingType(vtype))
                 if (Infix *imatch = matched->AsInfix())
