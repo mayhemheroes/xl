@@ -1002,7 +1002,7 @@ Tree *Types::TypeError(Tree *t1, Tree *t2, Tree *x1, Tree *x2)
 }
 
 
-Tree *Types::AssignType(Tree *expr, Tree *type, bool add)
+Tree *Types::AssignType(Tree *expr, Tree *type)
 // ----------------------------------------------------------------------------
 //   Assign the given type to the expression
 // ----------------------------------------------------------------------------
