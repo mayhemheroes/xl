@@ -65,6 +65,7 @@
 
 
 RECORDER(compiler_unit, 64, "Compilation unit (where all compilation happens)");
+RECORDER(compiler_cache, 64, "Cache of compiled functions");
 
 XL_BEGIN
 
@@ -227,13 +228,15 @@ JIT::Function_p &CompilerUnit::Compiled(Scope *scope,
     // Build a unique key to check if we already have the function in cache
     std::ostringstream os;
     os << (void *) rc->rewrite << "@" << (void *) scope;
+    record(compiler_cache, "Key for %t", rc->rewrite);
     for (auto value : args)
     {
         JIT::Type_p type = JIT::Type(value);
+        record(compiler_cache, "  Arg %T", type);
         os << '|' << (void *) type;
     }
     text key = os.str();
-
+    record(compiler_cache, "Key is %s", key.c_str());
     return compiled[key];
 }
 

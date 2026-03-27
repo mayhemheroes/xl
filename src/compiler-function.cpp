@@ -293,7 +293,7 @@ JIT::Value_p CompilerFunction::Compile(Tree *call,
 // ----------------------------------------------------------------------------
 {
     // Check if cache already contains a compilation for this function
-    Scope *scope = types->TypesScope();
+    Scope *scope = rc->scope;
     JIT::Function_p &function = unit.Compiled(scope, rc, args);
     if (function == nullptr)
     {
@@ -305,9 +305,9 @@ JIT::Value_p CompilerFunction::Compile(Tree *call,
         bool isData = d == CompilerTypes::Decl::DATA;
 
         // Identify the return type for the rewrite
-        CompilerTypes *btypes = rc->BindingTypes();
-        Tree *base = btypes->BaseType(rc->type);
-        JIT::Type_p retTy = rc->RewriteType();
+        CompilerTypes      *btypes = rc->BindingTypes();
+        Tree               *base   = btypes->BaseType(rc->type);
+        JIT::Type_p         retTy  = rc->RewriteType();
         if (!retTy && rc->type)
         {
             retTy = BoxedType(base);

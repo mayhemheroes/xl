@@ -88,12 +88,12 @@ CompilerTypes::~CompilerTypes()
 }
 
 
-CompilerTypes *CompilerTypes::LocalTypes()
+CompilerTypes *CompilerTypes::LocalTypes(Scope *scope)
 // ----------------------------------------------------------------------------
 //   Factory for local type information
 // ----------------------------------------------------------------------------
 {
-    return new CompilerTypes(context->Symbols(), this);
+    return new CompilerTypes(scope, (CompilerTypes *) TypesForScope(scope));
 }
 
 

@@ -83,7 +83,7 @@ RewriteCandidate::RewriteCandidate(Infix *rewrite, Scope *scope, Types *types)
       scope(scope),
       bindings(),
       value_types(types),
-      binding_types(types->LocalTypes()),
+      binding_types(types->LocalTypes(scope)),
       type(nullptr),
       defined(nullptr),
       defined_name()
@@ -615,6 +615,14 @@ Tree *RewriteCalls::Check (Scope *scope, Tree *what, Infix *candidate)
 
     if (init)
     {
+        Tree *itype = nullptr;
+        if (!type)
+        {
+            Types *vtypes = rc->value_types;
+            type          = vtypes->KnownType(init);
+            itype         = type;
+        }
+
         // Check if we have a type to match
         if (type)
         {
@@ -648,6 +656,8 @@ Tree *RewriteCalls::Check (Scope *scope, Tree *what, Infix *candidate)
                 type = btypes->Unify(type, declaredType, what, defined);
                 break;
             }
+            if (itype && type)
+                btypes->Unify(itype, type);
         }
     }
 

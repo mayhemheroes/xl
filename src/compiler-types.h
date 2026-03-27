@@ -101,7 +101,7 @@ protected:
     CompilerTypes(Scope *scope, CompilerTypes *parent);
 
     // Create a types structure for local processing
-    CompilerTypes *     LocalTypes() override;
+    CompilerTypes *     LocalTypes(Scope *scope) override;
 
     // Create rewrite calls for this class
     CompilerRewriteCalls *NewRewriteCalls() override;

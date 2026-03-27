@@ -306,7 +306,6 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
     {
         // Now evaluate in that candidate's type system
         CompilerRewriteCandidate *cand = rc->Candidate(i);
-        Save<value_map> saveComputed(computed, computed);
         JIT::Value_p condition = nullptr;
 
         // Perform tree-kind tests to check if this candidate is valid
@@ -394,12 +393,19 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
     // Evaluate parameters
     JIT::Values args;
     RewriteBindings &bnds = cand->bindings;
+    CompilerTypes   *btypes = (CompilerTypes *) cand->BindingTypes();
+    CompilerTypes   *vtypes = (CompilerTypes *) cand->ValueTypes();
     for (RewriteBinding &b : bnds)
     {
-        Tree *tree = b.value;
-        JIT::Value_p value = Value(tree);
+        Tree        *arg   = b.value;
+        JIT::Value_p value = Value(arg);
         args.push_back(value);
-        record(compiler_expr, "Rewrite %t arg %t value %v", rw, tree, value);
+
+        Tree       *argtype = vtypes->ValueType(arg);
+        JIT::Type_p mtype   = function.ValueMachineType(arg);
+        btypes->AddBoxedType(argtype, mtype);
+
+        record(compiler_expr, "Rewrite %t arg %t value %v", rw, arg, value);
     }
 
     // Check if this is an LLVM builtin
@@ -434,17 +440,6 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
     }
     else if (JIT::Value_p fn = function.Compile(call, cand, args))
     {
-        // Autobox arguments to expected arguments to avoid codegen failures
-        if (JIT::Function_p callee = llvm::dyn_cast<llvm::Function>(fn))
-        {
-            JIT::FunctionType_p fty = callee->getFunctionType();
-            size_t argc = args.size();
-            for (size_t a = 0; a < argc; a++)
-            {
-                JIT::Type_p want = fty->getParamType(a);
-                args[a] = function.Autobox(bnds[a].value, args[a], want);
-            }
-        }
         result = code.Call(fn, args);
         record(compiler_expr, "Rewrite %t function %v call %v",
                rw, fn, result);

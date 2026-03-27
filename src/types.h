@@ -63,7 +63,8 @@ public:
     typedef Tree *value_type;
 
     // Create a types structure for local processing
-    virtual Types *     LocalTypes();
+    virtual Types *     LocalTypes(Scope *scope);
+    Types *             TypesForScope(Scope *scope);
 
     // Create rewrite calls for this class
     virtual RewriteCalls *NewRewriteCalls();

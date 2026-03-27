@@ -100,13 +100,26 @@ Tree *Types::TypeAnalysis(Tree *program)
 }
 
 
-Types *Types::LocalTypes()
+Types *Types::LocalTypes(Scope *scope)
 // ----------------------------------------------------------------------------
 //   Return a Types structure for local processing
 // ----------------------------------------------------------------------------
 //   This is overloaded by implementations, e.g. CompilerTypes
 {
-    return new Types(context->Symbols(), this);
+    return new Types(scope, TypesForScope(scope));
+}
+
+
+Types *Types::TypesForScope(Scope *scope)
+// ----------------------------------------------------------------------------
+//   Return the type inference types associated to a given scope
+// ----------------------------------------------------------------------------
+{
+    for (Types *ts = this; ts; ts = ts->parent)
+        if (Scope *sc = ts->TypesScope())
+            if (Enclosing(sc) == scope)
+                return ts->parent;
+    return nullptr;
 }
 
 
@@ -1520,7 +1533,7 @@ Types::Decl Types::RewriteCategory(Rewrite *rw,
                 if (IsValidCName(defname, label))
                     decl = Types::Decl::C;
         // Case of [X, Y is self]: Mark as DATA
-        if (bodyname->value == "self")
+        if (bodyname->value == "self" || Tree::Equal(bodyname, rw->left))
             decl = Types::Decl::DATA;
     }
 
