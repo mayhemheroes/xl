@@ -189,7 +189,7 @@ CPPFLAGS+=	-DXL_BIN='"'$(PREFIX_BIN)'"'			\
 
 # Which kind of test we run for each kind of build
 XL_TESTS_COMPILER_none=interactive
-XL_TESTS_COMPILER_llvm=interactive O3
+XL_TESTS_COMPILER_llvm=O3 interactive
 XL_TESTS_exe=$(XL_TESTS_COMPILER_$(COMPILER):%=.alltests.%)
 .tests: $(XL_TESTS_$(VARIANT))
 

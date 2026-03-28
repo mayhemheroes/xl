@@ -66,8 +66,7 @@ Types::Types(Scope *scope, Types *parent)
       parent(parent),
       declaration(false)
 {
-    context->CreateScope();
-    scope = context->Symbols();
+    scope = context->CreateScope();
     record(types, "Created child Types %p scope %t", this, scope);
 }
 
@@ -117,8 +116,8 @@ Types *Types::TypesForScope(Scope *scope)
 {
     for (Types *ts = this; ts; ts = ts->parent)
         if (Scope *sc = ts->TypesScope())
-            if (Enclosing(sc) == scope)
-                return ts->parent;
+            if (sc == scope)
+                return ts;
     return nullptr;
 }
 
@@ -405,8 +404,10 @@ Tree *Types::Do(Block *what)
 //   A block evaluates as its child
 // ----------------------------------------------------------------------------
 {
-    Tree *type = Type(what->child);
-    type = AssignType(what, type);
+    Tree *btype = UnknownType(what->Position());
+    btype       = AssignType(what, btype);
+    Tree *type  = Type(what->child);
+    type        = AssignType(what, type);
     return type;
 }
 
