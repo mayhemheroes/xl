@@ -57,22 +57,22 @@ XL_BEGIN
 //
 // ============================================================================
 
-CompilerTypes::CompilerTypes(Scope *scope)
+CompilerTypes::CompilerTypes(Scope *scope, CompilerTypes *values)
 // ----------------------------------------------------------------------------
 //   Constructor for top-level type inferences
 // ----------------------------------------------------------------------------
-    : Types(scope),
+    : Types(scope, values),
       codegen(false)
 {
     record(types, "Created CompilerTypes %p for scope %t", this, scope);
 }
 
 
-CompilerTypes::CompilerTypes(Scope *scope, CompilerTypes *parent)
+CompilerTypes::CompilerTypes(Scope *scope, CompilerTypes *parent, Types *values)
 // ----------------------------------------------------------------------------
 //   Constructor for "child" type inferences, i.e. done within a parent
 // ----------------------------------------------------------------------------
-    : Types(scope, parent),
+    : Types(scope, parent, values),
       codegen(false)
 {
     record(types, "Created child CompilerTypes %p scope %t", this, scope);
@@ -88,12 +88,13 @@ CompilerTypes::~CompilerTypes()
 }
 
 
-CompilerTypes *CompilerTypes::LocalTypes(Scope *scope)
+CompilerTypes *CompilerTypes::LocalTypes(Scope *scope, Types *values)
 // ----------------------------------------------------------------------------
 //   Factory for local type information
 // ----------------------------------------------------------------------------
 {
-    return new CompilerTypes(scope, (CompilerTypes *) TypesForScope(scope));
+    CompilerTypes *stypes = (CompilerTypes *) TypesForScope(scope);
+    return new CompilerTypes(scope, stypes, values);
 }
 
 

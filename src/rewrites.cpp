@@ -83,7 +83,7 @@ RewriteCandidate::RewriteCandidate(Infix *rewrite, Scope *scope, Types *types)
       scope(scope),
       bindings(),
       value_types(types),
-      binding_types(types->LocalTypes(scope)),
+      binding_types(types->LocalTypes(scope, types)),
       type(nullptr),
       defined(nullptr),
       defined_name()

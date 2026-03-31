@@ -58,12 +58,12 @@ class Types
 // ----------------------------------------------------------------------------
 {
 public:
-    Types(Scope *scope);
+    Types(Scope *scope, Types *values);
     virtual ~Types();
     typedef Tree *value_type;
 
     // Create a types structure for local processing
-    virtual Types *     LocalTypes(Scope *scope);
+    virtual Types *     LocalTypes(Scope *scope, Types *values);
     Types *             TypesForScope(Scope *scope);
 
     // Create rewrite calls for this class
@@ -98,7 +98,7 @@ public:
 
 protected:
     // Local types (use LocalTypes() to create)
-    Types(Scope *scope, Types *parent);
+    Types(Scope *scope, Types *parent, Types *values);
 
     // Common code for all constants (natural, real, text)
     Tree *              DoConstant(Tree *what, Tree *type, kind k);
@@ -178,6 +178,7 @@ protected:
     tree_map    captured;       // Trees captured from enclosing context
     rcall_map   rcalls;         // Rewrites to call for a given tree
     Types_p     parent;         // Parent type information if any
+    Types_p     values;         // Call-side values for binding types
     bool        declaration;    // Analyzing type of a declaration
     static uint id;             // Id of next type
 };

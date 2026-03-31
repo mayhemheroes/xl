@@ -42,12 +42,13 @@
 XL_BEGIN
 
 
-Types::Types(Scope *scope)
+Types::Types(Scope *scope, Types *values)
 // ----------------------------------------------------------------------------
 //   Constructor for top-level type inferences
 // ----------------------------------------------------------------------------
     : context(new Context(scope)),
       parent(nullptr),
+      values(values),
       declaration(false)
 {
     // Pre-assign some types
@@ -58,12 +59,13 @@ Types::Types(Scope *scope)
 }
 
 
-Types::Types(Scope *scope, Types *parent)
+Types::Types(Scope *scope, Types *parent, Types *values)
 // ----------------------------------------------------------------------------
 //   Constructor for "child" type inferences, i.e. done within a parent
 // ----------------------------------------------------------------------------
     : context(new Context(scope)), types(),
       parent(parent),
+      values(values),
       declaration(false)
 {
     scope = context->CreateScope();
@@ -99,13 +101,13 @@ Tree *Types::TypeAnalysis(Tree *program)
 }
 
 
-Types *Types::LocalTypes(Scope *scope)
+Types *Types::LocalTypes(Scope *scope, Types *values)
 // ----------------------------------------------------------------------------
 //   Return a Types structure for local processing
 // ----------------------------------------------------------------------------
 //   This is overloaded by implementations, e.g. CompilerTypes
 {
-    return new Types(scope, TypesForScope(scope));
+    return new Types(scope, TypesForScope(scope), values);
 }
 
 
@@ -140,6 +142,11 @@ Types *Types::EvaluationInProgress(Tree *what)
 //   Evaluate sees the same subtree as recursive and returns a fresh unknown
 //   for HM unification instead of re-entering Lookup until stack overflow.
 {
+    if (values)
+        if (auto it = values->rcalls.find(what); it != values->rcalls.end())
+            if (RewriteCalls_p rc = (*it).second; !rc || !rc->Evaluated())
+                return values;
+
     for (Types *ts = this; ts; ts = ts->parent)
     {
         if (auto it = ts->rcalls.find(what); it != ts->rcalls.end())

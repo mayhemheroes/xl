@@ -1298,7 +1298,7 @@ bool XLCall::Analyze(Scope *scope)
     Errors errors;
     errors.Log (Error("Unable to evaluate call $1:", call), true);
 
-    Types types(scope);
+    Types types(scope, nullptr);
     Tree *type = types.TypeAnalysis(call);
     bool result = type != nullptr && type != xl_error && !errors.HadErrors();
 

@@ -72,7 +72,7 @@ class CompilerTypes : public Types
     bool        codegen;        // Code generation started
 
 public:
-    CompilerTypes(Scope *scope);
+    CompilerTypes(Scope *scope, CompilerTypes *values);
     ~CompilerTypes();
     typedef Tree *value_type;
 
@@ -98,10 +98,10 @@ public:
 
 
 protected:
-    CompilerTypes(Scope *scope, CompilerTypes *parent);
+    CompilerTypes(Scope *scope, CompilerTypes *parent, Types *values);
 
     // Create a types structure for local processing
-    CompilerTypes *     LocalTypes(Scope *scope) override;
+    CompilerTypes *LocalTypes(Scope *scope, Types *values) override;
 
     // Create rewrite calls for this class
     CompilerRewriteCalls *NewRewriteCalls() override;
