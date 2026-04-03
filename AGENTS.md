@@ -136,6 +136,11 @@ A recorder used across `.cpp` files can be declared in a header using
   philosophy of the language. Refer to that in case of doubt about test expected
   outcomes.
 
+- **Metabox patterns:** To match a literal name (e.g. boolean `true` / `false`)
+  without treating it as a pattern variable, use **`[[…]]`** (see `docs/HANDBOOK.adoc`,
+  metabox). Example: in `src/builtins.xl`, `write [[true]]` is correct; `write true`
+  would bind a parameter named `true`.
+
 - Never "fix" a problem by adjusting or silencing tests. The tests are the
   reference, the code is where the fix happens.
 
