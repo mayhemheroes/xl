@@ -60,4 +60,4 @@ llvm-test-%:
 
 clangdb: clangdb-debug
 clangdb-%:
-	@make $*-clean && compiledb make v-$*
+	@make $*-clean && bear -- make v-$*
