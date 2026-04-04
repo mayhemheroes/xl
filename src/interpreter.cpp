@@ -72,7 +72,7 @@ NaturalOption   stackDepth("stack_depth",
 //
 // ============================================================================
 
-typedef std::map<Tree_p, Tree_p> EvalCache;
+typedef std::map<Tree_g, Tree_g> EvalCache;
 
 
 
@@ -106,7 +106,7 @@ Tree *Interpreter::Evaluate(Scope *scope, Tree *what)
 //    Evaluate 'what', finding the final, non-closure result
 // ----------------------------------------------------------------------------
 {
-    Context_p context = new Context(scope);
+    Context_g context = new Context(scope);
     Tree *result = EvaluateClosure(context, what);
     if (Tree *inside = IsClosure(result, nullptr))
         result = inside;
@@ -190,13 +190,13 @@ struct Bindings
     void  BindClosure(Name *name, Tree *value);
 
 private:
-    Context_p  context;
-    Context_p  locals;
-    Tree_p     test;
+    Context_g  context;
+    Context_g  locals;
+    Tree_g     test;
     EvalCache  &cache;
 
 public:
-    Tree_p      resultType;
+    Tree_g      resultType;
     TreeList   &args;
 };
 
@@ -248,7 +248,7 @@ inline bool Bindings::Do(Name *what)
 //   The pattern contains a name: bind it as a closure, no evaluation
 // ----------------------------------------------------------------------------
 {
-    Save<Context_p> saveContext(context, context);
+    Save<Context_g> saveContext(context, context);
 
     // The test value may have been evaluated
     EvalCache::iterator found = cache.find(test);
@@ -378,7 +378,7 @@ bool Bindings::Do(Infix *what)
 //   The complicated case: various declarations
 // ----------------------------------------------------------------------------
 {
-    Save<Context_p> saveContext(context, context);
+    Save<Context_g> saveContext(context, context);
 
     // Check if we have typed arguments, e.g. X:natural
     if (what->name == ":")
@@ -581,8 +581,8 @@ static Tree *evalLookup(Scope *evalScope, Scope *declScope,
     }
 
     // Create the scope for evaluation
-    Context_p context = new Context(evalScope);
-    Context_p locals  = nullptr;
+    Context_g context = new Context(evalScope);
+    Context_g locals  = nullptr;
     Tree *result = nullptr;
 
     // Check if the decl is an opcode or C binding
@@ -675,13 +675,13 @@ inline Tree *encloseResult(Context *context, Scope *old, Tree *what)
 }
 
 
-Tree *Interpreter::Instructions(Context_p context, Tree_p what)
+Tree *Interpreter::Instructions(Context_g context, Tree_g what)
 // ----------------------------------------------------------------------------
 //   Evaluate the input tree once declarations have been processed
 // ----------------------------------------------------------------------------
 {
-    Tree_p      result = what;
-    Scope_p     originalScope = context->Symbols();
+    Tree_g      result = what;
+    Scope_g     originalScope = context->Symbols();
 
     // Loop to avoid recursion for a few common cases, e.g. sequences, blocks
     while (what)
@@ -741,7 +741,7 @@ Tree *Interpreter::Instructions(Context_p context, Tree_p what)
             Tree   *callee = pfx->left;
 
             // Check if we had something like '(X->X+1) 31' as closure
-            Context_p calleeContext = nullptr;
+            Context_g calleeContext = nullptr;
             if (Tree *inside = IsClosure(callee, &calleeContext))
                 callee = inside;
 
@@ -781,7 +781,7 @@ Tree *Interpreter::Instructions(Context_p context, Tree_p what)
             // Other cases: evaluate the callee, and if it changed, retry
             if (!newCallee)
             {
-                Context_p newContext = new Context(context);
+                Context_g newContext = new Context(context);
                 newCallee = EvaluateClosure(newContext, callee);
             }
 
@@ -882,7 +882,7 @@ Tree *Interpreter::EvaluateClosure(Context *context, Tree *what)
 // ----------------------------------------------------------------------------
 {
     // Create scope for declarations, and evaluate in this context
-    Tree_p result = what;
+    Tree_g result = what;
     Errors *errors = MAIN->errors;
     uint errCount = errors->Count();
     if (context->ProcessDeclarations(what) && errCount == errors->Count())
@@ -961,7 +961,7 @@ struct Expansion
         return what;
     }
 
-    Context_p context;
+    Context_g context;
 };
 
 
@@ -975,8 +975,8 @@ static Tree *formTypeCheck(Scope *scope, Tree *shape, Tree *value)
         shape = block->child;
 
     // Check if the shape matches
-    Context_p context = new Context(scope);
-    Context_p locals = new Context(context);
+    Context_g context = new Context(scope);
+    Context_g locals = new Context(context);
     EvalCache cache;
     TreeList  args;
     Bindings  bindings(context, locals, value, cache, args);

@@ -46,7 +46,7 @@ XL_BEGIN
 CompilerPrototype::CompilerPrototype(CompilerUnit &unit,
                                      Tree *pattern,
                                      CompilerTypes *types,
-                                     JIT::FunctionType_p type,
+                                     JIT::FunctionType_g type,
                                      text name)
 // ----------------------------------------------------------------------------
 //   Create new compiler prototype (e.g. for a C function)
@@ -85,7 +85,7 @@ CompilerPrototype::~CompilerPrototype()
 }
 
 
-JIT::Function_p CompilerPrototype::Function()
+JIT::Function_g CompilerPrototype::Function()
 // ----------------------------------------------------------------------------
 //   The LLVM function associated with the function
 // ----------------------------------------------------------------------------

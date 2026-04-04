@@ -36,12 +36,12 @@
 
 TYPE(text_or_number, text,
      if (Text *tval = this->AsText())
-         return (text_or_number_p) tval;
+         return (text_or_number_g) tval;
      if (Natural *ival = this->AsNatural())
-         return (text_or_number_p) new Text(xl_int2text(ival->value),
+         return (text_or_number_g) new Text(xl_int2text(ival->value),
                                             this->Position());
      if (Real *rval = this->AsReal())
-         return (text_or_number_p) new Text(xl_real2text(rval->value),
+         return (text_or_number_g) new Text(xl_real2text(rval->value),
                                             this->Position());
     );
 

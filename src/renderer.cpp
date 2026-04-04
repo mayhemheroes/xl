@@ -499,7 +499,7 @@ int Renderer::InfixPriority(Tree *test)
 //    Return infix priority for infix trees, "infinity" otherwise
 // ----------------------------------------------------------------------------
 {
-    if (Infix_p it = test->AsInfix())
+    if (Infix_g it = test->AsInfix())
         if (syntax.infix_priority.count(it->name) > 0)
             return syntax.infix_priority[it->name];
     return 9997;                                // Approximate infinity
@@ -900,15 +900,15 @@ XL::Tree *xldebug(XL::Tree *tree)
     return tree;
 }
 
-XL::Tree *xldebug(XL::Tree_p t)         { return xldebug((XL::Tree *) t); }
-XL::Tree *xldebug(XL::Natural_p t)      { return xldebug((XL::Tree *) t); }
-XL::Tree *xldebug(XL::Real_p t)         { return xldebug((XL::Tree *) t); }
-XL::Tree *xldebug(XL::Text_p t)         { return xldebug((XL::Tree *) t); }
-XL::Tree *xldebug(XL::Name_p t)         { return xldebug((XL::Tree *) t); }
-XL::Tree *xldebug(XL::Block_p t)        { return xldebug((XL::Tree *) t); }
-XL::Tree *xldebug(XL::Prefix_p t)       { return xldebug((XL::Tree *) t); }
-XL::Tree *xldebug(XL::Postfix_p t)      { return xldebug((XL::Tree *) t); }
-XL::Tree *xldebug(XL::Infix_p t)        { return xldebug((XL::Tree *) t); }
+XL::Tree *xldebug(XL::Tree_g t)         { return xldebug((XL::Tree *) t); }
+XL::Tree *xldebug(XL::Natural_g t)      { return xldebug((XL::Tree *) t); }
+XL::Tree *xldebug(XL::Real_g t)         { return xldebug((XL::Tree *) t); }
+XL::Tree *xldebug(XL::Text_g t)         { return xldebug((XL::Tree *) t); }
+XL::Tree *xldebug(XL::Name_g t)         { return xldebug((XL::Tree *) t); }
+XL::Tree *xldebug(XL::Block_g t)        { return xldebug((XL::Tree *) t); }
+XL::Tree *xldebug(XL::Prefix_g t)       { return xldebug((XL::Tree *) t); }
+XL::Tree *xldebug(XL::Postfix_g t)      { return xldebug((XL::Tree *) t); }
+XL::Tree *xldebug(XL::Infix_g t)        { return xldebug((XL::Tree *) t); }
 
 RECORDER_TWEAK_DEFINE(recorder_dump_symbolic, 40,
                       "Size of symbolic information to show, 0=none, -1=all");

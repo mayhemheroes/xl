@@ -87,7 +87,7 @@ TYPE(type, Tree, );
 CONVERTIBLE_TYPE(boolean, Name,
                  if (Name *name = AsName())
                      if (name->value == "true" || name->value == "false")
-                         return (boolean_p) name;
+                         return (boolean_g) name;
                  ,
                  operator bool()
                  {
@@ -96,122 +96,122 @@ CONVERTIBLE_TYPE(boolean, Name,
     );
 TYPE(natural, Natural,
      if (Natural *ival = AsNatural())
-         return (natural_p) ival;
+         return (natural_g) ival;
     );
 TYPE(real, Real,
      if (Real *rval = AsReal())
          return (real_r *) rval;
      if (Natural *ival = AsNatural())
-         return (real_p) new Real(ival->value, ival->Position());
+         return (real_g) new Real(ival->value, ival->Position());
     );
 TYPE(text, Text,
      if (Text *text = AsText())
-         return (text_p) text;
+         return (text_g) text;
     );
 TYPE(character, Text,
      if (Text *tval = AsText())
          if (tval->IsCharacter())
-             return (character_p) tval;
+             return (character_g) tval;
     );
-TYPE(tree,      Tree, return (tree_p)  this);
-TYPE(code,      Tree, return (code_p)  this);
-TYPE(source,    Tree, return (source_p)  this);
-TYPE(reference, Tree, return (reference_p)  this);
-TYPE(value,     Tree, return (value_p) this);
-TYPE(scope,     Scope, return (scope_p) this);
+TYPE(tree,      Tree, return (tree_g)  this);
+TYPE(code,      Tree, return (code_g)  this);
+TYPE(source,    Tree, return (source_g)  this);
+TYPE(reference, Tree, return (reference_g)  this);
+TYPE(value,     Tree, return (value_g) this);
+TYPE(scope,     Scope, return (scope_g) this);
 TYPE(symbol,  Name,
      if (Name *name = AsName())
-         return (symbol_p) name;
+         return (symbol_g) name;
     );
 TYPE(name,    Name,
      if (Name *name = AsName())
          if (name->IsName())
-             return (name_p) name;
+             return (name_g) name;
     );
 TYPE(operator,Name,
      if (Name *name = AsName())
          if (name->IsOperator())
-             return (operator_p) name;
+             return (operator_g) name;
     );
 TYPE(infix,Infix,
      if (Infix *infix = AsInfix())
-         return (infix_p) infix;
+         return (infix_g) infix;
     );
 TYPE(declaration,Infix,
      if (Infix *infix = AsInfix())
          if (IsDeclaration(infix))
-             return (declaration_p) infix;
+             return (declaration_g) infix;
     );
 TYPE(prefix,Prefix,
      if (Prefix *prefix = AsPrefix())
-         return (prefix_p) prefix;
+         return (prefix_g) prefix;
     );
 TYPE(postfix,Postfix,
      if (Postfix *postfix = AsPostfix())
-         return (postfix_p) postfix;
+         return (postfix_g) postfix;
     );
 TYPE(block,Block,
      if (Block *block = AsBlock())
-         return (block_p) block;
+         return (block_g) block;
     );
 
 TYPE(integer,natural,
      if (Natural *ival = AsNatural())
-         return (integer_p) ival;
+         return (integer_g) ival;
     );
 TYPE(integer8,integer,
      if (Natural *ival = AsNatural())
          if ((longlong) ival->value >= -0x80 &&
              (longlong) ival->value  <  0x80)
-             return (integer8_p) ival;
+             return (integer8_g) ival;
     );
 TYPE(integer16,integer,
      if (Natural *ival = AsNatural())
          if ((longlong) ival->value >= -0x8000 &&
              (longlong) ival->value  <  0x8000)
-             return (integer16_p) ival;
+             return (integer16_g) ival;
     );
 TYPE(integer32,integer,
      if (Natural *ival = AsNatural())
          if ((longlong) ival->value >= -0x80000000 &&
              (longlong) ival->value  <  0x80000000)
-             return (integer32_p) ival;
+             return (integer32_g) ival;
     );
 TYPE(integer64,integer,
      if (Natural *ival = AsNatural())
-         return (integer64_p) ival;
+         return (integer64_g) ival;
     );
 
 TYPE(natural8,natural,
      if (Natural *ival = AsNatural())
          if (ival->value < 0x100)
-             return (natural8_p) ival;
+             return (natural8_g) ival;
     );
 TYPE(natural16,natural,
      if (Natural *ival = AsNatural())
          if (ival->value < 0x10000)
-             return (natural16_p) ival;
+             return (natural16_g) ival;
     );
 TYPE(natural32,natural,
      if (Natural *ival = AsNatural())
          if (ival->value < 0x100000000ULL)
-             return (natural32_p) ival;
+             return (natural32_g) ival;
     );
 TYPE(natural64,natural,
      if (Natural *ival = AsNatural())
-         return (natural64_p) ival;
+         return (natural64_g) ival;
     );
 TYPE(real16,real,
      if (Real *rval = AsReal())
-         return (real16_p) rval;
+         return (real16_g) rval;
     );
 TYPE(real32,real,
      if (Real *rval = AsReal())
-         return (real32_p) rval;
+         return (real32_g) rval;
     );
 TYPE(real64,real,
      if (Real *rval = AsReal())
-         return (real64_p) rval;
+         return (real64_g) rval;
     );
 
 

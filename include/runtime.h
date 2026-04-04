@@ -199,7 +199,7 @@ Tree *  xl_parse_text(text source);
 // ============================================================================
 
 Tree *  xl_list_files(Scope *scope, Tree *patterns);
-bool    xl_file_exists(Scope *scope, Tree_p self, text path);
+bool    xl_file_exists(Scope *scope, Tree_g self, text path);
 
 
 
@@ -281,10 +281,10 @@ struct XLCall
     Tree *      operator() (Scope *syms);
 
 private:
-    Name_p      name;
-    Tree_p      arguments;
-    Tree_p *    pointer;
-    Tree_p      call;
+    Name_g      name;
+    Tree_g      arguments;
+    Tree_g *    pointer;
+    Tree_g      call;
 };
 
 XL_END

@@ -79,11 +79,11 @@ struct Error
 
     // Converting to a prefix form for error evaluation
                         operator Tree *();
-                        operator Tree_p() { return (Tree *) (*this); }
+                        operator Tree_g() { return (Tree *) (*this); }
 
 public:
     text                message;
-    std::vector<Tree_p> arguments;
+    std::vector<Tree_g> arguments;
     ulong               position;
     ulong               indent;
 };
@@ -108,14 +108,14 @@ struct Errors
     Error &             Context(const Error &e) { return Log(e, true); }
     uint                Count()         { return errors.size() + count; }
     bool                HadErrors()     { return errors.size() > context; }
-    static Tree_p       Aborting()      { return aborting; }
+    static Tree_g       Aborting()      { return aborting; }
     static void         Abort(Error &e) { if (!aborting) aborting = e; }
 
     std::vector<Error>  errors;
     Errors *            parent;
     ulong               count;
     ulong               context;
-    static Tree_p       aborting;
+    static Tree_g       aborting;
 };
 
 

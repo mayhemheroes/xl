@@ -90,31 +90,31 @@ Compiler::Compiler(kstring moduleName, unsigned opts, int argc, char **argv)
       textTy            (jit.StructType({charPtrTy},            "text")),
       textPtrTy         (jit.PointerType(textTy,                "textp")),
       infoTy            (jit.OpaqueType(                        "info")),
-      infoPtrTy         (jit.PointerType(infoTy,                "info_p")),
+      infoPtrTy         (jit.PointerType(infoTy,                "info_g")),
 
 #define TREE    ulongTy, infoPtrTy
 #define TREE1   TREE, treePtrTy
 #define TREE2   TREE1, treePtrTy
       treeTy            (jit.StructType({TREE},                 "Tree")),
-      treePtrTy         (jit.PointerType(treeTy,                "Tree_p")),
+      treePtrTy         (jit.PointerType(treeTy,                "Tree_g")),
       naturalTreeTy     (jit.StructType({TREE, ulonglongTy},    "Natural")),
-      naturalTreePtrTy  (jit.PointerType(naturalTreeTy,         "Natural_p")),
+      naturalTreePtrTy  (jit.PointerType(naturalTreeTy,         "Natural_g")),
       realTreeTy        (jit.StructType({TREE, realTy},         "Real")),
-      realTreePtrTy     (jit.PointerType(realTreeTy,            "Real_p")),
+      realTreePtrTy     (jit.PointerType(realTreeTy,            "Real_g")),
       textTreeTy        (jit.StructType({TREE, textTy},         "Text")),
-      textTreePtrTy     (jit.PointerType(textTreeTy,            "Text_p")),
+      textTreePtrTy     (jit.PointerType(textTreeTy,            "Text_g")),
       nameTreeTy        (jit.StructType({TREE, textTy},         "Name")),
-      nameTreePtrTy     (jit.PointerType(nameTreeTy,            "Name_p")),
+      nameTreePtrTy     (jit.PointerType(nameTreeTy,            "Name_g")),
       blockTreeTy       (jit.StructType({TREE1},                "Block")),
-      blockTreePtrTy    (jit.PointerType(blockTreeTy,           "Block_p")),
+      blockTreePtrTy    (jit.PointerType(blockTreeTy,           "Block_g")),
       prefixTreeTy      (jit.StructType({TREE2},                "Prefix")),
-      prefixTreePtrTy   (jit.PointerType(prefixTreeTy,          "Prefix_p")),
+      prefixTreePtrTy   (jit.PointerType(prefixTreeTy,          "Prefix_g")),
       postfixTreeTy     (jit.StructType({TREE2},                "Postfix")),
       postfixTreePtrTy  (jit.PointerType(postfixTreeTy,         "Postfix")),
       infixTreeTy       (jit.StructType({TREE2, textTy},        "Infix")),
-      infixTreePtrTy    (jit.PointerType(infixTreeTy,           "Infix_p")),
+      infixTreePtrTy    (jit.PointerType(infixTreeTy,           "Infix_g")),
       scopeTy           (jit.StructType({TREE2},                "Scope")),
-      scopePtrTy        (jit.PointerType(scopeTy,               "Scope_p")),
+      scopePtrTy        (jit.PointerType(scopeTy,               "Scope_g")),
 #undef TREE
 #undef TREE1
 #undef TREE2
@@ -155,33 +155,33 @@ void Compiler::RebindTypesToJITContext()
     textTy           = jit.StructType({ charPtrTy },            "text");
     textPtrTy        = jit.PointerType(textTy,                  "textp");
     infoTy           = jit.OpaqueType(                          "info");
-    infoPtrTy        = jit.PointerType(infoTy,                  "info_p");
+    infoPtrTy        = jit.PointerType(infoTy,                  "info_g");
 
 #define TREE    ulongTy, infoPtrTy
 #define TREE1   TREE, treePtrTy
 #define TREE2   TREE1, treePtrTy
 
     treeTy           = jit.StructType({ TREE },                 "Tree");
-    treePtrTy        = jit.PointerType(treeTy,                  "Tree_p");
+    treePtrTy        = jit.PointerType(treeTy,                  "Tree_g");
     treePtrPtrTy     = jit.PointerType(treePtrTy,               "Tree_pp");
     naturalTreeTy    = jit.StructType({ TREE, ulonglongTy },    "Natural");
-    naturalTreePtrTy = jit.PointerType(naturalTreeTy,           "Natural_p");
+    naturalTreePtrTy = jit.PointerType(naturalTreeTy,           "Natural_g");
     realTreeTy       = jit.StructType({ TREE, realTy },         "Real");
-    realTreePtrTy    = jit.PointerType(realTreeTy,              "Real_p");
+    realTreePtrTy    = jit.PointerType(realTreeTy,              "Real_g");
     textTreeTy       = jit.StructType({ TREE, textTy },         "Text");
-    textTreePtrTy    = jit.PointerType(textTreeTy,              "Text_p");
+    textTreePtrTy    = jit.PointerType(textTreeTy,              "Text_g");
     nameTreeTy       = jit.StructType({ TREE, textTy },         "Name");
-    nameTreePtrTy    = jit.PointerType(nameTreeTy,              "Name_p");
+    nameTreePtrTy    = jit.PointerType(nameTreeTy,              "Name_g");
     blockTreeTy      = jit.StructType({ TREE1 },                "Block");
-    blockTreePtrTy   = jit.PointerType(blockTreeTy,             "Block_p");
+    blockTreePtrTy   = jit.PointerType(blockTreeTy,             "Block_g");
     prefixTreeTy     = jit.StructType({ TREE2 },                "Prefix");
-    prefixTreePtrTy  = jit.PointerType(prefixTreeTy,            "Prefix_p");
+    prefixTreePtrTy  = jit.PointerType(prefixTreeTy,            "Prefix_g");
     postfixTreeTy    = jit.StructType({ TREE2 },                "Postfix");
-    postfixTreePtrTy = jit.PointerType(postfixTreeTy,           "Postfix_p");
+    postfixTreePtrTy = jit.PointerType(postfixTreeTy,           "Postfix_g");
     infixTreeTy      = jit.StructType({ TREE2, textTy },        "Infix");
-    infixTreePtrTy   = jit.PointerType(infixTreeTy,             "Infix_p");
+    infixTreePtrTy   = jit.PointerType(infixTreeTy,             "Infix_g");
     scopeTy          = jit.StructType({ TREE2 },                "Scope");
-    scopePtrTy       = jit.PointerType(scopeTy,                 "Scope_p");
+    scopePtrTy       = jit.PointerType(scopeTy,                 "Scope_g");
 #undef TREE
 #undef TREE1
 #undef TREE2
@@ -241,7 +241,7 @@ Tree * Compiler::TypeCheck(Scope *, Tree *type, Tree *val)
 }
 
 
-JIT::PointerType_p Compiler::TreeMachineType(Tree *tree)
+JIT::PointerType_g Compiler::TreeMachineType(Tree *tree)
 // ----------------------------------------------------------------------------
 //    Return the LLVM tree type associated to a given XL expression
 // ----------------------------------------------------------------------------

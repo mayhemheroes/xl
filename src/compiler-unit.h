@@ -44,9 +44,9 @@
 
 XL_BEGIN
 
-typedef std::map<Tree *, JIT::Value_p>  value_map;
-typedef std::map<text, JIT::Function_p> compiled_map;
-typedef std::set<JIT::Type_p>           closure_set;
+typedef std::map<Tree *, JIT::Value_g>  value_map;
+typedef std::map<text, JIT::Function_g> compiled_map;
+typedef std::set<JIT::Type_g>           closure_set;
 
 class CompilerUnit
 // ----------------------------------------------------------------------------
@@ -56,9 +56,9 @@ class CompilerUnit
     Compiler &          compiler;       // The compiler environment we use
     JIT &               jit;            // The JIT compiler (LLVM CRAP)
     JITModule           module;         // The module we are compiling
-    Context_p           context;        // Context in which we compile
-    Tree_p              source;         // The source of the program to compile
-    CompilerTypes_p     types;          // Type inferences for this unit
+    Context_g           context;        // Context in which we compile
+    Tree_g              source;         // The source of the program to compile
+    CompilerTypes_g     types;          // Type inferences for this unit
     value_map           globals;        // Global definitions in the unit
     compiled_map        compiled;       // Already compiled functions
     closure_set         clotypes;       // Closure types
@@ -77,19 +77,19 @@ public:
     eval_fn             Compile();
 
     // Global values (defined at the unit level)
-    JIT::Value_p        Global(Tree *tree);
-    void                Global(Tree *tree, JIT::Value_p value);
+    JIT::Value_g        Global(Tree *tree);
+    void                Global(Tree *tree, JIT::Value_g value);
 
     // Cache of already compiled functions
-    JIT::Function_p &   Compiled(Scope *,
+    JIT::Function_g &   Compiled(Scope *,
                                  RewriteCandidate *,
                                  const JIT::Values &);
-    JIT::Function_p &   CompiledUnbox(JIT::Type_p type);
-    JIT::Function_p &   CompiledClosure(Scope *, Tree *expr);
+    JIT::Function_g &   CompiledUnbox(JIT::Type_g type);
+    JIT::Function_g &   CompiledClosure(Scope *, Tree *expr);
 
     // Closure types management
-    bool                IsClosureType(JIT::Type_p type);
-    void                AddClosureType(JIT::Type_p type);
+    bool                IsClosureType(JIT::Type_g type);
+    void                AddClosureType(JIT::Type_g type);
 
 private:
     // Import all runtime functions
@@ -99,7 +99,7 @@ private:
 #define CAST(Name)
 #define ALIAS(Name, Arity, Original)
 #define SPECIAL(Name, Arity, Code)
-#define EXTERNAL(Name, RetTy, ...)      JIT::Function_p  Name;
+#define EXTERNAL(Name, RetTy, ...)      JIT::Function_g  Name;
 #include "compiler-primitives.tbl"
 };
 

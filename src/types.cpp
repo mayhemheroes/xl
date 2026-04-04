@@ -144,14 +144,14 @@ Types *Types::EvaluationInProgress(Tree *what)
 {
     if (values)
         if (auto it = values->rcalls.find(what); it != values->rcalls.end())
-            if (RewriteCalls_p rc = (*it).second; !rc || !rc->Evaluated())
+            if (RewriteCalls_g rc = (*it).second; !rc || !rc->Evaluated())
                 return values;
 
     for (Types *ts = this; ts; ts = ts->parent)
     {
         if (auto it = ts->rcalls.find(what); it != ts->rcalls.end())
         {
-            RewriteCalls_p rc = (*it).second;
+            RewriteCalls_g rc = (*it).second;
             if (!rc->Evaluated())
                 return ts;
         }
@@ -287,8 +287,8 @@ Tree *Types::Do(Name *what)
         return type;
     }
 
-    Scope_p scope;
-    Rewrite_p rw;
+    Scope_g scope;
+    Rewrite_g rw;
     Tree *body = context->Bound(what, true, &rw, &scope);
     if (body && body != what)
     {
@@ -844,7 +844,7 @@ Tree *Types::Evaluate(Tree *what, bool mayFail)
     }
 
     // Identify all candidate rewrites in the current context
-    RewriteCalls_p rc = NewRewriteCalls();
+    RewriteCalls_g rc = NewRewriteCalls();
     rcalls[what] = rc;
     uint count = 0;
     Errors errors;
@@ -1690,7 +1690,7 @@ XL::Types *xldebug(XL::Types *ti)
 }
 
 
-XL::Types *xldebug(XL::Types_p ti)
+XL::Types *xldebug(XL::Types_g ti)
 // ----------------------------------------------------------------------------
 //   Dump a pointer to compiler types
 // ----------------------------------------------------------------------------

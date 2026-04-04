@@ -82,8 +82,8 @@ XL_BEGIN
 
 static uint        active_children = 0;
 static int         reply_socket    = 0;
-static Tree_p      received        = xl_nil;
-static Tree_p      hook            = xl_true;
+static Tree_g      received        = xl_nil;
+static Tree_g      hook            = xl_true;
 static bool        listening       = true;
 
 
@@ -128,7 +128,7 @@ struct StopAtGlobalsCloneMode
 //   Clone mode where all the children nodes are copied (default)
 // ----------------------------------------------------------------------------
 {
-    Tree_p cutpoint;
+    Tree_g cutpoint;
 
     template<typename CloneClass>
     Tree *Clone(Tree *t, CloneClass *clone)
@@ -147,14 +147,14 @@ struct StopAtGlobalsCloneMode
 typedef TreeCloneTemplate<StopAtGlobalsCloneMode> StopAtGlobalsClone;
 
 
-static Tree_p xl_attach_context(Context &context, Tree *code)
+static Tree_g xl_attach_context(Context &context, Tree *code)
 // ----------------------------------------------------------------------------
 //   Attach the scope for the given code
 // ----------------------------------------------------------------------------
 {
     // Find first enclosing scope containing a "module_path"
-    Scope_p globals;
-    Rewrite_p rewrite;
+    Scope_g globals;
+    Rewrite_g rewrite;
     Name *module_path = new Name("module_path", code->Position());
     Tree *found = context.Bound(module_path, true, &rewrite, &globals);
 
@@ -162,8 +162,8 @@ static Tree_p xl_attach_context(Context &context, Tree *code)
     StopAtGlobalsClone partialClone;
     if (found)
         partialClone.cutpoint = Enclosing(globals);
-    Scope_p symbols = context.Symbols();
-    Tree_p symbolsToSend = partialClone.Clone(symbols);
+    Scope_g symbols = context.Symbols();
+    Tree_g symbolsToSend = partialClone.Clone(symbols);
 
     record(remote, "Sending context %t", symbolsToSend.Pointer());
 
@@ -204,7 +204,7 @@ static Tree *xl_restore_nil(Tree *tree)
 }
 
 
-static Tree_p xl_merge_context(Context &context, Tree *code)
+static Tree_g xl_merge_context(Context &context, Tree *code)
 // ----------------------------------------------------------------------------
 //    Merge the code into the current running context
 // ----------------------------------------------------------------------------
@@ -325,7 +325,7 @@ int xl_tell(Scope *scope, text host, Tree *code)
 }
 
 
-Tree_p xl_ask(Scope *scope, text host, Tree *code)
+Tree_g xl_ask(Scope *scope, text host, Tree *code)
 // ----------------------------------------------------------------------------
 //   Send code to the target, wait for reply
 // ----------------------------------------------------------------------------
@@ -336,7 +336,7 @@ Tree_p xl_ask(Scope *scope, text host, Tree *code)
     if (sock < 0)
         return xl_nil;
 
-    Tree_p result = xl_read_tree(sock);
+    Tree_g result = xl_read_tree(sock);
     result = xl_merge_context(context, result);
     record(remote_ask, "Response from %s was %t", host.c_str(), result);
 
@@ -346,7 +346,7 @@ Tree_p xl_ask(Scope *scope, text host, Tree *code)
 }
 
 
-Tree_p xl_invoke(Scope *scope, text host, Tree *code)
+Tree_g xl_invoke(Scope *scope, text host, Tree *code)
 // ----------------------------------------------------------------------------
 //   Send code to the target, wait for multiple replies
 // ----------------------------------------------------------------------------
@@ -357,10 +357,10 @@ Tree_p xl_invoke(Scope *scope, text host, Tree *code)
     if (sock < 0)
         return xl_nil;
 
-    Tree_p result = xl_nil;
+    Tree_g result = xl_nil;
     while (true)
     {
-        Tree_p response = xl_read_tree(sock);
+        Tree_g response = xl_read_tree(sock);
         if (response == nullptr)
             break;
 
@@ -435,7 +435,7 @@ static void child_died(int)
 
 
 
-Tree_p  xl_listen_received()
+Tree_g  xl_listen_received()
 // ----------------------------------------------------------------------------
 //    Return the incoming message before evaluation
 // ----------------------------------------------------------------------------
@@ -444,12 +444,12 @@ Tree_p  xl_listen_received()
 }
 
 
-Tree_p xl_listen_hook(Tree *newHook)
+Tree_g xl_listen_hook(Tree *newHook)
 // ----------------------------------------------------------------------------
 //   Set the listen hook, return the previous one
 // ----------------------------------------------------------------------------
 {
-    Tree_p result = hook;
+    Tree_g result = hook;
     if (newHook != xl_nil)
         hook = newHook;
     return result;
@@ -535,19 +535,19 @@ int xl_listen(Scope *scope, uint forking, uint port)
         else
         {
             // Read data from client
-            Tree_p code = xl_read_tree(insock);
+            Tree_g code = xl_read_tree(insock);
 
             // Evaluate resulting code
             if (code)
             {
                 record(remote_listen, "Received code: %t", code);
                 received = code;
-                Tree_p hookResult = xl_evaluate(scope, hook);
+                Tree_g hookResult = xl_evaluate(scope, hook);
                 if (hookResult != xl_nil)
                 {
                     Save<int> saveReply(reply_socket, insock);
                     code = xl_merge_context(context, code);
-                    Tree_p result = xl_evaluate(scope, code);
+                    Tree_g result = xl_evaluate(scope, code);
                     record(remote_listen, "Evaluated as %t", result);
                     xl_write_tree(insock, result);
                     record(remote_listen, "Response sent");

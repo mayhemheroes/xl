@@ -73,8 +73,8 @@ struct SourceFile
     ~SourceFile();
 
     text        name;
-    Tree_p      tree;
-    Scope_p     scope;
+    Tree_g      tree;
+    Scope_g     scope;
     time_t      modified;
     uint64      hash;
     bool        changed;

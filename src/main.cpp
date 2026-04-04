@@ -419,7 +419,7 @@ int Main::LoadFile(text file, text modname)
     // Find which source file we are referencing
     SourceFile         &sf       = files[file];
     std::istream       *input    = nullptr;
-    Tree_p              tree     = nullptr;
+    Tree_g              tree     = nullptr;
     utf8_ifstream       inputFile(file.c_str(), std::ios::in|std::ios::binary);
     std::stringstream   inputStream;
 
@@ -562,7 +562,7 @@ int Main::Run()
         return -1;
 
     // Loop over files we will process
-    Tree_p result = xl_nil;
+    Tree_g result = xl_nil;
     for (file = file_names.begin(); file != file_names.end(); file++)
     {
         SourceFile &sf = files[*file];

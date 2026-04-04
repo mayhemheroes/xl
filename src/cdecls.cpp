@@ -116,8 +116,8 @@ Infix *CDeclaration::Declaration(Tree *input)
 
 
 Tree *CDeclaration::TypeAndName(Tree *input,
-                                       Tree_p &declType,
-                                       Name_p &declName,
+                                       Tree_g &declType,
+                                       Name_g &declName,
                                        uint &mods)
 // ----------------------------------------------------------------------------
 //   Incrementally build the return type
@@ -209,8 +209,8 @@ Tree *CDeclaration::Parameters(Block *input)
 
     // Process non-empty parameter lists
     Tree *next = args;
-    Tree_p result = nullptr;
-    Tree_p *parent = &result;
+    Tree_g result = nullptr;
+    Tree_g *parent = &result;
 
     while (next)
     {
@@ -229,8 +229,8 @@ Tree *CDeclaration::Parameters(Block *input)
         }
 
         // Check if we have a prefix like 'int x'
-        Tree_p declType = nullptr;
-        Name_p declName = nullptr;
+        Tree_g declType = nullptr;
+        Name_g declName = nullptr;
         uint mods = 0;
         Tree *rewritten = TypeAndName(args, declType, declName, mods);
         if (!rewritten || !declType)

@@ -59,11 +59,11 @@ struct CompilerRewriteCandidate : RewriteCandidate
     Tree *              ValueType(Tree *value);
 
     // Code generation
-    JIT::Function_p     Prototype(JIT &jit);
-    JIT::FunctionType_p FunctionType(JIT &jit);
+    JIT::Function_g     Prototype(JIT &jit);
+    JIT::FunctionType_g FunctionType(JIT &jit);
     JIT::Signature      RewriteSignature();
-    JIT::Type_p         RewriteType();
-    void                RewriteType(JIT::Type_p type);
+    JIT::Type_g         RewriteType();
+    void                RewriteType(JIT::Type_g type);
 
     // Access types in Compiler form
     CompilerTypes *     ValueTypes()
@@ -78,8 +78,8 @@ struct CompilerRewriteCandidate : RewriteCandidate
 public:
     GARBAGE_COLLECT(CompilerRewriteCandidate);
 };
-typedef GCPtr<CompilerRewriteCandidate> CompilerRewriteCandidate_p;
-typedef std::vector<CompilerRewriteCandidate_p> CompilerRewriteCandidates;
+typedef GCPtr<CompilerRewriteCandidate> CompilerRewriteCandidate_g;
+typedef std::vector<CompilerRewriteCandidate_g> CompilerRewriteCandidates;
 
 
 struct CompilerRewriteCalls : RewriteCalls
@@ -108,7 +108,7 @@ struct CompilerRewriteCalls : RewriteCalls
 public:
     GARBAGE_COLLECT(CompilerRewriteCalls);
 };
-typedef GCPtr<CompilerRewriteCalls> CompilerRewriteCalls_p;
+typedef GCPtr<CompilerRewriteCalls> CompilerRewriteCalls_g;
 
 XL_END
 

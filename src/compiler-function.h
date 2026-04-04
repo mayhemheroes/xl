@@ -54,13 +54,13 @@ class CompilerFunction : public CompilerPrototype
 protected:
     Compiler &          compiler;   // The compiler environment we use
     JIT &               jit;        // The JIT compiler (LLVM API stabilizer)
-    Tree_p              body;       // Body for this function
+    Tree_g              body;       // Body for this function
     JITBlock            data;       // A basic block for local variables
     JITBlock            code;       // A basic block for current code
     JITBlock            exit;       // A basic block for shared exit
-    JIT::BasicBlock_p   entry;      // The entry point for the function code
-    JIT::Value_p        returned;   // Returned value
-    JIT::Type_p         closure;    // Closure type if any
+    JIT::BasicBlock_g   entry;      // The entry point for the function code
+    JIT::Value_g        returned;   // Returned value
+    JIT::Type_g         closure;    // Closure type if any
     value_map           values;     // Tree -> LLVM value
     value_map           storage;    // Tree -> LLVM storage (alloca)
 
@@ -72,7 +72,7 @@ public:
                      Tree *pattern,
                      Tree *body,
                      CompilerTypes *types,
-                     JIT::FunctionType_p ftype,
+                     JIT::FunctionType_g ftype,
                      text name);
     CompilerFunction(CompilerFunction &caller, CompilerRewriteCandidate *rc);
     ~CompilerFunction();
@@ -80,13 +80,13 @@ public:
     bool                IsInterfaceOnly() override;
 
 
-    JIT::Function_p     Compile(Tree *tree, bool forceEvaluation = false);
-    JIT::Value_p        Return(Tree *tree, JIT::Value_p value);
+    JIT::Function_g     Compile(Tree *tree, bool forceEvaluation = false);
+    JIT::Value_g        Return(Tree *tree, JIT::Value_g value);
     eval_fn             Finalize(bool createCode);
 
-    JIT::Type_p         ValueMachineType(Tree *expr, bool mayfail = false);
-    void                ValueMachineType(Tree *expr, JIT::Type_p type);
-    JIT::Type_p         BoxedType(Tree *type);
+    JIT::Type_g         ValueMachineType(Tree *expr, bool mayfail = false);
+    void                ValueMachineType(Tree *expr, JIT::Type_g type);
+    JIT::Type_g         BoxedType(Tree *type);
 
 private:
     // Function interface creation
@@ -94,59 +94,59 @@ private:
     void                InitializeArgs(CompilerRewriteCandidate *rc);
 
     // Machine types management
-    void                AddBoxedType(Tree *treeType, JIT::Type_p machineType);
-    JIT::Type_p         HasBoxedType(Tree *type);
+    void                AddBoxedType(Tree *treeType, JIT::Type_g machineType);
+    JIT::Type_g         HasBoxedType(Tree *type);
 
-    JIT::Type_p         ReturnType(Tree *pattern);
-    JIT::Type_p         StructureType(Tree *rwform, Tree *type);
-    JIT::Type_p         StructureType(const JIT::Signature &signature,
+    JIT::Type_g         ReturnType(Tree *pattern);
+    JIT::Type_g         StructureType(Tree *rwform, Tree *type);
+    JIT::Type_g         StructureType(const JIT::Signature &signature,
                                       Tree *rwform, Tree *type);
-    JIT::Value_p        BoxedTree(Tree *what);
+    JIT::Value_g        BoxedTree(Tree *what);
     void                BoxedTreeType(JIT::Signature &sig, Tree *what);
 
 private:
     // Compilation of rewrites and data
-    JIT::Value_p        Compile(Tree *call,
+    JIT::Value_g        Compile(Tree *call,
                                 CompilerRewriteCandidate *rc,
                                 const JIT::Values &args);
-    JIT::Value_p        Data(Tree        *pattern,
-                             JIT::Value_p box,
-                             JIT::Type_p  boxTy,
+    JIT::Value_g        Data(Tree        *pattern,
+                             JIT::Value_g box,
+                             JIT::Type_g  boxTy,
                              unsigned    &index);
-    JIT::Value_p        Autobox(Tree        *source,
-                                JIT::Value_p value,
-                                JIT::Type_p  requested);
-    JIT::Function_p     UnboxFunction(JIT::Type_p type, Tree *pattern);
-    JIT::Value_p        Unbox(JIT::Value_p arg,
-                              JIT::Type_p  type,
+    JIT::Value_g        Autobox(Tree        *source,
+                                JIT::Value_g value,
+                                JIT::Type_g  requested);
+    JIT::Function_g     UnboxFunction(JIT::Type_g type, Tree *pattern);
+    JIT::Value_g        Unbox(JIT::Value_g arg,
+                              JIT::Type_g  type,
                               Tree        *pattern,
                               uint        &index);
-    JIT::Value_p        Primitive(Tree *,
+    JIT::Value_g        Primitive(Tree *,
                                   text name,
                                   uint arity,
-                                  JIT::Value_p *args);
+                                  JIT::Value_g *args);
 
     // Storage management
     enum { knowAll = -1, knowGlobals = 1, knowLocals = 2, knowValues = 4 };
-    JIT::Value_p        NeedStorage(Tree *tree, JIT::Type_p ty = nullptr);
+    JIT::Value_g        NeedStorage(Tree *tree, JIT::Type_g ty = nullptr);
     bool                IsKnown(Tree *tree, uint which = knowAll);
-    JIT::Value_p        Known(Tree *tree, uint which = knowAll );
+    JIT::Value_g        Known(Tree *tree, uint which = knowAll );
 
     // Creating constants
-    JIT::Value_p        ConstantNatural(Natural *what);
-    JIT::Value_p        ConstantReal(Real *what);
-    JIT::Value_p        ConstantText(Text *what);
-    JIT::Value_p        ConstantTree(Tree *what);
+    JIT::Value_g        ConstantNatural(Natural *what);
+    JIT::Value_g        ConstantReal(Real *what);
+    JIT::Value_g        ConstantText(Text *what);
+    JIT::Value_g        ConstantTree(Tree *what);
 
     // Error management
-    JIT::Value_p        CallFormError(Tree *what);
-    JIT::Value_p        CallTypeCheck(Tree *type, JIT::Value_p value);
+    JIT::Value_g        CallFormError(Tree *what);
+    JIT::Value_g        CallTypeCheck(Tree *type, JIT::Value_g value);
 
 protected:
     // Primitives, i.e. functions generating native LLVM code
-    typedef JIT::Value_p (CompilerFunction::*primitive_fn)(Tree *,
-                                                           JIT::Value_p *args);
-    typedef JIT::Type_p  (CompilerFunction::*mtype_fn)(Tree *);
+    typedef JIT::Value_g (CompilerFunction::*primitive_fn)(Tree *,
+                                                           JIT::Value_g *args);
+    typedef JIT::Type_g  (CompilerFunction::*mtype_fn)(Tree *);
     struct PrimitiveInfo
     {
         primitive_fn    function;
@@ -166,15 +166,15 @@ protected:
 
     // Define LLVM accessors for primitives
 #define MTYPE(Name, Arity, Code)                                        \
-    JIT::Type_p         llvm_type_##Name(Tree *source);
+    JIT::Type_g         llvm_type_##Name(Tree *source);
 #define UNARY(Name)                                                     \
-    JIT::Value_p        llvm_##Name(Tree *source, JIT::Value_p *args);
+    JIT::Value_g        llvm_##Name(Tree *source, JIT::Value_g *args);
 #define BINARY(Name)                                                    \
-    JIT::Value_p        llvm_##Name(Tree *source, JIT::Value_p *args);
+    JIT::Value_g        llvm_##Name(Tree *source, JIT::Value_g *args);
 #define CAST(Name)                                                      \
-    JIT::Value_p        llvm_##Name(Tree *source, JIT::Value_p *args);
+    JIT::Value_g        llvm_##Name(Tree *source, JIT::Value_g *args);
 #define SPECIAL(Name, Arity, Code)                                      \
-    JIT::Value_p        llvm_##Name(Tree *source, JIT::Value_p *args);
+    JIT::Value_g        llvm_##Name(Tree *source, JIT::Value_g *args);
 
 #define ALIAS(from, arity, to)
 #define EXTERNAL(Name, ...)

@@ -61,23 +61,23 @@ XL_BEGIN
 //  Each XL type defined in opcodes or in .tbl file is represented as:
 //  - A C++ class deriving from one of the parse tree types.
 //    The name is [name]_r, for example class boolean_r derives from Name.
-//  - A pointer type [name]_p, for example boolean_p
-//  - A Name_p for the type name, called [name]_type, for example boolean_type
+//  - A pointer type [name]_g, for example boolean_g
+//  - A Name_g for the type name, called [name]_type, for example boolean_type
 //
 //  The TYPE macro also creates:
 //  - A specialization for Tree::As that does the proper type checks
 //    or return NULL if the item does not have the expected type
-//  - A function called OpcodeType() to get [name]_type from a [name]_p.
+//  - A function called OpcodeType() to get [name]_type from a [name]_g.
 
-extern Name_p           tree_type;
-extern Name_p           natural_type;
-extern Name_p           real_type;
-extern Name_p           text_type;
-extern Name_p           name_type;
-extern Name_p           block_type;
-extern Name_p           prefix_type;
-extern Name_p           postfix_type;
-extern Name_p           infix_type;
+extern Name_g           tree_type;
+extern Name_g           natural_type;
+extern Name_g           real_type;
+extern Name_g           text_type;
+extern Name_g           name_type;
+extern Name_g           block_type;
+extern Name_g           prefix_type;
+extern Name_g           postfix_type;
+extern Name_g           infix_type;
 
 #define Tree_type       tree_type
 #define Natural_type    natural_type
@@ -154,7 +154,7 @@ struct NameOpcode : Opcode
 //    Opcode for names and types
 // ----------------------------------------------------------------------------
 {
-    NameOpcode(kstring name, Name_p &toDefine)
+    NameOpcode(kstring name, Name_g &toDefine)
         : toDefine(toDefine)
     {
         Allocator<Name>::CreateSingleton();
@@ -175,7 +175,7 @@ struct NameOpcode : Opcode
     {
         out << "name\t" << toDefine->value;
     }
-    Name_p &                    toDefine;
+    Name_g &                    toDefine;
 };
 
 
@@ -184,7 +184,7 @@ struct TypeCheckOpcode : NameOpcode
 //    A structure to quickly do the most common type checks
 // ----------------------------------------------------------------------------
 {
-    TypeCheckOpcode(kstring name, Name_p &toDefine)
+    TypeCheckOpcode(kstring name, Name_g &toDefine)
         : NameOpcode(name, toDefine) {}
     virtual void                Register(Context *);
     virtual Opcode *            Clone() { return new TypeCheckOpcode(*this); }
@@ -213,7 +213,7 @@ struct InfixOpcode : Opcode
 //   We need to keep references to the original type names, as they
 //   may not be initialized at construction time yet
 {
-    InfixOpcode(kstring infix, Name_p &leftTy, Name_p &rightTy, Name_p &resTy)
+    InfixOpcode(kstring infix, Name_g &leftTy, Name_g &rightTy, Name_g &resTy)
         : infix(infix), leftTy(leftTy), rightTy(rightTy), resTy(resTy) {}
 
     virtual Tree *Shape()
@@ -237,9 +237,9 @@ struct InfixOpcode : Opcode
     }
 
     kstring     infix;
-    Name_p &    leftTy;
-    Name_p &    rightTy;
-    Name_p &    resTy;
+    Name_g &    leftTy;
+    Name_g &    rightTy;
+    Name_g &    resTy;
 };
 
 
@@ -248,7 +248,7 @@ struct PrefixOpcode : Opcode
 //   An unary prefix opcode, regisered at initialization time
 // ----------------------------------------------------------------------------
 {
-    PrefixOpcode(kstring prefix, Name_p &argTy, Name_p &resTy)
+    PrefixOpcode(kstring prefix, Name_g &argTy, Name_g &resTy)
         : prefix(prefix), argTy(argTy), resTy(resTy) {}
 
     virtual Tree *Shape()
@@ -270,8 +270,8 @@ struct PrefixOpcode : Opcode
 
 
     kstring     prefix;
-    Name_p &    argTy;
-    Name_p &    resTy;
+    Name_g &    argTy;
+    Name_g &    resTy;
 };
 
 
@@ -280,7 +280,7 @@ struct PostfixOpcode : Opcode
 //   An unary postfix opcode, regisered at initialization time
 // ----------------------------------------------------------------------------
 {
-    PostfixOpcode(kstring postfix, Name_p &argTy, Name_p &resTy)
+    PostfixOpcode(kstring postfix, Name_g &argTy, Name_g &resTy)
         : postfix(postfix), argTy(argTy), resTy(resTy) {}
 
     virtual Tree *Shape()
@@ -301,8 +301,8 @@ struct PostfixOpcode : Opcode
     }
 
     kstring     postfix;
-    Name_p &    argTy;
-    Name_p &    resTy;
+    Name_g &    argTy;
+    Name_g &    resTy;
 };
 
 
@@ -335,8 +335,8 @@ struct FunctionOpcode : Opcode
         return (TreeType *) parmDecl; // Only need it to be non-zero
     }
 
-    Tree_p  result;
-    Tree_p *ptr;
+    Tree_g  result;
+    Tree_g *ptr;
     uint    size;
 };
 
@@ -467,7 +467,7 @@ XL_END
 #define OVERLOAD(Name, ResTy, Symbol, Parms, Code, ...)
 #define FUNCTION(Name, ResTy, Parms, Code)
 #define PARM(Name, Type, ...)
-#define NAME(symbol)            extern Name_p xl_##symbol;
+#define NAME(symbol)            extern Name_g xl_##symbol;
 #define NAME_FN(Name, ResTy, Symbol, Code)
 
 
@@ -482,9 +482,9 @@ XL_END
 /* ------------------------------------------------------------ */      \
 /*  Declare a type and the related type conversions             */      \
 /* ------------------------------------------------------------ */      \
-    extern  Name_p symbol##_type;                                       \
+    extern  Name_g symbol##_type;                                       \
     struct  symbol##_r : BaseType##_r { ClassContents };                \
-    typedef symbol##_r *symbol##_p;                                     \
+    typedef symbol##_r *symbol##_g;                                     \
     typedef symbol##_r::value_t symbol##_t;                             \
     template<> inline                                                   \
     symbol##_r *Tree::As<symbol##_r>(Scope *context)                    \
@@ -494,7 +494,7 @@ XL_END
         return nullptr;                                                 \
     }                                                                   \
                                                                         \
-    inline Name *OpcodeType(symbol##_p)                                 \
+    inline Name *OpcodeType(symbol##_g)                                 \
     {                                                                   \
         return symbol##_type;                                           \
     }
@@ -661,7 +661,7 @@ XL_END
 /*  Create an infix opcode, also generates infix declaration    */      \
 /* ------------------------------------------------------------ */      \
     INFIX(IName, ResTy, LeftTy, Symbol, RightTy,                        \
-          Scope_p scope = DataScope(data);                              \
+          Scope_g scope = DataScope(data);                              \
           Code)
 
 
@@ -712,7 +712,7 @@ XL_END
 /*  Create a prefixopcode, also generates prefix declaration    */      \
 /* ------------------------------------------------------------ */      \
     PREFIX(Name, ResTy, Symbol, RightTy,                                \
-          Scope_p scope = DataScope(data);                              \
+          Scope_g scope = DataScope(data);                              \
           Code)
 
 
@@ -782,7 +782,7 @@ XL_END
         virtual kstring OpID() { return #FName; }                       \
         virtual void Dump(std::ostream &out)                            \
         {                                                               \
-             static Tree_p shape = Shape();                             \
+             static Tree_g shape = Shape();                             \
              out << #FName "\t" << shape;                               \
         }                                                               \
                                                                         \
@@ -816,7 +816,7 @@ XL_END
 /* ------------------------------------------------------------ */      \
 /*  Declare a simple name such as 'true', 'false', 'nil', etc   */      \
 /* ------------------------------------------------------------ */      \
-    Name_p xl_##symbol;                                                 \
+    Name_g xl_##symbol;                                                 \
     static NameOpcode init_opcode_N_##symbol(#symbol, xl_##symbol);
 
 
@@ -827,7 +827,7 @@ XL_END
                                                                         \
     struct Opcode_N_##FName : NameOpcode                                \
     {                                                                   \
-        Opcode_N_##FName(Name_p &toDefine)                              \
+        Opcode_N_##FName(Name_g &toDefine)                              \
             : NameOpcode(Symbol, toDefine) {}                           \
                                                                         \
         virtual Op *Run(Data data)                                      \
@@ -839,7 +839,7 @@ XL_END
         virtual kstring OpID()  { return #FName; }                      \
     };                                                                  \
                                                                         \
-    Name_p xl_##FName;                                                  \
+    Name_g xl_##FName;                                                  \
     static Opcode_N_##FName init_opcode_N_##FName (xl_##FName);
 
 
@@ -856,7 +856,7 @@ XL_END
 /* ------------------------------------------------------------ */      \
     struct sym##TypeCheckOpcode : TypeCheckOpcode                       \
     {                                                                   \
-        sym##TypeCheckOpcode(Name_p &which):                            \
+        sym##TypeCheckOpcode(Name_g &which):                            \
             TypeCheckOpcode(#sym, which) {}                             \
                                                                         \
         virtual Opcode *Clone()                                         \
@@ -869,7 +869,7 @@ XL_END
         }                                                               \
     };                                                                  \
                                                                         \
-    Name_p sym##_type;                                                  \
+    Name_g sym##_type;                                                  \
     static sym##TypeCheckOpcode init_opcode_T_##sym(sym##_type);
 
 #endif // TBL_HEADER

@@ -197,17 +197,17 @@ struct Context;                                 // Execution context
 
 // Give names to components of a symbol table
 typedef Prefix                          Scope;
-typedef GCPtr<Scope>                    Scope_p;
+typedef GCPtr<Scope>                    Scope_g;
 typedef Infix                           Rewrite;
-typedef GCPtr<Rewrite>                  Rewrite_p;
+typedef GCPtr<Rewrite>                  Rewrite_g;
 typedef Infix                           RewriteChildren;
-typedef GCPtr<RewriteChildren>          RewriteChildren_p;
+typedef GCPtr<RewriteChildren>          RewriteChildren_g;
 
-typedef GCPtr<Context>                  Context_p;
-typedef std::vector<Infix_p>            RewriteList;
-typedef std::map<Tree_p, Tree_p>        tree_map;
+typedef GCPtr<Context>                  Context_g;
+typedef std::vector<Infix_g>            RewriteList;
+typedef std::map<Tree_g, Tree_g>        tree_map;
 typedef Tree *                          (*eval_fn) (Scope *, Tree *);
-typedef std::map<Tree_p, eval_fn>       code_map;
+typedef std::map<Tree_g, eval_fn>       code_map;
 
 #define REWRITE_NAME            "\n"
 #define REWRITE_CHILDREN_NAME   ";"
@@ -299,7 +299,7 @@ public:
     Rewrite *           Reference(Tree *form, bool recurse=true);
     Tree *              DeclaredPattern(Tree *form);
     Tree *              Bound(Tree *form,bool recurse=true);
-    Tree *              Bound(Tree *form, bool rec, Rewrite_p *rw,Scope_p *ctx);
+    Tree *              Bound(Tree *form, bool rec, Rewrite_g *rw,Scope_g *ctx);
     Tree *              Named(text name, bool recurse=true);
     bool                IsEmpty();
     bool                HasRewritesFor(kind k);
@@ -323,7 +323,7 @@ public:
     void                Dump(std::ostream &out) { Dump(out, symbols, true); }
 
 public:
-    Scope_p             symbols;
+    Scope_g             symbols;
     static uint         hasRewritesForKind;
     GARBAGE_COLLECT(Context);
 };
@@ -344,7 +344,7 @@ inline Scope *Enclosing(Scope *scope)
 }
 
 
-inline Tree_p &ScopeLocals(Scope *scope)
+inline Tree_g &ScopeLocals(Scope *scope)
 // ----------------------------------------------------------------------------
 //   Return the place where we store the parent for a scope
 // ----------------------------------------------------------------------------

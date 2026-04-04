@@ -64,10 +64,10 @@ Tree *Bytecode::Evaluate(Scope *scope, Tree *what)
 {
     TreeIDs  noParms;
     TreeList captured;
-    Context_p context = new Context(scope);
+    Context_g context = new Context(scope);
 
     Procedure *proc = Compile(context, what, nullptr, noParms, captured);
-    Tree_p result = what;
+    Tree_g result = what;
     if (proc)
     {
         XL_ASSERT(proc->Inputs() == 0);
@@ -145,7 +145,7 @@ struct ConstOp : Op
 // ----------------------------------------------------------------------------
 {
     ConstOp(Tree *value): value(value) {}
-    Tree_p value;
+    Tree_g value;
 
     virtual Op *        Run(Data data)
     {
@@ -222,7 +222,7 @@ struct ArgEvalOp : FailOp
 {
     ArgEvalOp(Context *context, int argId, int id, Op *fail)
         : FailOp(fail), context(context), argId(argId), id(id) {}
-    Context_p context;
+    Context_g context;
     int       argId, id;
 
     virtual Op *        Run(Data data)
@@ -292,7 +292,7 @@ struct ClosureOp : Op
 // ----------------------------------------------------------------------------
 {
     ClosureOp(Context *ctx): context(ctx) {}
-    Context_p context;
+    Context_g context;
 
     virtual Op *        Run(Data data)
     {
@@ -438,7 +438,7 @@ struct IndexOp : FailOp
     {
         Tree *callee = data[left];
         Tree *arg = data[right];
-        Scope_p scope = DataScope(data);
+        Scope_g scope = DataScope(data);
 
         // If the declaration was compiled, evaluate the code
         if (Code *code = callee->GetInfo<Code>())
@@ -447,7 +447,7 @@ struct IndexOp : FailOp
             if (inputs == 0)
             {
                 // If no arguments, evaluate as new callee
-                Tree_p args[2] = { data[0], data[1] };
+                Tree_g args[2] = { data[0], data[1] };
                 Op *remaining = code->Run(args);
                 XL_ASSERT(!remaining);
                 if (remaining)
@@ -457,7 +457,7 @@ struct IndexOp : FailOp
             else if (inputs == 1)
             {
                 // Looks like a prefix, use it as an argument
-                Tree_p args[3] = { arg, data[0], data[1] };
+                Tree_g args[3] = { arg, data[0], data[1] };
                 Op *remaining = code->Run(&args[1]);
                 XL_ASSERT(!remaining);
                 if (remaining)
@@ -473,7 +473,7 @@ struct IndexOp : FailOp
         }
 
         // Check if we have a closure
-        Context_p context = new Context(scope);
+        Context_g context = new Context(scope);
         if (Tree *inside = Interpreter::IsClosure(callee, &context))
         {
             scope = context->Symbols();
@@ -535,7 +535,7 @@ struct FormErrorOp : Op
 // ----------------------------------------------------------------------------
 {
     FormErrorOp(Tree *self): self(self) {}
-    Tree_p self;
+    Tree_g self;
     virtual Op *        Run(Data data)
     {
         Ooops("No pattern matches $1", self);
@@ -770,7 +770,7 @@ Op *Procedure::Run(Data data)
     Scope *scope     = context->Symbols();
     uint   frameSize = FrameSize();
     uint   offset    = OffsetSize();
-    Data   frame     = new Tree_p[frameSize];
+    Data   frame     = new Tree_g[frameSize];
     Data   newData   = frame + offset;
 
     // Initialize self and scope
@@ -1047,13 +1047,13 @@ static Tree *compileLookup(Scope *evalScope, Scope *declScope,
            depth, cindex, self, decl->left);
 
     // Create the scope for evaluation
-    Context_p    context = new Context(evalScope);
-    Context_p    argsCtx = nullptr;
+    Context_g    context = new Context(evalScope);
+    Context_g    argsCtx = nullptr;
 
     // Save current state of the builder
-    Save<Tree_p>    saveSelf(builder->test, self);
-    Save<Context_p> saveContext(builder->context, context);
-    Save<Context_p> saveArgsCtx(builder->argsCtx, argsCtx);
+    Save<Tree_g>    saveSelf(builder->test, self);
+    Save<Context_g> saveContext(builder->context, context);
+    Save<Context_g> saveArgsCtx(builder->argsCtx, argsCtx);
 
     // Create the exit point for failed evaluation
     Op *         oldFailOp = builder->failOp;
@@ -1179,7 +1179,7 @@ Procedure *CodeBuilder::Compile(Context *ctx, Tree *what,
     }
 
     // Does not exist yet, set it up
-    Save<Context_p> saveParmsCtx(parmsCtx, ctx);
+    Save<Context_g> saveParmsCtx(parmsCtx, ctx);
     uint nArgs = callArgs.size();
     Save<TreeIDs> saveInputs(inputs, callArgs);
     proc = new Procedure(ctx, what, nArgs, 0);
@@ -1256,8 +1256,8 @@ bool CodeBuilder::Instructions(Context *ctx, Tree *what)
 {
     Save<Op *> saveSuccessOp(successOp, nullptr);
     Save<Op *> saveFailOp(failOp, nullptr);
-    Scope_p    originalScope = ctx->Symbols();
-    Context_p  gcContext     = ctx;
+    Scope_g    originalScope = ctx->Symbols();
+    Context_g  gcContext     = ctx;
     TreeIDs    empty;
 
     while (what)
@@ -1480,7 +1480,7 @@ int CodeBuilder::ValueID(Tree *self)
     int id;
 
     // For names, use the rewrite as a unique ID
-    Rewrite_p rw;
+    Rewrite_g rw;
     if (context)
         if (Name *name = self->AsName())
             if (context->Bound(name, true, &rw, nullptr))
@@ -1540,8 +1540,8 @@ int CodeBuilder::Evaluate(Context *ctx, Tree *self, bool deferEval)
     if (Name *name = self->AsName())
     {
         bool      evaluate = true;
-        Rewrite_p rw;
-        Scope_p   scope;
+        Rewrite_g rw;
+        Scope_g   scope;
 
         if (Tree *value = ctx->Bound(name, true, &rw, &scope))
         {
@@ -1778,7 +1778,7 @@ struct InfixMatchOp : FailOp
     virtual Op *        Run(Data data)
     {
         Tree *test = DataResult(data);
-        Context_p ctx = nullptr;
+        Context_g ctx = nullptr;
         if (Tree *inside = Interpreter::IsClosure(test, &ctx))
             test = inside;
         if (Infix *ifx = test->AsInfix())
@@ -1986,7 +1986,7 @@ CodeBuilder::strength CodeBuilder::Do(Infix *what)
 //   The complicated case: various declarations
 // ----------------------------------------------------------------------------
 {
-    Save<Context_p> saveContext(context, context);
+    Save<Context_g> saveContext(context, context);
 
     // Check if we have typed arguments, e.g. X:natural
     if (what->name == ":")
@@ -2060,7 +2060,7 @@ CodeBuilder::strength CodeBuilder::Do(Infix *what)
     }
 
     // In all other cases, we need an infix with matching name
-    Infix_p ifx = test->AsInfix();
+    Infix_g ifx = test->AsInfix();
     strength str = ALWAYS;
     if (!ifx || ifx->name != what->name)
     {

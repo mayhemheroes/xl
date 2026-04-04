@@ -167,7 +167,7 @@ bool Context::ProcessDeclarations(Tree *what)
 //   Process all declarations, return true if there are instructions
 // ----------------------------------------------------------------------------
 {
-    Tree_p next   = nullptr;
+    Tree_g next   = nullptr;
     bool   result = false;
 
     while (what)
@@ -350,8 +350,8 @@ Rewrite *Context::Enter(Infix *rewrite, bool overwrite)
     // A->B is the local declaration, L and R are the possible children.
     // Children are initially nil.
     Scope   *scope  = symbols;
-    Tree_p  &locals = ScopeLocals(scope);
-    Tree_p  *parent = &locals;
+    Tree_g  &locals = ScopeLocals(scope);
+    Tree_g  *parent = &locals;
     Rewrite *result = nullptr;
     while (!result)
     {
@@ -598,8 +598,8 @@ Tree *Context::Lookup(Tree *what, lookup_fn lookup, void *info, bool recurse)
     while (scope)
     {
         // Initialize local scope
-        Tree_p &locals = ScopeLocals(scope);
-        Tree_p *parent = &locals;
+        Tree_g &locals = ScopeLocals(scope);
+        Tree_g *parent = &locals;
         Tree *result = nullptr;
         ulong h = h0;
 
@@ -720,8 +720,8 @@ Tree *Context::Bound(Tree *pattern, bool recurse)
 
 Tree *Context::Bound(Tree *pattern,
                      bool recurse,
-                     Rewrite_p *rewrite,
-                     Scope_p *ctx)
+                     Rewrite_g *rewrite,
+                     Scope_g *ctx)
 // ----------------------------------------------------------------------------
 //   Return the value bound to a given declaration
 // ----------------------------------------------------------------------------
@@ -1048,4 +1048,4 @@ XL::Scope *xldebug(XL::Context *context)
         return nullptr;
     }
 }
-XL::Scope *xldebug(XL::Context_p c) { return xldebug((XL::Context *) c); }
+XL::Scope *xldebug(XL::Context_g c) { return xldebug((XL::Context *) c); }

@@ -61,13 +61,13 @@ FUNCTION(tell, natural,
 FUNCTION(ask, tree,
          PARM(host, text)
          PARM(code, tree),
-         Tree_p rc = xl_ask(XL_SCOPE, host, &code);
+         Tree_g rc = xl_ask(XL_SCOPE, host, &code);
          RESULT(rc));
 
 FUNCTION(invoke, tree,
          PARM(host, text)
          PARM(code, tree),
-         Tree_p rc = xl_invoke(XL_SCOPE, host, &code);
+         Tree_g rc = xl_invoke(XL_SCOPE, host, &code);
          RESULT(rc));
 
 FUNCTION(reply, natural,

@@ -315,8 +315,8 @@ adapter_fn FastCompiler::ArrayToArgsAdapter(uint numargs)
     parms.push_back(scopePtrTy);
     parms.push_back(treePtrTy);
     parms.push_back(treePtrPtrTy);
-    JIT::FunctionType_p fnType = jit.FunctionType(treePtrTy, parms);
-    JIT::Function_p adapter = jit.Function(fnType, "xl.adapter");
+    JIT::FunctionType_g fnType = jit.FunctionType(treePtrTy, parms);
+    JIT::Function_g adapter = jit.Function(fnType, "xl.adapter");
 
     // Generate the function type for the called function
     JIT::Signature called;
@@ -324,7 +324,7 @@ adapter_fn FastCompiler::ArrayToArgsAdapter(uint numargs)
     called.push_back(treePtrTy);
     for (uint a = 0; a < numargs; a++)
         called.push_back(treePtrTy);
-    JIT::PointerType_p calledPtrType =
+    JIT::PointerType_g calledPtrType =
         jit.FunctionPointerType(treePtrTy, called);
 
     // Create the entry for the function we generate
@@ -332,13 +332,13 @@ adapter_fn FastCompiler::ArrayToArgsAdapter(uint numargs)
 
     // Read the arguments from the function we are generating
     JITArguments inputs(adapter);
-    JIT::Value_p fnToCall = *inputs++;
-    JIT::Value_p contextPtr = *inputs++;
-    JIT::Value_p sourceTree = *inputs++;
-    JIT::Value_p treeArray = *inputs++;
+    JIT::Value_g fnToCall = *inputs++;
+    JIT::Value_g contextPtr = *inputs++;
+    JIT::Value_g sourceTree = *inputs++;
+    JIT::Value_g treeArray = *inputs++;
 
     // Cast the input function pointer to right type
-    JIT::Value_p fnTyped = code.BitCast(fnToCall, calledPtrType, "xl.fnCast");
+    JIT::Value_g fnTyped = code.BitCast(fnToCall, calledPtrType, "xl.fnCast");
 
     // Add source as first argument to output arguments
     JIT::Values outArgs;
@@ -348,14 +348,14 @@ adapter_fn FastCompiler::ArrayToArgsAdapter(uint numargs)
     // Read other arguments from the input array
     for (uint a = 0; a < numargs; a++)
     {
-        JIT::Value_p elementPtr = code.ArrayGEP(treePtrTy,
+        JIT::Value_g elementPtr = code.ArrayGEP(treePtrTy,
                                                 treeArray, a, "argp");
-        JIT::Value_p fromArray = code.Load(treePtrTy, elementPtr, "arg");
+        JIT::Value_g fromArray = code.Load(treePtrTy, elementPtr, "arg");
         outArgs.push_back(fromArray);
     }
 
     // Call the function
-    JIT::Value_p retVal = code.Call(fnTyped, outArgs);
+    JIT::Value_g retVal = code.Call(fnTyped, outArgs);
 
     // Return the result
     code.Return(retVal);
@@ -403,21 +403,21 @@ eval_fn FastCompiler::ClosureAdapter(uint numtrees)
     // We need a new independent module for this adapter with the MCJIT
     JITModule module(*this, "xl.closure");
     JIT::Signature fnsig { scopePtrTy, treePtrTy };
-    JIT::FunctionType_p fnty = jit.FunctionType(evalFnTy, fnsig);
-    JIT::Function_p function = jit.Function(fnty, "xl.closure");
+    JIT::FunctionType_g fnty = jit.FunctionType(evalFnTy, fnsig);
+    JIT::Function_g function = jit.Function(fnty, "xl.closure");
     JITBlock code(jit, function, "entry");
 
     // Read input arguments for generated function
     JITArguments args(function);
-    JIT::Value_p scopePtr = *args++;
-    JIT::Value_p ptr = *args++;
+    JIT::Value_g scopePtr = *args++;
+    JIT::Value_g ptr = *args++;
 
     // Load the target code saved in the tree by xl_new_closure
     JIT::Signature xlccSig { treePtrTy };
-    JIT::FunctionType_p xlccTy = jit.FunctionType(evalFnTy, xlccSig);
-    JIT::Function_p xl_closure_code = jit.ExternFunction(xlccTy,
+    JIT::FunctionType_g xlccTy = jit.FunctionType(evalFnTy, xlccSig);
+    JIT::Function_g xl_closure_code = jit.ExternFunction(xlccTy,
                                                          "xl_closure_code");
-    JIT::Value_p callCode = code.Call(xl_closure_code, ptr);
+    JIT::Value_g callCode = code.Call(xl_closure_code, ptr);
 
     // Build argument list
     JIT::Values argV;
@@ -428,7 +428,7 @@ eval_fn FastCompiler::ClosureAdapter(uint numtrees)
     signature.push_back(treeTy);
 
     // Extract child of surrounding block
-    JIT::Value_p block = code.BitCast(ptr, blockTreePtrTy);
+    JIT::Value_g block = code.BitCast(ptr, blockTreePtrTy);
     ptr = code.StructGEP(blockTreeTy,
                          block, BLOCK_CHILD_INDEX, "closure_child");
     ptr = code.Load(treePtrTy, ptr);
@@ -437,21 +437,21 @@ eval_fn FastCompiler::ClosureAdapter(uint numtrees)
     for (uint i = 0; i < numtrees; i++)
     {
         // Load the left of the \n which is a decl of the form P->V
-        JIT::Value_p infix = code.BitCast(ptr, infixTreePtrTy);
-        JIT::Value_p lf = code.StructGEP(infixTreeTy,
+        JIT::Value_g infix = code.BitCast(ptr, infixTreePtrTy);
+        JIT::Value_g lf = code.StructGEP(infixTreeTy,
                                          infix, LEFT_VALUE_INDEX, "closure_lt");
-        JIT::Value_p decl = code.Load(treePtrTy, lf);
+        JIT::Value_g decl = code.Load(treePtrTy, lf);
         decl = code.BitCast(decl, infixTreePtrTy);
 
         // Load the value V out of [P is V] and pass it as an argument
-        JIT::Value_p arg = code.StructGEP(infixTreeTy, decl,
+        JIT::Value_g arg = code.StructGEP(infixTreeTy, decl,
                                           RIGHT_VALUE_INDEX, "closure_rt");
         arg = code.Load(treePtrTy, arg);
         argV.push_back(arg);
         signature.push_back(treeTy);
 
         // Load the next element in the list
-        JIT::Value_p rt = code.StructGEP(infixTreeTy, infix,
+        JIT::Value_g rt = code.StructGEP(infixTreeTy, infix,
                                          RIGHT_VALUE_INDEX, "closure_next");
         ptr = code.Load(treePtrTy, rt);
     }
@@ -460,9 +460,9 @@ eval_fn FastCompiler::ClosureAdapter(uint numtrees)
     argV[1] = ptr;
 
     // Call the resulting function
-    JIT::PointerType_p fnPtrTy = jit.FunctionPointerType(treeTy, signature);
-    JIT::Value_p toCall = code.BitCast(callCode, fnPtrTy);
-    JIT::Value_p callVal = code.Call(toCall, argV);
+    JIT::PointerType_g fnPtrTy = jit.FunctionPointerType(treeTy, signature);
+    JIT::Value_g toCall = code.BitCast(callCode, fnPtrTy);
+    JIT::Value_g callVal = code.Call(toCall, argV);
     code.Return(callVal);
 
     if (jit.VerifyFunction(function))
@@ -510,7 +510,7 @@ FastCompilerInfo *FastCompiler::Info(Tree *tree, bool create)
 }
 
 
-JIT::Function_p FastCompiler::TreeFunction(Tree *tree)
+JIT::Function_g FastCompiler::TreeFunction(Tree *tree)
 // ----------------------------------------------------------------------------
 //   Return the function associated to the tree
 // ----------------------------------------------------------------------------
@@ -520,7 +520,7 @@ JIT::Function_p FastCompiler::TreeFunction(Tree *tree)
 }
 
 
-void FastCompiler::SetTreeFunction(Tree *tree, JIT::Function_p function)
+void FastCompiler::SetTreeFunction(Tree *tree, JIT::Function_g function)
 // ----------------------------------------------------------------------------
 //   Associate a function to the given tree
 // ----------------------------------------------------------------------------
@@ -530,7 +530,7 @@ void FastCompiler::SetTreeFunction(Tree *tree, JIT::Function_p function)
 }
 
 
-JIT::Function_p FastCompiler::TreeClosure(Tree *tree)
+JIT::Function_g FastCompiler::TreeClosure(Tree *tree)
 // ----------------------------------------------------------------------------
 //   Return the closure associated to the tree
 // ----------------------------------------------------------------------------
@@ -540,7 +540,7 @@ JIT::Function_p FastCompiler::TreeClosure(Tree *tree)
 }
 
 
-void FastCompiler::SetTreeClosure(Tree *tree, JIT::Function_p closure)
+void FastCompiler::SetTreeClosure(Tree *tree, JIT::Function_g closure)
 // ----------------------------------------------------------------------------
 //   Associate a closure to the given tree
 // ----------------------------------------------------------------------------
@@ -615,7 +615,7 @@ Tree *ArgumentMatch::CompileValue(Tree *source, bool noData)
         if (Name *name = result->AsName())
         {
             O1CompileUnit &unit = compile.unit;
-            JIT::BasicBlock_p bb = unit.BeginLazy(name);
+            JIT::BasicBlock_g bb = unit.BeginLazy(name);
             unit.NeedStorage(name);
             unit.CallEvaluate(name);
             unit.EndLazy(name, bb);
@@ -1289,8 +1289,8 @@ Tree *EnvironmentScan::Do(Name *what)
 // ----------------------------------------------------------------------------
 {
     Context context(symbols);
-    Rewrite_p rewrite;
-    Scope_p scope;
+    Rewrite_g rewrite;
+    Scope_g scope;
     if (Tree *found = context.Bound(what, true, &rewrite, &scope))
         if (Tree *tree = PatternBase(rewrite->left))
             if (Name *name = tree->AsName())
@@ -1692,7 +1692,7 @@ Tree *CompileAction::Do(Name *what, bool forceEval)
 
     // Check if there is code we need to call
     FastCompiler &compiler = unit.compiler;
-    JIT::Function_p function = compiler.TreeFunction(result);
+    JIT::Function_g function = compiler.TreeFunction(result);
     if (function && function != unit.function)
     {
         // Case of "Name -> Foo": Invoke Name
@@ -2105,10 +2105,10 @@ O1CompileUnit::O1CompileUnit(FastCompiler &compiler,
     // Create the function signature, one entry per parameter + one for source
     JIT::Signature signature;
     signature.push_back(compiler.scopePtrTy);
-    JIT::Type_p treePtrTy = compiler.treePtrTy;
+    JIT::Type_g treePtrTy = compiler.treePtrTy;
     for (ulong p = 0; p <= parms.size(); p++)
         signature.push_back(treePtrTy);
-    JIT::FunctionType_p fnTy = jit.FunctionType(treePtrTy, signature, false);
+    JIT::FunctionType_g fnTy = jit.FunctionType(treePtrTy, signature, false);
     function = jit.Function(fnTy, "xl_eval");
     record(labels, "%v is function for %t", function, source);
     code = JITBlock(jit, function, "code");
@@ -2127,8 +2127,8 @@ O1CompileUnit::O1CompileUnit(FastCompiler &compiler,
     // Associate the value for the input tree
     JITArguments args(function);
     scopePtr = *args++;
-    JIT::Value_p inputArg = *args++;
-    JIT::Value_p resultStorage = data.Alloca(treePtrTy, "result");
+    JIT::Value_g inputArg = *args++;
+    JIT::Value_g resultStorage = data.Alloca(treePtrTy, "result");
     data.Store(inputArg, resultStorage);
     storage[source] = resultStorage;
     value[source] = inputArg;
@@ -2143,32 +2143,32 @@ O1CompileUnit::O1CompileUnit(FastCompiler &compiler,
     // Create the exit basic block, stack pop and return statement
     JITBlock exitcode(jit, function, "exit");
     exitbb = exitcode.Block();
-    JIT::Value_p retVal = exitcode.Load(treePtrTy, resultStorage, "retval");
+    JIT::Value_g retVal = exitcode.Load(treePtrTy, resultStorage, "retval");
     exitcode.Return(retVal);
 
     // Record current entry/exit points for the current expression
     failbb = nullptr;
 
     // Local copy of the types for the macro below
-    JIT::IntegerType_p  booleanTy        = compiler.booleanTy;
-    JIT::IntegerType_p  naturalTy        = compiler.naturalTy;
-    JIT::IntegerType_p  unsignedTy       = compiler.unsignedTy;
-    JIT::IntegerType_p  ulongTy          = compiler.ulongTy;
-    JIT::IntegerType_p  ulonglongTy      = compiler.ulonglongTy;
-    JIT::Type_p         realTy           = compiler.realTy;
-    JIT::IntegerType_p  characterTy      = compiler.characterTy;
-    JIT::PointerType_p  charPtrTy        = compiler.charPtrTy;
-    JIT::StructType_p   textTy           = compiler.textTy;
-    JIT::PointerType_p  textPtrTy        = compiler.textPtrTy;
-    JIT::PointerType_p  naturalTreePtrTy = compiler.naturalTreePtrTy;
-    JIT::PointerType_p  realTreePtrTy    = compiler.realTreePtrTy;
-    JIT::PointerType_p  textTreePtrTy    = compiler.textTreePtrTy;
-    JIT::PointerType_p  blockTreePtrTy   = compiler.blockTreePtrTy;
-    JIT::PointerType_p  prefixTreePtrTy  = compiler.prefixTreePtrTy;
-    JIT::PointerType_p  postfixTreePtrTy = compiler.postfixTreePtrTy;
-    JIT::PointerType_p  infixTreePtrTy   = compiler.infixTreePtrTy;
-    JIT::PointerType_p  scopePtrTy       = compiler.scopePtrTy;
-    JIT::PointerType_p  evalFnTy         = compiler.evalFnTy;
+    JIT::IntegerType_g  booleanTy        = compiler.booleanTy;
+    JIT::IntegerType_g  naturalTy        = compiler.naturalTy;
+    JIT::IntegerType_g  unsignedTy       = compiler.unsignedTy;
+    JIT::IntegerType_g  ulongTy          = compiler.ulongTy;
+    JIT::IntegerType_g  ulonglongTy      = compiler.ulonglongTy;
+    JIT::Type_g         realTy           = compiler.realTy;
+    JIT::IntegerType_g  characterTy      = compiler.characterTy;
+    JIT::PointerType_g  charPtrTy        = compiler.charPtrTy;
+    JIT::StructType_g   textTy           = compiler.textTy;
+    JIT::PointerType_g  textPtrTy        = compiler.textPtrTy;
+    JIT::PointerType_g  naturalTreePtrTy = compiler.naturalTreePtrTy;
+    JIT::PointerType_g  realTreePtrTy    = compiler.realTreePtrTy;
+    JIT::PointerType_g  textTreePtrTy    = compiler.textTreePtrTy;
+    JIT::PointerType_g  blockTreePtrTy   = compiler.blockTreePtrTy;
+    JIT::PointerType_g  prefixTreePtrTy  = compiler.prefixTreePtrTy;
+    JIT::PointerType_g  postfixTreePtrTy = compiler.postfixTreePtrTy;
+    JIT::PointerType_g  infixTreePtrTy   = compiler.infixTreePtrTy;
+    JIT::PointerType_g  scopePtrTy       = compiler.scopePtrTy;
+    JIT::PointerType_g  evalFnTy         = compiler.evalFnTy;
 
     // Initialize all the static functions
 #define MTYPE(Name, Arity, Code)
@@ -2180,13 +2180,13 @@ O1CompileUnit::O1CompileUnit(FastCompiler &compiler,
 #define EXTERNAL(Name, RetTy, ...)                              \
     {                                                           \
         JIT::Signature sig { __VA_ARGS__ };                     \
-        JIT::FunctionType_p fty = jit.FunctionType(RetTy, sig); \
+        JIT::FunctionType_g fty = jit.FunctionType(RetTy, sig); \
         Name = jit.Function(fty, #Name);                        \
     }
 #define VA_EXTERNAL(Name, RetTy, ...)                                   \
     {                                                                   \
         JIT::Signature sig { __VA_ARGS__ };                             \
-        JIT::FunctionType_p fty = jit.FunctionType(RetTy, sig, true);   \
+        JIT::FunctionType_g fty = jit.FunctionType(RetTy, sig, true);   \
         Name = jit.Function(fty, #Name);                                \
     }
 #include "compiler-primitives.tbl"
@@ -2249,12 +2249,12 @@ eval_fn O1CompileUnit::Finalize(bool topLevel)
 }
 
 
-JIT::Value_p O1CompileUnit::NeedStorage(Tree *tree, Tree *source)
+JIT::Value_g O1CompileUnit::NeedStorage(Tree *tree, Tree *source)
 // ----------------------------------------------------------------------------
 //    Allocate storage for a given tree
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p result = storage[tree];
+    JIT::Value_g result = storage[tree];
     if (!result)
     {
         // Create alloca to store the new form
@@ -2276,7 +2276,7 @@ JIT::Value_p O1CompileUnit::NeedStorage(Tree *tree, Tree *source)
     {
         if (!source)
             source = tree;
-        JIT::Constant_p init = ConstantTree(source);
+        JIT::Constant_g init = ConstantTree(source);
         data.Store(init, result);
     }
 
@@ -2297,12 +2297,12 @@ bool O1CompileUnit::IsKnown(Tree *tree, uint which)
 }
 
 
-JIT::Value_p O1CompileUnit::Known(Tree *tree, uint which)
+JIT::Value_g O1CompileUnit::Known(Tree *tree, uint which)
 // ----------------------------------------------------------------------------
 //   Return the known local or global value if any
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p result = nullptr;
+    JIT::Value_g result = nullptr;
     if ((which & knowLocals) && storage.count(tree) > 0)
     {
         // Value is stored in a local variable
@@ -2317,7 +2317,7 @@ JIT::Value_p O1CompileUnit::Known(Tree *tree, uint which)
 }
 
 
-JIT::Constant_p O1CompileUnit::ConstantNatural(Natural *what)
+JIT::Constant_g O1CompileUnit::ConstantNatural(Natural *what)
 // ----------------------------------------------------------------------------
 //    Generate an Natural tree
 // ----------------------------------------------------------------------------
@@ -2326,7 +2326,7 @@ JIT::Constant_p O1CompileUnit::ConstantNatural(Natural *what)
 }
 
 
-JIT::Constant_p O1CompileUnit::ConstantReal(Real *what)
+JIT::Constant_g O1CompileUnit::ConstantReal(Real *what)
 // ----------------------------------------------------------------------------
 //    Generate a Real tree
 // ----------------------------------------------------------------------------
@@ -2335,7 +2335,7 @@ JIT::Constant_p O1CompileUnit::ConstantReal(Real *what)
 }
 
 
-JIT::Constant_p O1CompileUnit::ConstantText(Text *what)
+JIT::Constant_g O1CompileUnit::ConstantText(Text *what)
 // ----------------------------------------------------------------------------
 //    Generate a Text tree
 // ----------------------------------------------------------------------------
@@ -2344,29 +2344,29 @@ JIT::Constant_p O1CompileUnit::ConstantText(Text *what)
 }
 
 
-JIT::Constant_p O1CompileUnit::ConstantTree(Tree *what)
+JIT::Constant_g O1CompileUnit::ConstantTree(Tree *what)
 // ----------------------------------------------------------------------------
 //    Generate a constant tree
 // ----------------------------------------------------------------------------
 {
-    JIT::Constant_p result = data.PointerConstant(compiler.treePtrTy, what);
+    JIT::Constant_g result = data.PointerConstant(compiler.treePtrTy, what);
     if (storage.count(what))
         data.Store(result, storage[what]);
     return result;
 }
 
 
-JIT::Value_p O1CompileUnit::NeedLazy(Tree *subexpr, bool allocate)
+JIT::Value_g O1CompileUnit::NeedLazy(Tree *subexpr, bool allocate)
 // ----------------------------------------------------------------------------
 //   Record that we need a 'computed' flag for lazy evaluation of the subexpr
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p result = computed[subexpr];
+    JIT::Value_g result = computed[subexpr];
     if (!result && allocate)
     {
         result = data.Alloca(compiler.booleanTy, "computed");
         record(labels, "%v is computed flag for %t", result, subexpr);
-        JIT::Constant_p falseFlag = data.BooleanConstant(false);
+        JIT::Constant_g falseFlag = data.BooleanConstant(false);
         data.Store(falseFlag, result);
         computed[subexpr] = result;
     }
@@ -2374,7 +2374,7 @@ JIT::Value_p O1CompileUnit::NeedLazy(Tree *subexpr, bool allocate)
 }
 
 
-JIT::Value_p O1CompileUnit::MarkComputed(Tree *subexpr, JIT::Value_p val)
+JIT::Value_g O1CompileUnit::MarkComputed(Tree *subexpr, JIT::Value_g val)
 // ----------------------------------------------------------------------------
 //   Record that we computed that particular subexpression
 // ----------------------------------------------------------------------------
@@ -2382,13 +2382,13 @@ JIT::Value_p O1CompileUnit::MarkComputed(Tree *subexpr, JIT::Value_p val)
     // Store the value we were given as the result
     if (val)
     {
-        JIT::Value_p ptr = NeedStorage(subexpr);
+        JIT::Value_g ptr = NeedStorage(subexpr);
         code.Store(val, ptr);
     }
 
     // Set the 'lazy' flag or lazy evaluation
-    JIT::Value_p result = NeedLazy(subexpr);
-    JIT::Value_p trueFlag = code.BooleanConstant(true);
+    JIT::Value_g result = NeedLazy(subexpr);
+    JIT::Value_g trueFlag = code.BooleanConstant(true);
     code.Store(trueFlag, result);
 
     // Return the test flag
@@ -2396,17 +2396,17 @@ JIT::Value_p O1CompileUnit::MarkComputed(Tree *subexpr, JIT::Value_p val)
 }
 
 
-JIT::BasicBlock_p O1CompileUnit::BeginLazy(Tree *subexpr)
+JIT::BasicBlock_g O1CompileUnit::BeginLazy(Tree *subexpr)
 // ----------------------------------------------------------------------------
 //    Begin lazy evaluation of a block of code
 // ----------------------------------------------------------------------------
 {
-    JIT::BasicBlock_p skip = code.NewBlock("skip");
-    JIT::BasicBlock_p work = code.NewBlock("work");
+    JIT::BasicBlock_g skip = code.NewBlock("skip");
+    JIT::BasicBlock_g work = code.NewBlock("work");
     record(labels, "For %t: %v is skip, %v is work", subexpr, skip, work);
 
-    JIT::Value_p lazyFlagPtr = NeedLazy(subexpr);
-    JIT::Value_p lazyFlag = code.Load(compiler.booleanTy, lazyFlagPtr, "lazy");
+    JIT::Value_g lazyFlagPtr = NeedLazy(subexpr);
+    JIT::Value_g lazyFlag = code.Load(compiler.booleanTy, lazyFlagPtr, "lazy");
     record(labels, "%v is lazy flag for %t", lazyFlag, subexpr);
     code.IfBranch(lazyFlag, skip, work);
     code.SwitchTo(work);
@@ -2414,7 +2414,7 @@ JIT::BasicBlock_p O1CompileUnit::BeginLazy(Tree *subexpr)
 }
 
 
-void O1CompileUnit::EndLazy(Tree *subexpr, JIT::BasicBlock_p skip)
+void O1CompileUnit::EndLazy(Tree *subexpr, JIT::BasicBlock_g skip)
 // ----------------------------------------------------------------------------
 //   Finish lazy evaluation of a block of code
 // ----------------------------------------------------------------------------
@@ -2425,7 +2425,7 @@ void O1CompileUnit::EndLazy(Tree *subexpr, JIT::BasicBlock_p skip)
 }
 
 
-JIT::Value_p O1CompileUnit::Invoke(Tree *subexpr, Tree *callee, TreeList args)
+JIT::Value_g O1CompileUnit::Invoke(Tree *subexpr, Tree *callee, TreeList args)
 // ----------------------------------------------------------------------------
 //    Generate a call with the given arguments
 // ----------------------------------------------------------------------------
@@ -2433,7 +2433,7 @@ JIT::Value_p O1CompileUnit::Invoke(Tree *subexpr, Tree *callee, TreeList args)
     // Check if the resulting form is a name or literal
     if (callee->IsConstant())
     {
-        if (JIT::Value_p known = Known(callee))
+        if (JIT::Value_g known = Known(callee))
         {
             MarkComputed(subexpr, known);
             return known;
@@ -2445,7 +2445,7 @@ JIT::Value_p O1CompileUnit::Invoke(Tree *subexpr, Tree *callee, TreeList args)
         }
     }
 
-    JIT::Function_p toCall = compiler.TreeFunction(callee);
+    JIT::Function_g toCall = compiler.TreeFunction(callee);
     XL_ASSERT(toCall);
 
     // Add the context argument
@@ -2453,18 +2453,18 @@ JIT::Value_p O1CompileUnit::Invoke(Tree *subexpr, Tree *callee, TreeList args)
     argV.push_back(scopePtr);
 
     // Add the 'self' argument
-    JIT::Value_p selfVal = ConstantTree(subexpr);
+    JIT::Value_g selfVal = ConstantTree(subexpr);
     argV.push_back(selfVal);
 
     for (Tree *arg : args)
     {
-        JIT::Value_p value = Known(arg);
+        JIT::Value_g value = Known(arg);
         if (!value)
             value = ConstantTree(arg);
         argV.push_back(value);
     }
 
-    JIT::Value_p callVal = code.Call(toCall, argV);
+    JIT::Value_g callVal = code.Call(toCall, argV);
 
     // Store the flags indicating that we computed the value
     MarkComputed(subexpr, callVal);
@@ -2473,7 +2473,7 @@ JIT::Value_p O1CompileUnit::Invoke(Tree *subexpr, Tree *callee, TreeList args)
 }
 
 
-JIT::BasicBlock_p O1CompileUnit::NeedTest()
+JIT::BasicBlock_g O1CompileUnit::NeedTest()
 // ----------------------------------------------------------------------------
 //    Indicates that we need an exit basic block to jump to
 // ----------------------------------------------------------------------------
@@ -2488,7 +2488,7 @@ JIT::BasicBlock_p O1CompileUnit::NeedTest()
 }
 
 
-JIT::Value_p O1CompileUnit::Left(Tree *tree)
+JIT::Value_g O1CompileUnit::Left(Tree *tree)
 // ----------------------------------------------------------------------------
 //    Return the value for the left of the current tree
 // ----------------------------------------------------------------------------
@@ -2500,18 +2500,18 @@ JIT::Value_p O1CompileUnit::Left(Tree *tree)
     // HACK: The following code assumes Prefix, Infix and Postfix have the
     // same layout for their pointers.
     Prefix *prefix = (Prefix *) tree;
-    JIT::Value_p result = Known(prefix->left);
+    JIT::Value_g result = Known(prefix->left);
     if (result)
         return result;
 
     // Check that we already have a value for the given tree
-    JIT::Value_p parent = Known(tree);
+    JIT::Value_g parent = Known(tree);
     if (parent)
     {
-        JIT::Value_p ptr = NeedStorage(prefix->left);
+        JIT::Value_g ptr = NeedStorage(prefix->left);
 
         // WARNING: This relies on the layout of all nodes beginning the same
-        JIT::Value_p pptr = code.BitCast(parent,
+        JIT::Value_g pptr = code.BitCast(parent,
                                          compiler.prefixTreePtrTy,
                                          "pfxl");
         result = code.StructGEP(compiler.prefixTreeTy,
@@ -2528,7 +2528,7 @@ JIT::Value_p O1CompileUnit::Left(Tree *tree)
 }
 
 
-JIT::Value_p O1CompileUnit::Right(Tree *tree)
+JIT::Value_g O1CompileUnit::Right(Tree *tree)
 // ----------------------------------------------------------------------------
 //    Return the value for the right of the current tree
 // ----------------------------------------------------------------------------
@@ -2540,18 +2540,18 @@ JIT::Value_p O1CompileUnit::Right(Tree *tree)
     // HACK: The following code assumes Prefix, Infix and Postfix have the
     // same layout for their pointers.
     Prefix *prefix = (Prefix *) tree;
-    JIT::Value_p result = Known(prefix->right);
+    JIT::Value_g result = Known(prefix->right);
     if (result)
         return result;
 
     // Check that we already have a value for the given tree
-    JIT::Value_p parent = Known(tree);
+    JIT::Value_g parent = Known(tree);
     if (parent)
     {
-        JIT::Value_p ptr = NeedStorage(prefix->right);
+        JIT::Value_g ptr = NeedStorage(prefix->right);
 
         // WARNING: This relies on the layout of all nodes beginning the same
-        JIT::Value_p pptr = code.BitCast(parent, compiler.prefixTreePtrTy, "pfxr");
+        JIT::Value_g pptr = code.BitCast(parent, compiler.prefixTreePtrTy, "pfxr");
         result = code.StructGEP(compiler.prefixTreeTy,
                                 pptr,RIGHT_VALUE_INDEX, "rptr");
         result = code.Load(compiler.treePtrTy, result, "right");
@@ -2565,27 +2565,27 @@ JIT::Value_p O1CompileUnit::Right(Tree *tree)
 }
 
 
-JIT::Value_p O1CompileUnit::Copy(Tree *source, Tree *dest, bool markDone)
+JIT::Value_g O1CompileUnit::Copy(Tree *source, Tree *dest, bool markDone)
 // ----------------------------------------------------------------------------
 //    Copy data from source to destination
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p result = Known(source); XL_ASSERT(result);
-    JIT::Value_p ptr = NeedStorage(dest, source); XL_ASSERT(ptr);
+    JIT::Value_g result = Known(source); XL_ASSERT(result);
+    JIT::Value_g ptr = NeedStorage(dest, source); XL_ASSERT(ptr);
     code.Store(result, ptr);
 
     if (markDone)
     {
         // Set the target flag to 'done'
-        JIT::Value_p doneFlag = NeedLazy(dest);
-        JIT::Value_p trueFlag = code.BooleanConstant(true);
+        JIT::Value_g doneFlag = NeedLazy(dest);
+        JIT::Value_g trueFlag = code.BooleanConstant(true);
         code.Store(trueFlag, doneFlag);
     }
-    else if (JIT::Value_p oldDoneFlag = NeedLazy(source, false))
+    else if (JIT::Value_g oldDoneFlag = NeedLazy(source, false))
     {
         // Copy the flag from the source
-        JIT::Value_p newDoneFlag = NeedLazy(dest);
-        JIT::Value_p computed = code.Load(compiler.booleanTy, oldDoneFlag);
+        JIT::Value_g newDoneFlag = NeedLazy(dest);
+        JIT::Value_g computed = code.Load(compiler.booleanTy, oldDoneFlag);
         code.Store(computed, newDoneFlag);
     }
 
@@ -2593,46 +2593,46 @@ JIT::Value_p O1CompileUnit::Copy(Tree *source, Tree *dest, bool markDone)
 }
 
 
-JIT::Value_p O1CompileUnit::CallEvaluate(Tree *tree)
+JIT::Value_g O1CompileUnit::CallEvaluate(Tree *tree)
 // ----------------------------------------------------------------------------
 //   Call the evaluate function for the given tree
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p treeValue = Known(tree); XL_ASSERT(treeValue);
+    JIT::Value_g treeValue = Known(tree); XL_ASSERT(treeValue);
     if (dataForm.count(tree))
         return treeValue;
 
-    JIT::Value_p evaluated = code.Call(xl_evaluate, scopePtr, treeValue);
+    JIT::Value_g evaluated = code.Call(xl_evaluate, scopePtr, treeValue);
     MarkComputed(tree, evaluated);
     return evaluated;
 }
 
 
-JIT::Value_p O1CompileUnit::CallFillBlock(Block *block)
+JIT::Value_g O1CompileUnit::CallFillBlock(Block *block)
 // ----------------------------------------------------------------------------
 //    Compile code generating the children of the block
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p blockValue = ConstantTree(block);
-    JIT::Value_p childValue = Known(block->child);
+    JIT::Value_g blockValue = ConstantTree(block);
+    JIT::Value_g childValue = Known(block->child);
     blockValue = code.BitCast(blockValue, compiler.blockTreePtrTy);
-    JIT::Value_p result = code.Call(xl_new_block, blockValue, childValue);
+    JIT::Value_g result = code.Call(xl_new_block, blockValue, childValue);
     result = code.BitCast(result, compiler.treePtrTy);
     MarkComputed(block, result);
     return result;
 }
 
 
-JIT::Value_p O1CompileUnit::CallFillPrefix(Prefix *prefix)
+JIT::Value_g O1CompileUnit::CallFillPrefix(Prefix *prefix)
 // ----------------------------------------------------------------------------
 //    Compile code generating the children of a prefix
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p prefixValue = ConstantTree(prefix);
-    JIT::Value_p leftValue = Known(prefix->left);
-    JIT::Value_p rightValue = Known(prefix->right);
+    JIT::Value_g prefixValue = ConstantTree(prefix);
+    JIT::Value_g leftValue = Known(prefix->left);
+    JIT::Value_g rightValue = Known(prefix->right);
     prefixValue = code.BitCast(prefixValue, compiler.prefixTreePtrTy);
-    JIT::Value_p result = code.Call(xl_new_prefix,
+    JIT::Value_g result = code.Call(xl_new_prefix,
                                prefixValue, leftValue, rightValue);
     result = code.BitCast(result, compiler.treePtrTy);
     MarkComputed(prefix, result);
@@ -2640,16 +2640,16 @@ JIT::Value_p O1CompileUnit::CallFillPrefix(Prefix *prefix)
 }
 
 
-JIT::Value_p O1CompileUnit::CallFillPostfix(Postfix *postfix)
+JIT::Value_g O1CompileUnit::CallFillPostfix(Postfix *postfix)
 // ----------------------------------------------------------------------------
 //    Compile code generating the children of a postfix
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p postfixValue = ConstantTree(postfix);
-    JIT::Value_p leftVal = Known(postfix->left);
-    JIT::Value_p rightVal = Known(postfix->right);
+    JIT::Value_g postfixValue = ConstantTree(postfix);
+    JIT::Value_g leftVal = Known(postfix->left);
+    JIT::Value_g rightVal = Known(postfix->right);
     postfixValue = code.BitCast(postfixValue,compiler.postfixTreePtrTy);
-    JIT::Value_p result = code.Call(xl_new_postfix,
+    JIT::Value_g result = code.Call(xl_new_postfix,
                                     postfixValue, leftVal, rightVal);
     result = code.BitCast(result, compiler.treePtrTy);
     MarkComputed(postfix, result);
@@ -2657,16 +2657,16 @@ JIT::Value_p O1CompileUnit::CallFillPostfix(Postfix *postfix)
 }
 
 
-JIT::Value_p O1CompileUnit::CallFillInfix(Infix *infix)
+JIT::Value_g O1CompileUnit::CallFillInfix(Infix *infix)
 // ----------------------------------------------------------------------------
 //    Compile code generating the children of an infix
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p infixValue = ConstantTree(infix);
-    JIT::Value_p leftVal = Known(infix->left);
-    JIT::Value_p rightVal = Known(infix->right);
+    JIT::Value_g infixValue = ConstantTree(infix);
+    JIT::Value_g leftVal = Known(infix->left);
+    JIT::Value_g rightVal = Known(infix->right);
     infixValue = code.BitCast(infixValue, compiler.infixTreePtrTy);
-    JIT::Value_p result = code.Call(xl_fill_infix,
+    JIT::Value_g result = code.Call(xl_fill_infix,
                                     infixValue, leftVal, rightVal);
     result = code.BitCast(result, compiler.treePtrTy);
     MarkComputed(infix, result);
@@ -2674,12 +2674,12 @@ JIT::Value_p O1CompileUnit::CallFillInfix(Infix *infix)
 }
 
 
-JIT::Value_p O1CompileUnit::CallNatural2Real(Tree *compiled, Tree *value)
+JIT::Value_g O1CompileUnit::CallNatural2Real(Tree *compiled, Tree *value)
 // ----------------------------------------------------------------------------
 //    Compile code generating the children of an infix
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p result = Known(value);
+    JIT::Value_g result = Known(value);
     result = code.Call(xl_natural2real, result);
     NeedStorage(compiled);
     MarkComputed(compiled, result);
@@ -2687,14 +2687,14 @@ JIT::Value_p O1CompileUnit::CallNatural2Real(Tree *compiled, Tree *value)
 }
 
 
-JIT::Value_p O1CompileUnit::CallArrayIndex(Tree *self, Tree *left, Tree *right)
+JIT::Value_g O1CompileUnit::CallArrayIndex(Tree *self, Tree *left, Tree *right)
 // ----------------------------------------------------------------------------
 //    Compile code calling xl_array_index for a form like A[B]
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p leftVal = Known(left);
-    JIT::Value_p rightVal = Known(right);
-    JIT::Value_p result = code.Call(xl_array_index,
+    JIT::Value_g leftVal = Known(left);
+    JIT::Value_g rightVal = Known(right);
+    JIT::Value_g result = code.Call(xl_array_index,
                                     scopePtr, leftVal, rightVal);
     NeedStorage(self);
     MarkComputed(self, result);
@@ -2702,24 +2702,24 @@ JIT::Value_p O1CompileUnit::CallArrayIndex(Tree *self, Tree *left, Tree *right)
 }
 
 
-JIT::Value_p O1CompileUnit::CreateClosure(Tree *callee,
+JIT::Value_g O1CompileUnit::CreateClosure(Tree *callee,
                                           TreeList &parms,
                                           TreeList &args,
-                                          JIT::Function_p fn)
+                                          JIT::Function_g fn)
 // ----------------------------------------------------------------------------
 //   Create a closure for an expression we want to evaluate later
 // ----------------------------------------------------------------------------
 {
     JIT::Values argV;
-    JIT::Value_p calleeVal = Known(callee);
+    JIT::Value_g calleeVal = Known(callee);
     if (!calleeVal)
         return nullptr;
-    JIT::Value_p countVal = code.IntegerConstant(compiler.unsignedTy,
+    JIT::Value_g countVal = code.IntegerConstant(compiler.unsignedTy,
                                             (unsigned) args.size());
     TreeList::iterator a, p;
 
     // Cast given function pointer to eval_fn and create argument list
-    JIT::Value_p evalFn = code.BitCast(fn, compiler.evalFnTy);
+    JIT::Value_g evalFn = code.BitCast(fn, compiler.evalFnTy);
     argV.push_back(evalFn);
     argV.push_back(calleeVal);
     argV.push_back(countVal);
@@ -2728,15 +2728,15 @@ JIT::Value_p O1CompileUnit::CreateClosure(Tree *callee,
          a++, p++)
     {
         Tree *name = *p;
-        JIT::Value_p llvmName = ConstantTree(name);
+        JIT::Value_g llvmName = ConstantTree(name);
         argV.push_back(llvmName);
 
         Tree *value = *a;
-        JIT::Value_p llvmValue = Known(value); assert(llvmValue);
+        JIT::Value_g llvmValue = Known(value); assert(llvmValue);
         argV.push_back(llvmValue);
     }
 
-    JIT::Value_p callVal = code.Call(xl_new_closure, argV);
+    JIT::Value_g callVal = code.Call(xl_new_closure, argV);
 
     // Need to store result, but not mark it as evaluated
     NeedStorage(callee);
@@ -2747,42 +2747,42 @@ JIT::Value_p O1CompileUnit::CreateClosure(Tree *callee,
 }
 
 
-JIT::Value_p O1CompileUnit::CallTypeError(Tree *what)
+JIT::Value_g O1CompileUnit::CallTypeError(Tree *what)
 // ----------------------------------------------------------------------------
 //   Report a type error trying to evaluate some argument
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p ptr = ConstantTree(what); XL_ASSERT(what);
-    JIT::Value_p callVal = code.Call(xl_form_error, scopePtr, ptr);
+    JIT::Value_g ptr = ConstantTree(what); XL_ASSERT(what);
+    JIT::Value_g callVal = code.Call(xl_form_error, scopePtr, ptr);
     MarkComputed(what, callVal);
     return callVal;
 }
 
 
-JIT::BasicBlock_p O1CompileUnit::TagTest(Tree *tree, unsigned tagValue)
+JIT::BasicBlock_g O1CompileUnit::TagTest(Tree *tree, unsigned tagValue)
 // ----------------------------------------------------------------------------
 //   Test if the input tree is an natural tree with the given value
 // ----------------------------------------------------------------------------
 {
     // Where we go if the tests fail
-    JIT::BasicBlock_p notGood = NeedTest();
+    JIT::BasicBlock_g notGood = NeedTest();
 
     // Check if the tag is NATURAL
-    JIT::Value_p treeValue = Known(tree);
+    JIT::Value_g treeValue = Known(tree);
     if (!treeValue)
     {
         Ooops("No value for $1", tree);
         return nullptr;
     }
-    JIT::Value_p tagPtr = code.StructGEP(compiler.treeTy,
+    JIT::Value_g tagPtr = code.StructGEP(compiler.treeTy,
                                          treeValue, 0, "tagPtr");
-    JIT::Value_p tag = code.Load(compiler.naturalTy, tagPtr, "tag");
-    JIT::Type_p tagTy = code.Type(tag);
-    JIT::Value_p mask = code.IntegerConstant(tagTy, Tree::KINDMASK);
-    JIT::Value_p kind = code.And(tag, mask, "tagAndMask");
-    JIT::Constant_p refTag = code.IntegerConstant(tagTy, tagValue);
-    JIT::Value_p isRightTag = code.ICmpEQ(kind, refTag, "isRightTag");
-    JIT::BasicBlock_p isRightKindBB = code.NewBlock("isRightKind");
+    JIT::Value_g tag = code.Load(compiler.naturalTy, tagPtr, "tag");
+    JIT::Type_g tagTy = code.Type(tag);
+    JIT::Value_g mask = code.IntegerConstant(tagTy, Tree::KINDMASK);
+    JIT::Value_g kind = code.And(tag, mask, "tagAndMask");
+    JIT::Constant_g refTag = code.IntegerConstant(tagTy, tagValue);
+    JIT::Value_g isRightTag = code.ICmpEQ(kind, refTag, "isRightTag");
+    JIT::BasicBlock_g isRightKindBB = code.NewBlock("isRightKind");
     code.IfBranch(isRightTag, isRightKindBB, notGood);
 
     code.SwitchTo(isRightKindBB);
@@ -2790,33 +2790,33 @@ JIT::BasicBlock_p O1CompileUnit::TagTest(Tree *tree, unsigned tagValue)
 }
 
 
-JIT::BasicBlock_p O1CompileUnit::NaturalTest(Tree *tree, longlong value)
+JIT::BasicBlock_g O1CompileUnit::NaturalTest(Tree *tree, longlong value)
 // ----------------------------------------------------------------------------
 //   Test if the input tree is an natural tree with the given value
 // ----------------------------------------------------------------------------
 {
     // Where we go if the tests fail
-    JIT::BasicBlock_p notGood = NeedTest();
+    JIT::BasicBlock_g notGood = NeedTest();
 
     // Check if the tag is NATURAL
-    JIT::BasicBlock_p isNaturalBB = TagTest(tree, NATURAL);
+    JIT::BasicBlock_g isNaturalBB = TagTest(tree, NATURAL);
     if (!isNaturalBB)
         return isNaturalBB;
 
     // Check if the value is the same
-    JIT::Value_p treeValue = Known(tree);
+    JIT::Value_g treeValue = Known(tree);
     assert(treeValue);
     treeValue = code.BitCast(treeValue, compiler.naturalTreePtrTy);
-    JIT::Value_p valueFieldPtr = code.StructGEP(compiler.naturalTreeTy,
+    JIT::Value_g valueFieldPtr = code.StructGEP(compiler.naturalTreeTy,
                                                 treeValue,
                                                 NATURAL_VALUE_INDEX,
                                                 "np");
-    JIT::Value_p tval          = code.Load(compiler.naturalTy,
+    JIT::Value_g tval          = code.Load(compiler.naturalTy,
                                   valueFieldPtr, "nv");
-    JIT::Constant_p rval = code.IntegerConstant(tval->getType(),
+    JIT::Constant_g rval = code.IntegerConstant(tval->getType(),
                                                 (int64_t) value);
-    JIT::Value_p isGood = code.ICmpEQ(tval, rval, "good");
-    JIT::BasicBlock_p isGoodBB = code.NewBlock("good");
+    JIT::Value_g isGood = code.ICmpEQ(tval, rval, "good");
+    JIT::BasicBlock_g isGoodBB = code.NewBlock("good");
     code.IfBranch(isGood, isGoodBB, notGood);
 
     // If the value is the same, then go on, switch to the isGood basic block
@@ -2825,31 +2825,31 @@ JIT::BasicBlock_p O1CompileUnit::NaturalTest(Tree *tree, longlong value)
 }
 
 
-JIT::BasicBlock_p O1CompileUnit::RealTest(Tree *tree, double value)
+JIT::BasicBlock_g O1CompileUnit::RealTest(Tree *tree, double value)
 // ----------------------------------------------------------------------------
 //   Test if the input tree is a real tree with the given value
 // ----------------------------------------------------------------------------
 {
     // Where we go if the tests fail
-    JIT::BasicBlock_p notGood = NeedTest();
+    JIT::BasicBlock_g notGood = NeedTest();
 
     // Check if the tag is REAL
-    JIT::BasicBlock_p isRealBB = TagTest(tree, REAL);
+    JIT::BasicBlock_g isRealBB = TagTest(tree, REAL);
     if (!isRealBB)
         return isRealBB;
 
     // Check if the value is the same
-    JIT::Value_p treeValue = Known(tree);
+    JIT::Value_g treeValue = Known(tree);
     assert(treeValue);
     treeValue = code.BitCast(treeValue, compiler.realTreePtrTy);
-    JIT::Value_p valueFieldPtr = code.StructGEP(compiler.realTreeTy,
+    JIT::Value_g valueFieldPtr = code.StructGEP(compiler.realTreeTy,
                                                 treeValue,
                                                 REAL_VALUE_INDEX,
                                                 "rp");
-    JIT::Value_p tval = code.Load(compiler.realTy, valueFieldPtr, "rv");
-    JIT::Constant_p rval = code.FloatConstant(tval->getType(), value);
-    JIT::Value_p isGood = code.FCmpOEQ(tval, rval, "isGood");
-    JIT::BasicBlock_p isGoodBB = code.NewBlock("isGood");
+    JIT::Value_g tval = code.Load(compiler.realTy, valueFieldPtr, "rv");
+    JIT::Constant_g rval = code.FloatConstant(tval->getType(), value);
+    JIT::Value_g isGood = code.FCmpOEQ(tval, rval, "isGood");
+    JIT::BasicBlock_g isGoodBB = code.NewBlock("isGood");
     code.IfBranch(isGood, isGoodBB, notGood);
 
     // If the value is the same, then go on, switch to the isGood basic block
@@ -2858,25 +2858,25 @@ JIT::BasicBlock_p O1CompileUnit::RealTest(Tree *tree, double value)
 }
 
 
-JIT::BasicBlock_p O1CompileUnit::TextTest(Tree *tree, text value)
+JIT::BasicBlock_g O1CompileUnit::TextTest(Tree *tree, text value)
 // ----------------------------------------------------------------------------
 //   Test if the input tree is a text tree with the given value
 // ----------------------------------------------------------------------------
 {
     // Where we go if the tests fail
-    JIT::BasicBlock_p notGood = NeedTest();
+    JIT::BasicBlock_g notGood = NeedTest();
 
     // Check if the tag is TEXT
-    JIT::BasicBlock_p isTextBB = TagTest(tree, TEXT);
+    JIT::BasicBlock_g isTextBB = TagTest(tree, TEXT);
     if (!isTextBB)
         return isTextBB;
 
     // Check if the value is the same, call xl_same_text
-    JIT::Value_p treeValue = Known(tree);
+    JIT::Value_g treeValue = Known(tree);
     assert(treeValue);
-    JIT::Value_p refVal = data.TextConstant(compiler.charPtrTy, value);
-    JIT::Value_p isGood = code.Call(xl_same_text, treeValue, refVal);
-    JIT::BasicBlock_p isGoodBB = code.NewBlock("isGood");
+    JIT::Value_g refVal = data.TextConstant(compiler.charPtrTy, value);
+    JIT::Value_g isGood = code.Call(xl_same_text, treeValue, refVal);
+    JIT::BasicBlock_g isGoodBB = code.NewBlock("isGood");
     code.IfBranch(isGood, isGoodBB, notGood);
 
     // If the value is the same, then go on, switch to the isGood basic block
@@ -2885,22 +2885,22 @@ JIT::BasicBlock_p O1CompileUnit::TextTest(Tree *tree, text value)
 }
 
 
-JIT::BasicBlock_p O1CompileUnit::ShapeTest(Tree *left, Tree *right)
+JIT::BasicBlock_g O1CompileUnit::ShapeTest(Tree *left, Tree *right)
 // ----------------------------------------------------------------------------
 //   Test if the two given trees have the same shape
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p leftVal = Known(left);
-    JIT::Value_p rightVal = Known(right);
+    JIT::Value_g leftVal = Known(left);
+    JIT::Value_g rightVal = Known(right);
     assert(leftVal);
     assert(rightVal);
     if (leftVal == rightVal) // How unlikely?
         return nullptr;
 
     // Where we go if the tests fail
-    JIT::BasicBlock_p notGood = NeedTest();
-    JIT::Value_p isGood = code.Call(xl_same_shape, leftVal, rightVal);
-    JIT::BasicBlock_p isGoodBB = code.NewBlock("isGood");
+    JIT::BasicBlock_g notGood = NeedTest();
+    JIT::Value_g isGood = code.Call(xl_same_shape, leftVal, rightVal);
+    JIT::BasicBlock_g isGoodBB = code.NewBlock("isGood");
     code.IfBranch(isGood, isGoodBB, notGood);
 
     // If the value is the same, then go on, switch to the isGood basic block
@@ -2909,25 +2909,25 @@ JIT::BasicBlock_p O1CompileUnit::ShapeTest(Tree *left, Tree *right)
 }
 
 
-JIT::BasicBlock_p O1CompileUnit::InfixMatchTest(Tree *actual, Infix *reference)
+JIT::BasicBlock_g O1CompileUnit::InfixMatchTest(Tree *actual, Infix *reference)
 // ----------------------------------------------------------------------------
 //   Test if the actual tree has the same shape as the given infix
 // ----------------------------------------------------------------------------
 {
     // Check that we know how to evaluate both
-    JIT::Value_p actualVal = Known(actual);           assert(actualVal);
-    JIT::Value_p refVal = NeedStorage(reference);     assert (refVal);
+    JIT::Value_g actualVal = Known(actual);           assert(actualVal);
+    JIT::Value_g refVal = NeedStorage(reference);     assert (refVal);
 
     // Extract the name of the reference
-    JIT::Type_p       charPtrTy = compiler.charPtrTy;
-    JIT::Value_p      refName   = data.TextConstant(charPtrTy, reference->name);
+    JIT::Type_g       charPtrTy = compiler.charPtrTy;
+    JIT::Value_g      refName   = data.TextConstant(charPtrTy, reference->name);
 
     // Where we go if the tests fail
-    JIT::BasicBlock_p notGood = NeedTest();
-    JIT::Value_p afterExtract = code.Call(xl_infix_match_check,
+    JIT::BasicBlock_g notGood = NeedTest();
+    JIT::Value_g afterExtract = code.Call(xl_infix_match_check,
                                      scopePtr, actualVal, refName);
-    JIT::Value_p isGood = code.IsOKPointer(afterExtract, "isGoodInfix");
-    JIT::BasicBlock_p isGoodBB = code.NewBlock("isGood");
+    JIT::Value_g isGood = code.IsOKPointer(afterExtract, "isGoodInfix");
+    JIT::BasicBlock_g isGoodBB = code.NewBlock("isGood");
     code.IfBranch(isGood, isGoodBB, notGood);
 
     // If the value is the same, then go on, switch to the isGood basic block
@@ -2945,7 +2945,7 @@ JIT::BasicBlock_p O1CompileUnit::InfixMatchTest(Tree *actual, Infix *reference)
 }
 
 
-JIT::BasicBlock_p O1CompileUnit::TypeTest(Tree *value, Tree *type)
+JIT::BasicBlock_g O1CompileUnit::TypeTest(Tree *value, Tree *type)
 // ----------------------------------------------------------------------------
 //   Test if the given value has the given type
 // ----------------------------------------------------------------------------
@@ -2958,15 +2958,15 @@ JIT::BasicBlock_p O1CompileUnit::TypeTest(Tree *value, Tree *type)
         type == value_type)
         return nullptr;
 
-    JIT::Value_p treeValue = Known(value);     assert(treeValue);
+    JIT::Value_g treeValue = Known(value);     assert(treeValue);
 
     // Quick inline check with the tag to see if need runtime test
-    JIT::Value_p tagPtr = code.StructGEP(compiler.treeTy,
+    JIT::Value_g tagPtr = code.StructGEP(compiler.treeTy,
                                          treeValue, TAG_INDEX, "tagp");
-    JIT::Value_p tag = code.Load(compiler.naturalTy, tagPtr, "tag");
-    JIT::Type_p tagTy = code.Type(tag);
-    JIT::Value_p mask = code.IntegerConstant(tagTy, Tree::KINDMASK);
-    JIT::Value_p kindValue = code.And(tag, mask, "tagAndMask");
+    JIT::Value_g tag = code.Load(compiler.naturalTy, tagPtr, "tag");
+    JIT::Type_g tagTy = code.Type(tag);
+    JIT::Value_g mask = code.IntegerConstant(tagTy, Tree::KINDMASK);
+    JIT::Value_g kindValue = code.And(tag, mask, "tagAndMask");
 
     uint kind = ~0U;
     if (type == natural_type)           kind = NATURAL;
@@ -2980,25 +2980,25 @@ JIT::BasicBlock_p O1CompileUnit::TypeTest(Tree *value, Tree *type)
     else if (type == postfix_type)      kind = POSTFIX;
     else if (type == block_type)        kind = BLOCK;
 
-    JIT::Constant_p refTag = code.IntegerConstant(tagTy, kind);
-    JIT::Value_p isRightTag = code.ICmpEQ(kindValue, refTag, "isTagOK");
-    JIT::BasicBlock_p isKindOK = code.NewBlock("isKindOK");
-    JIT::BasicBlock_p isKindBad = code.NewBlock("isKindBad");
+    JIT::Constant_g refTag = code.IntegerConstant(tagTy, kind);
+    JIT::Value_g isRightTag = code.ICmpEQ(kindValue, refTag, "isTagOK");
+    JIT::BasicBlock_g isKindOK = code.NewBlock("isKindOK");
+    JIT::BasicBlock_g isKindBad = code.NewBlock("isKindBad");
     code.IfBranch(isRightTag, isKindOK, isKindBad);
 
     // Degraded for natural: may simply need to promote to real
     code.SwitchTo(isKindBad);
     if (type == real_type)
     {
-        JIT::Constant_p intTag = code.IntegerConstant(tagTy, NATURAL);
-        JIT::Value_p isInt = code.ICmpEQ(kindValue, intTag, "isInt");
-        JIT::BasicBlock_p isIntOK = code.NewBlock("isIntOK");
-        JIT::BasicBlock_p isIntBad = code.NewBlock("isIntBad");
+        JIT::Constant_g intTag = code.IntegerConstant(tagTy, NATURAL);
+        JIT::Value_g isInt = code.ICmpEQ(kindValue, intTag, "isInt");
+        JIT::BasicBlock_g isIntOK = code.NewBlock("isIntOK");
+        JIT::BasicBlock_g isIntBad = code.NewBlock("isIntBad");
         code.IfBranch(isInt, isIntOK, isIntBad);
 
         code.SwitchTo(isIntOK);
-        JIT::Value_p asReal = code.Call(xl_natural2real, treeValue);
-        JIT::Value_p realPtr = NeedStorage(value);
+        JIT::Value_g asReal = code.Call(xl_natural2real, treeValue);
+        JIT::Value_g realPtr = NeedStorage(value);
         code.Store(asReal, realPtr);
         code.Branch(isKindOK);
 
@@ -3006,18 +3006,18 @@ JIT::BasicBlock_p O1CompileUnit::TypeTest(Tree *value, Tree *type)
         treeValue = Known(value);
     }
 
-    JIT::Value_p typeVal = Known(type);       assert(typeVal);
+    JIT::Value_g typeVal = Known(type);       assert(typeVal);
 
     // Where we go if the tests fail
-    JIT::BasicBlock_p notGood = NeedTest();
-    JIT::Value_p afterCast = code.Call(xl_typecheck, scopePtr, treeValue, typeVal);
-    JIT::Value_p isGood = code.IsOKPointer(afterCast, "isGoodType");
-    JIT::BasicBlock_p isGoodBB = code.NewBlock("isGood");
+    JIT::BasicBlock_g notGood = NeedTest();
+    JIT::Value_g afterCast = code.Call(xl_typecheck, scopePtr, treeValue, typeVal);
+    JIT::Value_g isGood = code.IsOKPointer(afterCast, "isGoodType");
+    JIT::BasicBlock_g isGoodBB = code.NewBlock("isGood");
     code.IfBranch(isGood, isGoodBB, notGood);
 
     // If the value matched, we may have a type cast, remember it
     code.SwitchTo(isGoodBB);
-    JIT::Value_p ptr = NeedStorage(value);
+    JIT::Value_g ptr = NeedStorage(value);
     code.Store(afterCast, ptr);
     code.Branch(isKindOK);
 
@@ -3124,7 +3124,7 @@ void ExpressionReduction::Succeeded(void)
     else
     {
         // Create a fake basic block in case someone decides to add code
-        JIT::BasicBlock_p empty = unit.code.NewBlock("empty");
+        JIT::BasicBlock_g empty = unit.code.NewBlock("empty");
         unit.code.SwitchTo(empty);
     }
     unit.failbb = nullptr;
@@ -3186,8 +3186,8 @@ Tree *xl_new_closure(eval_fn toCall, Tree *expr, uint ntrees, ...)
            toCall, ntrees, expr);
 
     // Build the list of parameter names and associated arguments
-    Tree_p result = nullptr;
-    Tree_p *treePtr = &result;
+    Tree_g result = nullptr;
+    Tree_g *treePtr = &result;
     Infix *decl = nullptr;
     va_list va;
     va_start(va, ntrees);

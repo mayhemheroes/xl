@@ -728,7 +728,7 @@ XL::RewriteCalls *xldebug(XL::RewriteCalls *rc)
 }
 
 
-XL::RewriteCalls *xldebug(XL::RewriteCalls_p rc)
+XL::RewriteCalls *xldebug(XL::RewriteCalls_g rc)
 // ----------------------------------------------------------------------------
 //   Debug the GCPtr version
 // ----------------------------------------------------------------------------
@@ -756,7 +756,7 @@ XL::RewriteCandidate *xldebug(XL::RewriteCandidate *rc)
 }
 
 
-XL::RewriteCandidate *xldebug(XL::RewriteCandidate_p rc)
+XL::RewriteCandidate *xldebug(XL::RewriteCandidate_g rc)
 // ----------------------------------------------------------------------------
 //   Debug the GCPtr version
 // ----------------------------------------------------------------------------

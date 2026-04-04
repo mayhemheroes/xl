@@ -62,8 +62,8 @@ struct xl_type
 {
     typedef Tree *            tree_type;
     typedef T                 native_type;
-    static JIT::PointerType_p TreeType(Compiler &c)   { return c.treePtrTy; }
-    static JIT::PointerType_p NativeType(Compiler &c) { return c.treePtrTy; }
+    static JIT::PointerType_g TreeType(Compiler &c)   { return c.treePtrTy; }
+    static JIT::PointerType_g NativeType(Compiler &c) { return c.treePtrTy; }
     static Tree *             Shape()                 { return XL::tree_type; }
 };
 
@@ -78,12 +78,12 @@ struct xl_type<Num,
     typedef Natural *    tree_type;
     typedef Num          native_type;
 
-    static JIT::PointerType_p TreeType(Compiler &c)
+    static JIT::PointerType_g TreeType(Compiler &c)
     {
         return c.naturalTreePtrTy;
     }
 
-    static JIT::Type_p NativeType(Compiler &c)
+    static JIT::Type_g NativeType(Compiler &c)
     {
         return c.jit.IntegerType<Num>();
     }
@@ -114,12 +114,12 @@ struct xl_type<Num,
     typedef Real *       tree_type;
     typedef Num          native_type;
 
-    static JIT::PointerType_p TreeType(Compiler &c)
+    static JIT::PointerType_g TreeType(Compiler &c)
     {
         return c.realTreePtrTy;
     }
 
-    static JIT::Type_p NativeType(Compiler &c)
+    static JIT::Type_g NativeType(Compiler &c)
     {
         return c.jit.FloatType(c.jit.BitsPerByte * sizeof(Num));
     }
@@ -143,12 +143,12 @@ struct xl_type<kstring>
     typedef Text *       tree_type;
     typedef kstring      native_type;
 
-    static JIT::PointerType_p TreeType(Compiler &c)
+    static JIT::PointerType_g TreeType(Compiler &c)
     {
         return c.textTreePtrTy;
     }
 
-    static JIT::Type_p NativeType(Compiler &c)
+    static JIT::Type_g NativeType(Compiler &c)
     {
         return c.charPtrTy;
     }
@@ -169,12 +169,12 @@ struct xl_type<text>
     typedef Text *       tree_type;
     typedef text         native_type;
 
-    static JIT::PointerType_p TreeType(Compiler &c)
+    static JIT::PointerType_g TreeType(Compiler &c)
     {
         return c.textTreePtrTy;
     }
 
-    static JIT::Type_p NativeType(Compiler &c)
+    static JIT::Type_g NativeType(Compiler &c)
     {
         return c.textPtrTy;
     }
@@ -195,12 +195,12 @@ struct xl_type<Scope *>
     typedef Tree *       tree_type;
     typedef Scope *      native_type;
 
-    static JIT::PointerType_p TreeType(Compiler &c)
+    static JIT::PointerType_g TreeType(Compiler &c)
     {
         return c.scopePtrTy;
     }
 
-    static JIT::Type_p NativeType(Compiler &c)
+    static JIT::Type_g NativeType(Compiler &c)
     {
         return c.scopePtrTy;
     }
@@ -234,9 +234,9 @@ struct function_type<R(*)()>
         record(native, "Shape returns null");
         return nullptr;
     }
-    static Tree_p       ReturnShape()
+    static Tree_g       ReturnShape()
     {
-        Tree_p ret = xl_type<R>::Shape();
+        Tree_g ret = xl_type<R>::Shape();
         record(native, "ReturnShape () = %t", ret);
         return ret;
     }
@@ -252,17 +252,17 @@ struct function_type<R(*)(T)>
     typedef R return_type;
     static void Args(Compiler &compiler, JIT::Signature &signature)
     {
-        JIT::Type_p argTy = xl_type<T>::NativeType(compiler);
+        JIT::Type_g argTy = xl_type<T>::NativeType(compiler);
         signature.push_back(argTy);
     }
-    static Tree_p Shape(uint &index)
+    static Tree_g Shape(uint &index)
     {
-        Tree_p type = xl_type<T>::Shape();
-        Name_p name = new Name(text(1, 'A' + index), Tree::BUILTIN);
+        Tree_g type = xl_type<T>::Shape();
+        Name_g name = new Name(text(1, 'A' + index), Tree::BUILTIN);
         ++index;
         if (type)
         {
-            Infix_p infix = new Infix(":", name, type);
+            Infix_g infix = new Infix(":", name, type);
             record(native,
                    "Shape %u infix %t : %t = %t", index, type, name, infix);
             return infix;
@@ -270,9 +270,9 @@ struct function_type<R(*)(T)>
         record(native, "Shape %u name %t", index, name);
         return name;
     }
-    static Tree_p ReturnShape()
+    static Tree_g ReturnShape()
     {
-        Tree_p ret = xl_type<R>::Shape();
+        Tree_g ret = xl_type<R>::Shape();
         record(native, "Return shape (one) %t", ret);
         return ret;
     }
@@ -291,17 +291,17 @@ struct function_type<R(*)(T,A...)>
         function_type<R(*)(T)>::Args(compiler, signature);
         function_type<R(*)(A...)>::Args(compiler, signature);
     }
-    static Tree_p Shape(uint &index)
+    static Tree_g Shape(uint &index)
     {
-        Tree_p left = function_type<R(*)(T)>::Shape(index);
-        Tree_p right = function_type<R(*)(A...)>::Shape(index);
-        Infix_p infix = new Infix(",", left, right);
+        Tree_g left = function_type<R(*)(T)>::Shape(index);
+        Tree_g right = function_type<R(*)(A...)>::Shape(index);
+        Infix_g infix = new Infix(",", left, right);
         record(native, "Shape %u (...) %t,%t = %t", index, left, right, infix);
         return infix;
     }
-    static Tree_p ReturnShape()
+    static Tree_g ReturnShape()
     {
-        Tree_p ret = xl_type<R>::Shape();
+        Tree_g ret = xl_type<R>::Shape();
         record(native, "Return shape (...) %t", ret);
         return ret;
     }
@@ -321,10 +321,10 @@ struct NativeInterface
 // ----------------------------------------------------------------------------
 {
     virtual     ~NativeInterface() {}
-    virtual     JIT::Type_p          ReturnType(Compiler &)              = 0;
-    virtual     JIT::FunctionType_p  FunctionType(Compiler &)            = 0;
-    virtual     JIT::Function_p      Prototype(Compiler &, text name)    = 0;
-    virtual     Tree_p               Shape(uint &index)                  = 0;
+    virtual     JIT::Type_g          ReturnType(Compiler &)              = 0;
+    virtual     JIT::FunctionType_g  FunctionType(Compiler &)            = 0;
+    virtual     JIT::Function_g      Prototype(Compiler &, text name)    = 0;
+    virtual     Tree_g               Shape(uint &index)                  = 0;
 };
 
 
@@ -334,16 +334,16 @@ struct NativeImplementation : NativeInterface
 //   Generate the interface
 // ----------------------------------------------------------------------------
 {
-    virtual JIT::Type_p ReturnType(Compiler &compiler) override
+    virtual JIT::Type_g ReturnType(Compiler &compiler) override
     {
         typedef typename function_type<fntype>::return_type return_type;
         xl_type<return_type> xlt;
         return xlt.NativeType(compiler);
     }
 
-    virtual JIT::FunctionType_p FunctionType(Compiler &compiler) override
+    virtual JIT::FunctionType_g FunctionType(Compiler &compiler) override
     {
-        JIT::Type_p rty = ReturnType(compiler);
+        JIT::Type_g rty = ReturnType(compiler);
 
         function_type<fntype> ft;
         JIT::Signature sig;
@@ -351,18 +351,18 @@ struct NativeImplementation : NativeInterface
         return compiler.jit.FunctionType(rty, sig);
     }
 
-    virtual JIT::Function_p Prototype(Compiler &compiler, text name) override
+    virtual JIT::Function_g Prototype(Compiler &compiler, text name) override
     {
-        JIT::FunctionType_p fty = FunctionType(compiler);
-        JIT::Function_p f = compiler.jit.ExternFunction(fty, name);
+        JIT::FunctionType_g fty = FunctionType(compiler);
+        JIT::Function_g f = compiler.jit.ExternFunction(fty, name);
         return f;
     }
 
-    virtual Tree_p Shape(uint &index) override
+    virtual Tree_g Shape(uint &index) override
     {
         function_type<fntype> ft;
-        Tree_p result = ft.Shape(index);
-        Tree_p retType = ft.ReturnShape();
+        Tree_g result = ft.Shape(index);
+        Tree_g retType = ft.ReturnShape();
         if (retType)
             result = new Infix("as", result, retType);
         record(native, "Native shape %u %t return %t", index, result, retType);
@@ -399,11 +399,11 @@ struct Native
     static Native *     First()                 { return list; }
     Native *            Next()                  { return next; }
 
-    JIT::Type_p         ReturnType(Compiler &compiler);
-    JIT::FunctionType_p FunctionType(Compiler &compiler);
-    JIT::Function_p     Prototype(Compiler &compiler, text name);
+    JIT::Type_g         ReturnType(Compiler &compiler);
+    JIT::FunctionType_g FunctionType(Compiler &compiler);
+    JIT::Function_g     Prototype(Compiler &compiler, text name);
 
-    Tree_p              Shape();
+    Tree_g              Shape();
 
     static void         EnterPrototypes(Compiler &compiler);
 
@@ -411,7 +411,7 @@ public:
     kstring             symbol;
     void *              address;
     NativeInterface *   implementation;
-    Tree_p              shape;
+    Tree_g              shape;
 
 private:
     static Native      *list;
@@ -419,7 +419,7 @@ private:
 };
 
 
-inline JIT::Type_p Native::ReturnType(Compiler &compiler)
+inline JIT::Type_g Native::ReturnType(Compiler &compiler)
 // ----------------------------------------------------------------------------
 //   Delegate the return type computation to the implementation
 // ----------------------------------------------------------------------------
@@ -428,7 +428,7 @@ inline JIT::Type_p Native::ReturnType(Compiler &compiler)
 }
 
 
-inline JIT::FunctionType_p Native::FunctionType(Compiler &compiler)
+inline JIT::FunctionType_g Native::FunctionType(Compiler &compiler)
 // ----------------------------------------------------------------------------
 //   Delegate the function type computation to the implementation
 // ----------------------------------------------------------------------------
@@ -437,7 +437,7 @@ inline JIT::FunctionType_p Native::FunctionType(Compiler &compiler)
 }
 
 
-inline JIT::Function_p Native::Prototype(Compiler &compiler, text name)
+inline JIT::Function_g Native::Prototype(Compiler &compiler, text name)
 // ----------------------------------------------------------------------------
 //   Delegate the prototype generation to the implementation
 // ----------------------------------------------------------------------------
@@ -446,7 +446,7 @@ inline JIT::Function_p Native::Prototype(Compiler &compiler, text name)
 }
 
 
-inline Tree_p Native::Shape()
+inline Tree_g Native::Shape()
 // ----------------------------------------------------------------------------
 //   Delegate the shape generation to the implementation
 // ----------------------------------------------------------------------------
@@ -454,10 +454,10 @@ inline Tree_p Native::Shape()
     if (!shape)
     {
         uint index = 0;
-        Name_p name = new Name(symbol, Tree::BUILTIN);
-        if (Tree_p args = implementation->Shape(index))
+        Name_g name = new Name(symbol, Tree::BUILTIN);
+        if (Tree_g args = implementation->Shape(index))
         {
-            Prefix_p prefix = new Prefix(name, args, Tree::BUILTIN);
+            Prefix_g prefix = new Prefix(name, args, Tree::BUILTIN);
             shape = prefix;
         }
         else

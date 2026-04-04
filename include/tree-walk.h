@@ -186,7 +186,7 @@ struct FindParentAction : Action
         return nullptr;
     }
 
-    Tree_p      child;
+    Tree_g      child;
     int         level;
     XL::kind parentKind;
     text        path;

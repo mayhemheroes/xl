@@ -81,25 +81,25 @@ Tree *CompilerRewriteCandidate::ValueType(Tree *value)
 }
 
 
-JIT::Function_p CompilerRewriteCandidate::Prototype(JIT &jit)
+JIT::Function_g CompilerRewriteCandidate::Prototype(JIT &jit)
 // ----------------------------------------------------------------------------
 //   Build the prototype for the rewrite function
 // ----------------------------------------------------------------------------
 {
-    JIT::FunctionType_p fty = FunctionType(jit);
+    JIT::FunctionType_g fty = FunctionType(jit);
     text fname = FunctionName();
-    JIT::Function_p function = jit.Function(fty, fname);
+    JIT::Function_g function = jit.Function(fty, fname);
     return function;
 }
 
 
-JIT::FunctionType_p CompilerRewriteCandidate::FunctionType(JIT &jit)
+JIT::FunctionType_g CompilerRewriteCandidate::FunctionType(JIT &jit)
 // ----------------------------------------------------------------------------
 //   Build the signature type for the function
 // ----------------------------------------------------------------------------
 {
     JIT::Signature signature = RewriteSignature();
-    JIT::Type_p retTy = RewriteType();
+    JIT::Type_g retTy = RewriteType();
     return jit.FunctionType(retTy, signature);
 }
 
@@ -114,7 +114,7 @@ JIT::Signature CompilerRewriteCandidate::RewriteSignature()
     {
         Tree *valueType = ValueType(binding.value);
         assert(valueType && "Type for bound value is required during codegen");
-        JIT::Type_p valueTy = ValueTypes()->BoxedType(valueType);
+        JIT::Type_g valueTy = ValueTypes()->BoxedType(valueType);
         assert(valueTy && "Machine type for bound value should exist");
         signature.push_back(valueTy);
     }
@@ -122,17 +122,17 @@ JIT::Signature CompilerRewriteCandidate::RewriteSignature()
 }
 
 
-JIT::Type_p CompilerRewriteCandidate::RewriteType()
+JIT::Type_g CompilerRewriteCandidate::RewriteType()
 // ----------------------------------------------------------------------------
 //   Boxed type for the rewrite
 // ----------------------------------------------------------------------------
 {
-    JIT::Type_p ty = BindingTypes()->BoxedType(type);
+    JIT::Type_g ty = BindingTypes()->BoxedType(type);
     return ty;
 }
 
 
-void CompilerRewriteCandidate::RewriteType(JIT::Type_p ty)
+void CompilerRewriteCandidate::RewriteType(JIT::Type_g ty)
 // ----------------------------------------------------------------------------
 //   Set the boxed type for the rewrite
 // ----------------------------------------------------------------------------
@@ -186,7 +186,7 @@ XL::CompilerRewriteCalls *xldebug(XL::CompilerRewriteCalls *rc)
 }
 
 
-XL::CompilerRewriteCalls *xldebug(XL::CompilerRewriteCalls_p rc)
+XL::CompilerRewriteCalls *xldebug(XL::CompilerRewriteCalls_g rc)
 // ----------------------------------------------------------------------------
 //   Debug the GCPtr version
 // ----------------------------------------------------------------------------
@@ -210,7 +210,7 @@ XL::CompilerRewriteCandidate *xldebug(XL::CompilerRewriteCandidate *rc)
 }
 
 
-XL::CompilerRewriteCandidate *xldebug(XL::CompilerRewriteCandidate_p rc)
+XL::CompilerRewriteCandidate *xldebug(XL::CompilerRewriteCandidate_g rc)
 // ----------------------------------------------------------------------------
 //   Debug the GCPtr version
 // ----------------------------------------------------------------------------

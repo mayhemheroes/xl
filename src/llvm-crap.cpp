@@ -404,7 +404,7 @@ class JITPrivate
     std::unique_ptr<LLJIT> lljit;
     orc::ResourceTrackerSP moduleTracker;
     ModuleHandle        nextModuleHandle;
-    std::map<JIT::Type_p, JIT::PointerType_p> machineType;
+    std::map<JIT::Type_g, JIT::PointerType_g> machineType;
 #elif LLVM_VERSION < 900
 #if LLVM_VERSION >= 700
     ExecutionSession    session;
@@ -430,7 +430,7 @@ class JITPrivate
     LLVMContext &       context;
     MangleAndInterner   mangle;
 # if LLVM_VERSION >= 1500
-    std::map<JIT::Type_p, JIT::PointerType_p> machineType;
+    std::map<JIT::Type_g, JIT::PointerType_g> machineType;
 # endif // LLVM_VERSION >= 1500 (machineType map)
     ModuleHandle        nextModuleHandle;
 #endif // LLVM_VERSION >= 1700
@@ -444,7 +444,7 @@ public:
 
 private:
     LLVMContext &       ContextRef();
-    JIT::Module_p       Module();
+    JIT::Module_g       Module();
     JIT::ModuleID       CreateModule(text name);
     void                DeleteModule(JIT::ModuleID mod);
     Module_s            OptimizeModule(Module_s module);
@@ -746,7 +746,7 @@ LLVMContext &JITPrivate::ContextRef()
 }
 
 
-JIT::Module_p JITPrivate::Module()
+JIT::Module_g JITPrivate::Module()
 // ----------------------------------------------------------------------------
 //   Return the current module if there is any
 // ----------------------------------------------------------------------------
@@ -839,7 +839,7 @@ void JITPrivate::DeleteModule(JIT::ModuleID modID)
 
 
 #if LLVM_VERSION < 1700
-static void dumpModule(JIT::Module_p module, kstring message)
+static void dumpModule(JIT::Module_g module, kstring message)
 // ----------------------------------------------------------------------------
 //   Dump a module for debugging purpose
 // ----------------------------------------------------------------------------
@@ -1141,8 +1141,8 @@ JIT::JIT(int argc, char **argv)
 // ----------------------------------------------------------------------------
     : p(*new JITPrivate(argc, argv))
 {
-    recorder_type_fn print_value = recorder_render<raw_string_ostream,Value_p>;
-    recorder_type_fn print_type = recorder_render<raw_string_ostream,Type_p>;
+    recorder_type_fn print_value = recorder_render<raw_string_ostream,Value_g>;
+    recorder_type_fn print_type = recorder_render<raw_string_ostream,Type_g>;
     recorder_configure_type('v', print_value);
     recorder_configure_type('T', print_type);
 #if LLVM_VERSION >= 900
@@ -1162,7 +1162,7 @@ JIT::~JIT()
 }
 
 
-JIT::Type_p JIT::Type(Value_p value)
+JIT::Type_g JIT::Type(Value_g value)
 // ----------------------------------------------------------------------------
 //   The type for the given value
 // ----------------------------------------------------------------------------
@@ -1171,7 +1171,7 @@ JIT::Type_p JIT::Type(Value_p value)
 }
 
 
-JIT::Type_p JIT::ReturnType(Function_p fn)
+JIT::Type_g JIT::ReturnType(Function_g fn)
 // ----------------------------------------------------------------------------
 //   The return type for the function
 // ----------------------------------------------------------------------------
@@ -1180,7 +1180,7 @@ JIT::Type_p JIT::ReturnType(Function_p fn)
 }
 
 
-JIT::Type_p JIT::PointedType(Type_p type)
+JIT::Type_g JIT::PointedType(Type_g type)
 // ----------------------------------------------------------------------------
 //   The type pointed to by a pointer
 // ----------------------------------------------------------------------------
@@ -1203,7 +1203,7 @@ JIT::Type_p JIT::PointedType(Type_p type)
 }
 
 
-bool JIT::IsStructType(Type_p strt)
+bool JIT::IsStructType(Type_g strt)
 // ----------------------------------------------------------------------------
 //   Check if a type is a structure type
 // ----------------------------------------------------------------------------
@@ -1212,7 +1212,7 @@ bool JIT::IsStructType(Type_p strt)
 }
 
 
-bool JIT::InUse(Function_p function)
+bool JIT::InUse(Function_g function)
 // ----------------------------------------------------------------------------
 //   Check if the function is currently in use
 // ----------------------------------------------------------------------------
@@ -1221,7 +1221,7 @@ bool JIT::InUse(Function_p function)
 }
 
 
-void JIT::EraseFromParent(Function_p function)
+void JIT::EraseFromParent(Function_g function)
 // ----------------------------------------------------------------------------
 //   Erase function from the parent
 // ----------------------------------------------------------------------------
@@ -1230,7 +1230,7 @@ void JIT::EraseFromParent(Function_p function)
 }
 
 
-bool JIT::VerifyFunction(Function_p function)
+bool JIT::VerifyFunction(Function_g function)
 // ----------------------------------------------------------------------------
 //   Verify the input function, return true in case of error
 // ----------------------------------------------------------------------------
@@ -1240,7 +1240,7 @@ bool JIT::VerifyFunction(Function_p function)
 }
 
 
-void JIT::Print(kstring label, Value_p value)
+void JIT::Print(kstring label, Value_g value)
 // ----------------------------------------------------------------------------
 //   Print the tree on the error output
 // ----------------------------------------------------------------------------
@@ -1250,7 +1250,7 @@ void JIT::Print(kstring label, Value_p value)
 }
 
 
-void JIT::Print(kstring label, Type_p type)
+void JIT::Print(kstring label, Type_g type)
 // ----------------------------------------------------------------------------
 //   Print the tree on the error output
 // ----------------------------------------------------------------------------
@@ -1312,7 +1312,7 @@ void JIT::StackTrace()
 }
 
 
-JIT::IntegerType_p JIT::IntegerType(unsigned bits)
+JIT::IntegerType_g JIT::IntegerType(unsigned bits)
 // ----------------------------------------------------------------------------
 //   Create an integer type with the given number of bits
 // ----------------------------------------------------------------------------
@@ -1321,7 +1321,7 @@ JIT::IntegerType_p JIT::IntegerType(unsigned bits)
 }
 
 
-JIT::Type_p JIT::FloatType(unsigned bits)
+JIT::Type_g JIT::FloatType(unsigned bits)
 // ----------------------------------------------------------------------------
 //   Create a floating-type type with the given number of bits
 // ----------------------------------------------------------------------------
@@ -1335,7 +1335,7 @@ JIT::Type_p JIT::FloatType(unsigned bits)
 }
 
 
-JIT::StructType_p JIT::OpaqueType(kstring name)
+JIT::StructType_g JIT::OpaqueType(kstring name)
 // ----------------------------------------------------------------------------
 //   Create an opaque type (i.e. a struct without a content)
 // ----------------------------------------------------------------------------
@@ -1344,7 +1344,7 @@ JIT::StructType_p JIT::OpaqueType(kstring name)
 }
 
 
-JIT::StructType_p JIT::StructType(StructType_p base, const Signature &elements)
+JIT::StructType_g JIT::StructType(StructType_g base, const Signature &elements)
 // ----------------------------------------------------------------------------
 //    Refine a forward-declared structure type
 // ----------------------------------------------------------------------------
@@ -1354,19 +1354,19 @@ JIT::StructType_p JIT::StructType(StructType_p base, const Signature &elements)
 }
 
 
-JIT::StructType_p JIT::StructType(const Signature &items, kstring name)
+JIT::StructType_g JIT::StructType(const Signature &items, kstring name)
 // ----------------------------------------------------------------------------
 //    Define a structure type in one pass
 // ----------------------------------------------------------------------------
 {
-    StructType_p type = StructType::create(p.ContextRef(),
-                                           ArrayRef<Type_p>(items),
+    StructType_g type = StructType::create(p.ContextRef(),
+                                           ArrayRef<Type_g>(items),
                                            name);
     return type;
 }
 
 
-JIT::FunctionType_p JIT::FunctionType(Type_p rty,
+JIT::FunctionType_g JIT::FunctionType(Type_g rty,
                                       const JIT::Signature &parms,
                                       bool va)
 // ----------------------------------------------------------------------------
@@ -1377,7 +1377,7 @@ JIT::FunctionType_p JIT::FunctionType(Type_p rty,
 }
 
 
-JIT::PointerType_p JIT::FunctionPointerType(Type_p rty,
+JIT::PointerType_g JIT::FunctionPointerType(Type_g rty,
                                             const JIT::Signature &parms,
                                             bool va)
 // ----------------------------------------------------------------------------
@@ -1387,13 +1387,13 @@ JIT::PointerType_p JIT::FunctionPointerType(Type_p rty,
 #if LLVM_VERSION >= 1500
     return llvm::PointerType::get(p.ContextRef(), 0);
 #else // LLVM_VERSION < 1500
-    JIT::FunctionType_p fty = FunctionType(rty, parms, va);
+    JIT::FunctionType_g fty = FunctionType(rty, parms, va);
     return llvm::PointerType::get(fty, 0);
 #endif // LLVM_VERSION >= 1500 (FunctionPointerType)
 }
 
 
-JIT::PointerType_p JIT::PointerType(Type_p rty, kstring name)
+JIT::PointerType_g JIT::PointerType(Type_g rty, kstring name)
 // ----------------------------------------------------------------------------
 //    Create a pointer type (always in address space 0)
 // ----------------------------------------------------------------------------
@@ -1401,8 +1401,8 @@ JIT::PointerType_p JIT::PointerType(Type_p rty, kstring name)
 #if LLVM_VERSION >= 1500
     // Opaque pointers: all LLVM IR pointers are `ptr`; we wrap logical XL
     // pointer types in single-field structs so they stay distinguishable.
-    JIT::PointerType_p pty = llvm::PointerType::get(p.ContextRef(), 0);
-    JIT::Type_p wrapper = StructType({pty}, name);
+    JIT::PointerType_g pty = llvm::PointerType::get(p.ContextRef(), 0);
+    JIT::Type_g wrapper = StructType({pty}, name);
     p.machineType[wrapper] = pty;
     return wrapper;
 #else // LLVM_VERSION < 1500
@@ -1411,7 +1411,7 @@ JIT::PointerType_p JIT::PointerType(Type_p rty, kstring name)
 }
 
 
-JIT::PointerType_p JIT::MachinePointerType(Type_p wrapper) const
+JIT::PointerType_g JIT::MachinePointerType(Type_g wrapper) const
 // ----------------------------------------------------------------------------
 //   Turn a wrapper type into machine pointer type
 // ----------------------------------------------------------------------------
@@ -1420,12 +1420,12 @@ JIT::PointerType_p JIT::MachinePointerType(Type_p wrapper) const
     return p.machineType.count(wrapper) ? p.machineType[wrapper] : nullptr;
 #else // LLVM_VERSION < 1500
     assert (!wrapper || wrapper->isPointerTy());
-    return (JIT::PointerType_p) wrapper;
+    return (JIT::PointerType_g) wrapper;
 #endif // LLVM_VERSION >= 1500 (MachinePointerType)
 }
 
 
-JIT::Type_p JIT::VoidType()
+JIT::Type_g JIT::VoidType()
 // ----------------------------------------------------------------------------
 //   Return the void type
 // ----------------------------------------------------------------------------
@@ -1452,14 +1452,14 @@ void JIT::DeleteModule(JIT::ModuleID modID)
 }
 
 
-JIT::Function_p JIT::Function(JIT::FunctionType_p type, text name)
+JIT::Function_g JIT::Function(JIT::FunctionType_g type, text name)
 // ----------------------------------------------------------------------------
 //    Create a function with the given name and type
 // ----------------------------------------------------------------------------
 {
-    JIT::Module_p module = p.Module();
+    JIT::Module_g module = p.Module();
     assert(module && "Creating a function without a module");
-    JIT::Function_p f = llvm::Function::Create(type,
+    JIT::Function_g f = llvm::Function::Create(type,
                                                llvm::Function::ExternalLinkage,
                                                name, module);
     record(llvm_functions, "Created function %v type %T in module %p",
@@ -1469,7 +1469,7 @@ JIT::Function_p JIT::Function(JIT::FunctionType_p type, text name)
 }
 
 
-void JIT::Finalize(JIT::Function_p f)
+void JIT::Finalize(JIT::Function_g f)
 // ----------------------------------------------------------------------------
 //   Finalize function code generation
 // ----------------------------------------------------------------------------
@@ -1479,7 +1479,7 @@ void JIT::Finalize(JIT::Function_p f)
 }
 
 
-void *JIT::ExecutableCode(JIT::Function_p f)
+void *JIT::ExecutableCode(JIT::Function_g f)
 // ----------------------------------------------------------------------------
 //   Return an executable pointer to the function
 // ----------------------------------------------------------------------------
@@ -1495,13 +1495,13 @@ void *JIT::ExecutableCode(JIT::Function_p f)
 }
 
 
-JIT::Function_p JIT::ExternFunction(JIT::FunctionType_p type, text name)
+JIT::Function_g JIT::ExternFunction(JIT::FunctionType_g type, text name)
 // ----------------------------------------------------------------------------
 //    Create an extern function with the given name and type
 // ----------------------------------------------------------------------------
 {
     assert(p.module);
-    JIT::Function_p f = llvm::Function::Create(type,
+    JIT::Function_g f = llvm::Function::Create(type,
                                                llvm::Function::ExternalLinkage,
                                                name, p.Module());
     record(llvm_externals, "Extern function %s is %v type %T", name, f, type);
@@ -1509,13 +1509,13 @@ JIT::Function_p JIT::ExternFunction(JIT::FunctionType_p type, text name)
 }
 
 
-JIT::Function_p JIT::Prototype(JIT::Function_p function)
+JIT::Function_g JIT::Prototype(JIT::Function_g function)
 // ----------------------------------------------------------------------------
 //   Return a function prototype acceptable for this module
 // ----------------------------------------------------------------------------
 //   If the function is in this module, return it, else return prototype for it
 {
-    JIT::Module_p module = p.Module();
+    JIT::Module_g module = p.Module();
 #if LLVM_VERSION < 1100
     text          name   = function->getName();
 #else // LLVM_VERSION >= 1100
@@ -1525,7 +1525,7 @@ JIT::Function_p JIT::Prototype(JIT::Function_p function)
     // First check if we don't already have it in the current module
     if (module)
     {
-        if (Function_p f = module->getFunction(name))
+        if (Function_g f = module->getFunction(name))
         {
             record(llvm_prototypes,
                    "Prototype for %v found in current module %p",
@@ -1534,8 +1534,8 @@ JIT::Function_p JIT::Prototype(JIT::Function_p function)
         }
     }
 
-    FunctionType_p type = function->getFunctionType();
-    Function_p proto = llvm::Function::Create(type,
+    FunctionType_g type = function->getFunctionType();
+    Function_g proto = llvm::Function::Create(type,
                                               llvm::Function::ExternalLinkage,
                                               name, module);
     record(llvm_prototypes, "Created prototype %v for %v type %T in module %p",
@@ -1544,14 +1544,14 @@ JIT::Function_p JIT::Prototype(JIT::Function_p function)
 }
 
 
-JIT::Value_p JIT::Prototype(Value_p callee)
+JIT::Value_g JIT::Prototype(Value_g callee)
 // ----------------------------------------------------------------------------
 //   Build a prototype from a callee that may not be a function
 // ----------------------------------------------------------------------------
 {
-    Type_p type = callee->getType();
+    Type_g type = callee->getType();
     if (type->isFunctionTy())
-        return Prototype(Function_p(callee));
+        return Prototype(Function_g(callee));
 
     record(llvm_prototypes, "Prototype for value %v type %T", callee, type);
     assert(type->isPointerTy() && "JIT::Prototype requires a callable value");
@@ -1575,11 +1575,11 @@ class JITBlockPrivate
 {
     friend class JITBlock;
     JIT &               jit;
-    JIT::BasicBlock_p   block;
+    JIT::BasicBlock_g   block;
     JITBuilder *        builder;
     kstring             name;
 
-    JITBlockPrivate(JIT &jit, JIT::Function_p function, kstring name);
+    JITBlockPrivate(JIT &jit, JIT::Function_g function, kstring name);
     JITBlockPrivate(const JITBlockPrivate &other, kstring name);
     JITBlockPrivate(JIT &jit);
     ~JITBlockPrivate();
@@ -1591,7 +1591,7 @@ class JITBlockPrivate
 
 
 JITBlockPrivate::JITBlockPrivate(JIT &jit,
-                                 JIT::Function_p function,
+                                 JIT::Function_g function,
                                  kstring name)
 // ----------------------------------------------------------------------------
 //   Create private data for a JIT block
@@ -1654,7 +1654,7 @@ JITBlockPrivate &JITBlockPrivate::operator=(const JITBlockPrivate &o)
 }
 
 
-JITBlock::JITBlock(JIT &jit, JIT::Function_p function, kstring name)
+JITBlock::JITBlock(JIT &jit, JIT::Function_g function, kstring name)
 // ----------------------------------------------------------------------------
 //   Create a new JIT block
 // ----------------------------------------------------------------------------
@@ -1701,43 +1701,43 @@ JITBlock &JITBlock::operator=(const JITBlock &block)
 }
 
 
-JIT::Constant_p JITBlock::BooleanConstant(bool value)
+JIT::Constant_g JITBlock::BooleanConstant(bool value)
 // ----------------------------------------------------------------------------
 //   Build a boolean integer constant
 // ----------------------------------------------------------------------------
 {
-    JIT::Type_p ty = llvm::Type::getInt1Ty(p.ContextRef());
-    JIT::Constant_p result = ConstantInt::get(ty, value);
+    JIT::Type_g ty = llvm::Type::getInt1Ty(p.ContextRef());
+    JIT::Constant_g result = ConstantInt::get(ty, value);
     record(llvm_constants, "Unsigned constant %v for %llu", result, value);
     return result;
 }
 
 
-JIT::Constant_p JITBlock::IntegerConstant(JIT::Type_p ty, uint64_t value)
+JIT::Constant_g JITBlock::IntegerConstant(JIT::Type_g ty, uint64_t value)
 // ----------------------------------------------------------------------------
 //   Build an unsigned integer constant
 // ----------------------------------------------------------------------------
 {
     assert(ty->isIntegerTy());
-    JIT::Constant_p result = ConstantInt::get(ty, value);
+    JIT::Constant_g result = ConstantInt::get(ty, value);
     record(llvm_constants, "Unsigned constant %v for %llu", result, value);
     return result;
 }
 
 
-JIT::Constant_p JITBlock::IntegerConstant(JIT::Type_p ty, int64_t value)
+JIT::Constant_g JITBlock::IntegerConstant(JIT::Type_g ty, int64_t value)
 // ----------------------------------------------------------------------------
 //   Build a signed integer constant
 // ----------------------------------------------------------------------------
 {
     assert(ty->isIntegerTy());
-    JIT::Constant_p result = ConstantInt::get(ty, value);
+    JIT::Constant_g result = ConstantInt::get(ty, value);
     record(llvm_constants, "Signed constant %v for %lld", result, value);
     return result;
 }
 
 
-JIT::Constant_p JITBlock::IntegerConstant(JIT::Type_p ty, unsigned value)
+JIT::Constant_g JITBlock::IntegerConstant(JIT::Type_g ty, unsigned value)
 // ----------------------------------------------------------------------------
 //   Build an unsigned integer constant
 // ----------------------------------------------------------------------------
@@ -1746,7 +1746,7 @@ JIT::Constant_p JITBlock::IntegerConstant(JIT::Type_p ty, unsigned value)
 }
 
 
-JIT::Constant_p JITBlock::IntegerConstant(JIT::Type_p ty, int value)
+JIT::Constant_g JITBlock::IntegerConstant(JIT::Type_g ty, int value)
 // ----------------------------------------------------------------------------
 //   Build a signed integer constant
 // ----------------------------------------------------------------------------
@@ -1755,23 +1755,23 @@ JIT::Constant_p JITBlock::IntegerConstant(JIT::Type_p ty, int value)
 }
 
 
-JIT::Constant_p JITBlock::FloatConstant(JIT::Type_p ty, double value)
+JIT::Constant_g JITBlock::FloatConstant(JIT::Type_g ty, double value)
 // ----------------------------------------------------------------------------
 //   Build a floating-point constant
 // ----------------------------------------------------------------------------
 {
-    JIT::Constant_p result = ConstantFP::get(ty, value);
+    JIT::Constant_g result = ConstantFP::get(ty, value);
     record(llvm_constants, "FP constant %v for %g", result, value);
     return result;
 }
 
 
-JIT::Constant_p JITBlock::PointerConstant(JIT::Type_p type, void *pointer)
+JIT::Constant_g JITBlock::PointerConstant(JIT::Type_g type, void *pointer)
 // ----------------------------------------------------------------------------
 //    Create a constant pointer
 // ----------------------------------------------------------------------------
 {
-    JIT::Type_p rawTy = b.jit.MachinePointerType(type);
+    JIT::Type_g rawTy = b.jit.MachinePointerType(type);
     if (!rawTy)
         rawTy = type;
 
@@ -1782,7 +1782,7 @@ JIT::Constant_p JITBlock::PointerConstant(JIT::Type_p type, void *pointer)
     }
 
     llvm::APInt addr(JIT::BitsPerByte * sizeof(void *), (uintptr_t) pointer);
-    JIT::Constant_p result = pointer
+    JIT::Constant_g result = pointer
         ? llvm::Constant::getIntegerValue(rawTy, addr)
         : llvm::ConstantPointerNull::get(cast<PointerType>(rawTy));
 
@@ -1796,18 +1796,18 @@ JIT::Constant_p JITBlock::PointerConstant(JIT::Type_p type, void *pointer)
 }
 
 
-JIT::Value_p JITBlock::TextConstant(JIT::Type_p type, text value)
+JIT::Value_g JITBlock::TextConstant(JIT::Type_g type, text value)
 // ----------------------------------------------------------------------------
 //   Return a constant array of characters for the input text
 // ----------------------------------------------------------------------------
 {
 #if LLVM_VERSION >= 1500
     llvm::GlobalVariable *gv = b->CreateGlobalString(value);
-    JIT::StructType_p st = dyn_cast<StructType>(type);
-    JIT::Value_p result = llvm::ConstantStruct::get(st, {gv});
+    JIT::StructType_g st = dyn_cast<StructType>(type);
+    JIT::Value_g result = llvm::ConstantStruct::get(st, {gv});
 #else // LLVM_VERSION < 1500
     (void) type;
-    JIT::Value_p result = b->CreateGlobalStringPtr(value);
+    JIT::Value_g result = b->CreateGlobalStringPtr(value);
 #endif // LLVM_VERSION >= 1500 (TextConstant)
     record(llvm_constants, "Text constant %v for %s", result, value.c_str());
     return result;
@@ -1825,7 +1825,7 @@ void JITBlock::SwitchTo(JITBlock &block)
 }
 
 
-void JITBlock::SwitchTo(JIT::BasicBlock_p block)
+void JITBlock::SwitchTo(JIT::BasicBlock_g block)
 // ----------------------------------------------------------------------------
 //   Switch the insertion point to the given basic block
 // ----------------------------------------------------------------------------
@@ -1839,15 +1839,15 @@ void JITBlock::SwitchTo(JIT::BasicBlock_p block)
 #if LLVM_VERSION < 1100
 #define Callee(V)       (V)
 #else // LLVM_VERSION >= 1100 (FunctionCallee Callee)
-static inline llvm::FunctionCallee Callee(JIT::Value_p callee)
+static inline llvm::FunctionCallee Callee(JIT::Value_g callee)
 // ----------------------------------------------------------------------------
 //   Another totally useless wrapper with more damage to come
 // ----------------------------------------------------------------------------
 {
-    JIT::Type_p type = callee->getType();
+    JIT::Type_g type = callee->getType();
     if (type->isFunctionTy())
     {
-        JIT::FunctionType_p ftype = (JIT::FunctionType_p) type;
+        JIT::FunctionType_g ftype = (JIT::FunctionType_g) type;
         return llvm::FunctionCallee(ftype, callee);
     }
 
@@ -1873,69 +1873,69 @@ static inline llvm::FunctionCallee Callee(JIT::Value_p callee)
                callee, type);
         return nullptr;
     }
-    JIT::FunctionType_p ftype = (JIT::FunctionType_p) type;
+    JIT::FunctionType_g ftype = (JIT::FunctionType_g) type;
     return llvm::FunctionCallee(ftype, callee);
 #endif // LLVM_VERSION >= 1500 (Callee helper)
 }
 #endif // LLVM_VERSION < 1100 / >= 1100 (Callee macro vs function)
 
 
-JIT::Value_p JITBlock::Call(JIT::Value_p callee, JIT::Value_p arg1)
+JIT::Value_g JITBlock::Call(JIT::Value_g callee, JIT::Value_g arg1)
 // ----------------------------------------------------------------------------
 //   Create a call with one argument
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p proto = b.jit.Prototype(callee);
-    JIT::Value_p result = b->CreateCall(Callee(proto), {arg1});
+    JIT::Value_g proto = b.jit.Prototype(callee);
+    JIT::Value_g result = b->CreateCall(Callee(proto), {arg1});
     record(llvm_ir, "Call %v(%v) = %v", callee, arg1, result);
     return result;
 }
 
 
-JIT::Value_p JITBlock::Call(JIT::Value_p callee,
-                            JIT::Value_p arg1,
-                            JIT::Value_p arg2)
+JIT::Value_g JITBlock::Call(JIT::Value_g callee,
+                            JIT::Value_g arg1,
+                            JIT::Value_g arg2)
 // ----------------------------------------------------------------------------
 //   Create a call with two arguments
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p proto = b.jit.Prototype(callee);
-    JIT::Value_p result = b->CreateCall(Callee(proto), {arg1, arg2});
+    JIT::Value_g proto = b.jit.Prototype(callee);
+    JIT::Value_g result = b->CreateCall(Callee(proto), {arg1, arg2});
     record(llvm_ir, "Call %v(%v, %v) = %v", callee, arg1, arg2, result);
     return result;
 }
 
 
-JIT::Value_p JITBlock::Call(JIT::Value_p callee,
-                            JIT::Value_p arg1,
-                            JIT::Value_p arg2,
-                            JIT::Value_p arg3)
+JIT::Value_g JITBlock::Call(JIT::Value_g callee,
+                            JIT::Value_g arg1,
+                            JIT::Value_g arg2,
+                            JIT::Value_g arg3)
 // ----------------------------------------------------------------------------
 //   Create a call with three arguments
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p proto = b.jit.Prototype(callee);
-    JIT::Value_p result = b->CreateCall(Callee(proto), {arg1, arg2, arg3});
+    JIT::Value_g proto = b.jit.Prototype(callee);
+    JIT::Value_g result = b->CreateCall(Callee(proto), {arg1, arg2, arg3});
     record(llvm_ir, "Call %v(%v, %v, %v) = %v", callee, arg1,arg2,arg3, result);
     return result;
 }
 
 
-JIT::Value_p JITBlock::Call(JIT::Value_p callee,
+JIT::Value_g JITBlock::Call(JIT::Value_g callee,
                             JIT::Values &args)
 // ----------------------------------------------------------------------------
 //   Create a call with an arbitrary list of arguments
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p proto = b.jit.Prototype(callee);
-    JIT::Value_p result = b->CreateCall(Callee(proto),
-                                        ArrayRef<JIT::Value_p>(args));
+    JIT::Value_g proto = b.jit.Prototype(callee);
+    JIT::Value_g result = b->CreateCall(Callee(proto),
+                                        ArrayRef<JIT::Value_g>(args));
     record(llvm_ir, "Call %v(#%u) = %v", callee, args.size(), result);
     return result;
 }
 
 
-JIT::BasicBlock_p JITBlock::Block()
+JIT::BasicBlock_g JITBlock::Block()
 // ----------------------------------------------------------------------------
 //   Return the basic block for this JIT block
 // ----------------------------------------------------------------------------
@@ -1944,7 +1944,7 @@ JIT::BasicBlock_p JITBlock::Block()
 }
 
 
-JIT::BasicBlock_p JITBlock::NewBlock(kstring name)
+JIT::BasicBlock_g JITBlock::NewBlock(kstring name)
 // ----------------------------------------------------------------------------
 //   Create a new basic block in the same function as current block
 // ----------------------------------------------------------------------------
@@ -1953,7 +1953,7 @@ JIT::BasicBlock_p JITBlock::NewBlock(kstring name)
 }
 
 
-JIT::Value_p JITBlock::Return(JIT::Value_p value)
+JIT::Value_g JITBlock::Return(JIT::Value_g value)
 // ----------------------------------------------------------------------------
 //  Return the given value, or RetVoid if nullptr
 // ----------------------------------------------------------------------------
@@ -1964,7 +1964,7 @@ JIT::Value_p JITBlock::Return(JIT::Value_p value)
 }
 
 
-JIT::Value_p JITBlock::Branch(JITBlock &to)
+JIT::Value_g JITBlock::Branch(JITBlock &to)
 // ----------------------------------------------------------------------------
 //   Create an unconditinal branch
 // ----------------------------------------------------------------------------
@@ -1975,7 +1975,7 @@ JIT::Value_p JITBlock::Branch(JITBlock &to)
 }
 
 
-JIT::Value_p JITBlock::Branch(JIT::BasicBlock_p to)
+JIT::Value_g JITBlock::Branch(JIT::BasicBlock_g to)
 // ----------------------------------------------------------------------------
 //   Create an unconditinal branch
 // ----------------------------------------------------------------------------
@@ -1986,7 +1986,7 @@ JIT::Value_p JITBlock::Branch(JIT::BasicBlock_p to)
 }
 
 
-JIT::Value_p JITBlock::IfBranch(JIT::Value_p cond,
+JIT::Value_g JITBlock::IfBranch(JIT::Value_g cond,
                                 JITBlock &t,
                                 JITBlock &f)
 // ----------------------------------------------------------------------------
@@ -2000,9 +2000,9 @@ JIT::Value_p JITBlock::IfBranch(JIT::Value_p cond,
 }
 
 
-JIT::Value_p JITBlock::IfBranch(JIT::Value_p cond,
-                                JIT::BasicBlock_p t,
-                                JIT::BasicBlock_p f)
+JIT::Value_g JITBlock::IfBranch(JIT::Value_g cond,
+                                JIT::BasicBlock_g t,
+                                JIT::BasicBlock_g f)
 // ----------------------------------------------------------------------------
 //  Create a conditional branch
 // ----------------------------------------------------------------------------
@@ -2014,9 +2014,9 @@ JIT::Value_p JITBlock::IfBranch(JIT::Value_p cond,
 }
 
 
-JIT::Value_p JITBlock::Select(JIT::Value_p cond,
-                              JIT::Value_p t,
-                              JIT::Value_p f)
+JIT::Value_g JITBlock::Select(JIT::Value_g cond,
+                              JIT::Value_g t,
+                              JIT::Value_g f)
 // ----------------------------------------------------------------------------
 //   Create a select
 // ----------------------------------------------------------------------------
@@ -2029,7 +2029,7 @@ JIT::Value_p JITBlock::Select(JIT::Value_p cond,
 }
 
 
-JIT::Value_p JITBlock::IsNullPointer(JIT::Value_p pointer, kstring name)
+JIT::Value_g JITBlock::IsNullPointer(JIT::Value_g pointer, kstring name)
 // ----------------------------------------------------------------------------
 //   Check if a value is a null pointer
 // ----------------------------------------------------------------------------
@@ -2037,13 +2037,13 @@ JIT::Value_p JITBlock::IsNullPointer(JIT::Value_p pointer, kstring name)
 //   is a null pointer can be a bit convoluted, and it's used in at least three
 //   distinct places.
 {
-    JIT::Value_p raw = PointerValue(pointer);
-    JIT::Value_p null = PointerConstant(JIT::Type(raw), nullptr);
+    JIT::Value_g raw = PointerValue(pointer);
+    JIT::Value_g null = PointerConstant(JIT::Type(raw), nullptr);
     return ICmpEQ(raw, null, name);
 }
 
 
-JIT::Value_p JITBlock::IsOKPointer(JIT::Value_p pointer, kstring name)
+JIT::Value_g JITBlock::IsOKPointer(JIT::Value_g pointer, kstring name)
 // ----------------------------------------------------------------------------
 //   Check if a value is not a null pointer
 // ----------------------------------------------------------------------------
@@ -2051,13 +2051,13 @@ JIT::Value_p JITBlock::IsOKPointer(JIT::Value_p pointer, kstring name)
 //   is a null pointer can be a bit convoluted, and it's used in at least three
 //   distinct places.
 {
-    JIT::Value_p raw = PointerValue(pointer);
-    JIT::Value_p null = PointerConstant(JIT::Type(raw), nullptr);
+    JIT::Value_g raw = PointerValue(pointer);
+    JIT::Value_g null = PointerConstant(JIT::Type(raw), nullptr);
     return ICmpNE(raw, null, name);
 }
 
 
-JIT::Value_p JITBlock::Alloca(JIT::Type_p type, kstring name)
+JIT::Value_g JITBlock::Alloca(JIT::Type_g type, kstring name)
 // ----------------------------------------------------------------------------
 //  Do a local allocation
 // ----------------------------------------------------------------------------
@@ -2072,20 +2072,20 @@ JIT::Value_p JITBlock::Alloca(JIT::Type_p type, kstring name)
 }
 
 
-JIT::Value_p JITBlock::AllocateReturnValue(JIT::Function_p f, kstring name)
+JIT::Value_g JITBlock::AllocateReturnValue(JIT::Function_g f, kstring name)
 // ----------------------------------------------------------------------------
 //   Do an alloca for the return value
 // ----------------------------------------------------------------------------
 {
-    JIT::Type_p ret = f->getReturnType();
+    JIT::Type_g ret = f->getReturnType();
     if (ret->isVoidTy())
         return nullptr;
     return Alloca(ret, name);
 }
 
 
-JIT::Value_p JITBlock::StructGEP(JIT::Type_p structTy,
-                                 JIT::Value_p ptr,
+JIT::Value_g JITBlock::StructGEP(JIT::Type_g structTy,
+                                 JIT::Value_g ptr,
                                  unsigned idx,
                                  kstring name)
 // ----------------------------------------------------------------------------
@@ -2113,8 +2113,8 @@ JIT::Value_p JITBlock::StructGEP(JIT::Type_p structTy,
 }
 
 
-JIT::Value_p JITBlock::ArrayGEP(JIT::Type_p  elementTy,
-                                JIT::Value_p ptr,
+JIT::Value_g JITBlock::ArrayGEP(JIT::Type_g  elementTy,
+                                JIT::Value_g ptr,
                                 uint32_t     idx,
                                 kstring      name)
 // ----------------------------------------------------------------------------
@@ -2131,7 +2131,7 @@ JIT::Value_p JITBlock::ArrayGEP(JIT::Type_p  elementTy,
     return inst;
 }
 
-JIT::Value_p JITBlock::Load(JIT::Type_p ty, JIT::Value_p ptr, kstring name)
+JIT::Value_g JITBlock::Load(JIT::Type_g ty, JIT::Value_g ptr, kstring name)
 // ----------------------------------------------------------------------------
 //   Explicitly typed load for opaque pointers
 // ----------------------------------------------------------------------------
@@ -2148,8 +2148,8 @@ JIT::Value_p JITBlock::Load(JIT::Type_p ty, JIT::Value_p ptr, kstring name)
 }
 
 
-JIT::Value_p JITBlock::StructLoad(JIT::Type_p structTy,
-                                  JIT::Value_p ptr,
+JIT::Value_g JITBlock::StructLoad(JIT::Type_g structTy,
+                                  JIT::Value_g ptr,
                                   unsigned idx,
                                   kstring name)
 // ----------------------------------------------------------------------------
@@ -2179,7 +2179,7 @@ JIT::Value_p JITBlock::StructLoad(JIT::Type_p structTy,
 }
 
 
-JIT::Value_p JITBlock::PointerValue(JIT::Value_p ptr)
+JIT::Value_g JITBlock::PointerValue(JIT::Value_g ptr)
 // ----------------------------------------------------------------------------
 //   Extract raw pointer from logical wrapper when required
 // ----------------------------------------------------------------------------
@@ -2187,8 +2187,8 @@ JIT::Value_p JITBlock::PointerValue(JIT::Value_p ptr)
 #if LLVM_VERSION >= 1500
     if (ptr)
     {
-        JIT::Type_p wty = ptr->getType();
-        JIT::Type_p rty = b.jit.MachinePointerType(wty);
+        JIT::Type_g wty = ptr->getType();
+        JIT::Type_g rty = b.jit.MachinePointerType(wty);
         if (rty)
             return b->CreateExtractValue(ptr, {0}, "rawptr");
     }
@@ -2197,7 +2197,7 @@ JIT::Value_p JITBlock::PointerValue(JIT::Value_p ptr)
 }
 
 
-JIT::Value_p JITBlock::WrappedValue(JIT::Value_p ptr, JIT::Type_p type)
+JIT::Value_g JITBlock::WrappedValue(JIT::Value_g ptr, JIT::Type_g type)
 // ----------------------------------------------------------------------------
 //  Convert to wrapper type in case we need it
 // ----------------------------------------------------------------------------
@@ -2212,7 +2212,7 @@ JIT::Value_p JITBlock::WrappedValue(JIT::Value_p ptr, JIT::Type_p type)
 }
 
 
-JIT::Value_p JITBlock::BitCast(JIT::Value_p v, JIT::Type_p t, kstring name)
+JIT::Value_g JITBlock::BitCast(JIT::Value_g v, JIT::Type_g t, kstring name)
 // ----------------------------------------------------------------------------
 //   Bitcast with wrapper-awareness for opaque-pointer logical struct types
 // ----------------------------------------------------------------------------
@@ -2224,9 +2224,9 @@ JIT::Value_p JITBlock::BitCast(JIT::Value_p v, JIT::Type_p t, kstring name)
         return v;
 
     v = PointerValue(v);
-    JIT::Value_p value = v;
+    JIT::Value_g value = v;
 #if LLVM_VERSION >= 1500
-    if (JIT::PointerType_p mty = b.jit.MachinePointerType(t))
+    if (JIT::PointerType_g mty = b.jit.MachinePointerType(t))
     {
         value = b->CreateBitCast(value, mty, name);
         value = WrappedValue(value, t);
@@ -2245,7 +2245,7 @@ JIT::Value_p JITBlock::BitCast(JIT::Value_p v, JIT::Type_p t, kstring name)
 /* ------------------------------------------------------------ */      \
 /*  Create a unary operator                                     */      \
 /* ------------------------------------------------------------ */      \
-    JIT::Value_p JITBlock::Name(JIT::Value_p v, kstring name)           \
+    JIT::Value_g JITBlock::Name(JIT::Value_g v, kstring name)           \
     {                                                                   \
         auto value = b->Create##Name(v, name);                          \
         record(llvm_ir, #Name " %+s(%v) = %v", name, v, value);         \
@@ -2257,8 +2257,8 @@ JIT::Value_p JITBlock::BitCast(JIT::Value_p v, JIT::Type_p t, kstring name)
 /* ------------------------------------------------------------ */      \
 /*  Create a binary operator                                    */      \
 /* ------------------------------------------------------------ */      \
-    JIT::Value_p JITBlock::Name(JIT::Value_p l,                         \
-                                JIT::Value_p r,                         \
+    JIT::Value_g JITBlock::Name(JIT::Value_g l,                         \
+                                JIT::Value_g r,                         \
                                 kstring name)                           \
     {                                                                   \
         auto value = b->Create##Name(l, r, name);                       \
@@ -2270,8 +2270,8 @@ JIT::Value_p JITBlock::BitCast(JIT::Value_p v, JIT::Type_p t, kstring name)
 /* ------------------------------------------------------------ */      \
 /*  Create a cast operation                                     */      \
 /* ------------------------------------------------------------ */      \
-    JIT::Value_p JITBlock::Name(JIT::Value_p v,                         \
-                                JIT::Type_p t,                          \
+    JIT::Value_g JITBlock::Name(JIT::Value_g v,                         \
+                                JIT::Type_g t,                          \
                                 kstring name)                           \
     {                                                                   \
         auto value = b->Create##Name(v, t, name);                       \
@@ -2306,7 +2306,7 @@ JITModule::JITModule(Compiler &compiler, text name)
 //
 // ============================================================================
 
-XL::JIT::Value_p xldebug(XL::JIT::Value_p v)
+XL::JIT::Value_g xldebug(XL::JIT::Value_g v)
 // ----------------------------------------------------------------------------
 //   Dump a value for the debugger
 // ----------------------------------------------------------------------------
@@ -2321,7 +2321,7 @@ XL::JIT::Value_p xldebug(XL::JIT::Value_p v)
 }
 
 
-XL::JIT::Type_p xldebug(XL::JIT::Type_p t)
+XL::JIT::Type_g xldebug(XL::JIT::Type_g t)
 // ----------------------------------------------------------------------------
 //   Dump a value for the debugger
 // ----------------------------------------------------------------------------

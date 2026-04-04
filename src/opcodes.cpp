@@ -103,7 +103,7 @@ void Opcode::Register(Context *context)
         record(opcodes, "Opcode %+s for %t", this->OpID(), shape);
 
         Save<TreePosition> savePos(Tree::NOWHERE, Tree::BUILTIN);
-        static Name_p builtinName = new Name("builtin");
+        static Name_g builtinName = new Name("builtin");
         Infix *decl = new Infix("is", shape,
                                 new Prefix(builtinName,
                                            new Name(this->OpID())));

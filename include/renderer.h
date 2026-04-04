@@ -49,8 +49,8 @@ RECORDER_TWEAK_DECLARE(recorder_dump_symbolic);
 XL_BEGIN
 
 struct Syntax;
-typedef std::map<text,Tree_p>                      formats_table;
-typedef std::map<Tree_p,text>                      highlights_table;
+typedef std::map<text,Tree_g>                      formats_table;
+typedef std::map<Tree_g,text>                      highlights_table;
 typedef std::pair<std::streampos, std::streampos>  stream_range;
 typedef std::vector<stream_range>                  stream_ranges;
 typedef std::map<text, stream_ranges>              highlight_result;
@@ -89,8 +89,8 @@ protected:
     formats_table       formats;
     uint                indent;
     text                self;
-    Tree_p              left;
-    Tree_p              right;
+    Tree_g              left;
+    Tree_g              right;
     text                current_quote;
     int                 priority;
     bool                had_space;
@@ -156,14 +156,14 @@ XL_END
 // For use in a debugger
 extern bool xldebug_verbose;
 XL::Tree *xldebug(XL::Tree *);
-XL::Tree *xldebug(XL::Tree_p);
-XL::Tree *xldebug(XL::Natural_p);
-XL::Tree *xldebug(XL::Real_p);
-XL::Tree *xldebug(XL::Text_p);
-XL::Tree *xldebug(XL::Name_p);
-XL::Tree *xldebug(XL::Block_p);
-XL::Tree *xldebug(XL::Prefix_p);
-XL::Tree *xldebug(XL::Postfix_p);
-XL::Tree *xldebug(XL::Infix_p);
+XL::Tree *xldebug(XL::Tree_g);
+XL::Tree *xldebug(XL::Natural_g);
+XL::Tree *xldebug(XL::Real_g);
+XL::Tree *xldebug(XL::Text_g);
+XL::Tree *xldebug(XL::Name_g);
+XL::Tree *xldebug(XL::Block_g);
+XL::Tree *xldebug(XL::Prefix_g);
+XL::Tree *xldebug(XL::Postfix_g);
+XL::Tree *xldebug(XL::Infix_g);
 
 #endif // RENDERER_H

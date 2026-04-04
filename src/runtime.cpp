@@ -421,7 +421,7 @@ static bool isAbsolute(text path)
 }
 
 
-static void xl_list_files(Scope *scope, Tree *patterns, Tree_p *&parent)
+static void xl_list_files(Scope *scope, Tree *patterns, Tree_g *&parent)
 // ----------------------------------------------------------------------------
 //   Append all files found in the parent
 // ----------------------------------------------------------------------------
@@ -481,8 +481,8 @@ Tree *xl_list_files(Scope *scope, Tree *patterns)
 //   List all files in the given pattern
 // ----------------------------------------------------------------------------
 {
-    Tree_p result = nullptr;
-    Tree_p *parent = &result;
+    Tree_g result = nullptr;
+    Tree_g *parent = &result;
     xl_list_files(scope, patterns, parent);
     if (!result)
         result = xl_nil;
@@ -490,7 +490,7 @@ Tree *xl_list_files(Scope *scope, Tree *patterns)
 }
 
 
-bool xl_file_exists(Scope *scope, Tree_p self, text path)
+bool xl_file_exists(Scope *scope, Tree_g self, text path)
 // ----------------------------------------------------------------------------
 //   Check if a file exists
 // ----------------------------------------------------------------------------
@@ -577,7 +577,7 @@ Tree *xl_use(Scope *scope, Tree *self)
         if (path == "" && !isAbsolute(modname))
         {
             // Relative path: look in same directory as parent
-            static Name_p module_dir = new Name("module_dir");
+            static Name_g module_dir = new Name("module_dir");
             Context context(scope);
             if (Tree * dir = context.Bound(module_dir))
             {
@@ -643,7 +643,7 @@ struct LoadDataInfo : Info
         };
         typedef std::vector<Row> Data;
         Data        data;
-        Tree_p      loaded;
+        Tree_g      loaded;
         time_t      mtime;
     };
     std::map<text, PerFile> files;
@@ -716,7 +716,7 @@ Tree *xl_load_data(Scope *scope, Tree *self, text inputName,
 
         if (cached)
         {
-            Tree_p result = xl_false;
+            Tree_g result = xl_false;
             if (prefix.size())
             {
                 ulong i, max = perFile.data.size();
@@ -739,10 +739,10 @@ Tree *xl_load_data(Scope *scope, Tree *self, text inputName,
     char     buffer[256];
     char    *ptr       = buffer;
     char    *end       = buffer + sizeof(buffer) - 1;
-    Tree_p   tree      = nullptr;
-    Tree_p   line      = nullptr;
-    Tree_p  *treePtr   = &tree;
-    Tree_p  *linePtr   = &line;
+    Tree_g   tree      = nullptr;
+    Tree_g   line      = nullptr;
+    Tree_g  *treePtr   = &tree;
+    Tree_g  *linePtr   = &line;
     bool     hasQuote  = false;
     bool     hasRecord = false;
     bool     hasField  = false;
@@ -1259,7 +1259,7 @@ XLCall &XLCall::Arg(Tree *tree)
     {
         Infix *infix = new Infix(",", *pointer, tree);
         *pointer = infix;
-        pointer = (Tree_p *) &infix->right;
+        pointer = (Tree_g *) &infix->right;
     }
     else
     {

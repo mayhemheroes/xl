@@ -44,26 +44,26 @@ struct Test
     GARBAGE_COLLECT(Test);
 };
 
-typedef XL::GCPtr<Test> Test_p;
+typedef XL::GCPtr<Test> Test_g;
 
 struct Derived : Test
 {
     Derived(Test *g, Test *u): glop(g), glap(u) { std::cerr << "Derived::Derived\n"; }
     ~Derived()  { std::cerr << "Derived::~Derived\n"; }
 
-    Test_p glop;
-    Test_p glap;
+    Test_g glop;
+    Test_g glap;
 
     GARBAGE_COLLECT(Derived);
 };
 
-typedef XL::GCPtr<Derived> Derived_p;
+typedef XL::GCPtr<Derived> Derived_g;
 
 
 int main()
 {
-    Test_p ptr = new Test;
-    Derived_p ptr2 = new Derived(ptr, ptr);
+    Test_g ptr = new Test;
+    Derived_g ptr2 = new Derived(ptr, ptr);
     ptr2->Do();
     new Derived(0, 0);
 

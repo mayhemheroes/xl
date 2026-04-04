@@ -39,7 +39,7 @@
 //   All bytecode operations are represented by an instance of the 'Op'
 //   class, which has a virtual member 'Run' taking a 'Data' argument.
 //
-//   The 'Data' argument is an array of Tree_p represented by a pointer.
+//   The 'Data' argument is an array of Tree_g represented by a pointer.
 //   Local values are stored at positive offsets, input arguments and
 //   closure data at negative offsets.
 //    [0]       : Self / result
@@ -66,7 +66,7 @@ typedef std::vector<Op *> Ops; // Sequence of operations
 typedef std::map<Tree *, int>  TreeIDs;
 typedef std::map<Tree *, Op *> TreeOps;
 typedef std::vector<int>       ParmOrder;
-typedef Tree_p *               Data;
+typedef Tree_g *               Data;
 
 
 
@@ -126,8 +126,8 @@ struct Code : public Op, Info
 //    A sequence of operations (may be local evaluation code in a function)
 // ----------------------------------------------------------------------------
 {
-    Context_p           context;
-    Tree_p              self;
+    Context_g           context;
+    Tree_g              self;
     Op *                ops;
     Ops                 instrs;
 public:
@@ -166,7 +166,7 @@ public:
     virtual kstring     OpID()          { return "function"; }
 
     uint                Closures()      { return captured.size(); }
-    Tree_p *            ClosureData()   { return &captured[0]; }
+    Tree_g *            ClosureData()   { return &captured[0]; }
     uint                OffsetSize()    { return Inputs() + Closures(); }
     uint                FrameSize()     { return 2 + OffsetSize() + Locals(); }
 };
@@ -241,11 +241,11 @@ public:
     uint        nEvals;         // Max number of evals on all candidates
     uint        nParms;         // Max number of parms on all candidates
     uint        candidates;     // Number of candidates found
-    Tree_p      test;           // Current form to test
-    Tree_p      resultType;     // Result type declared in rewrite
-    Context_p   context;        // Evaluation context
-    Context_p   parmsCtx;       // Parameter declarations for current function
-    Context_p   argsCtx;        // Argument declarations for called functions
+    Tree_g      test;           // Current form to test
+    Tree_g      resultType;     // Result type declared in rewrite
+    Context_g   context;        // Evaluation context
+    Context_g   parmsCtx;       // Parameter declarations for current function
+    Context_g   argsCtx;        // Argument declarations for called functions
     Op *        failOp;         // Exit instruction if evaluation fails
     Op *        successOp;      // Exit instruction in case of success
     Ops         instrs;         // All instructions

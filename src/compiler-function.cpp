@@ -51,7 +51,7 @@ CompilerFunction::CompilerFunction(CompilerUnit &unit,
                                    Tree *pattern,
                                    Tree *body,
                                    CompilerTypes *types,
-                                   JIT::FunctionType_p ftype,
+                                   JIT::FunctionType_g ftype,
                                    text name)
 // ----------------------------------------------------------------------------
 //   Create new compiler function for standard evaluation functions (eval_fn)
@@ -167,25 +167,25 @@ bool CompilerFunction::IsInterfaceOnly()
 }
 
 
-JIT::Function_p CompilerFunction::Compile(Tree *tree, bool force)
+JIT::Function_g CompilerFunction::Compile(Tree *tree, bool force)
 // ----------------------------------------------------------------------------
 //    Compile a given tree in given function and return the associated value
 // ----------------------------------------------------------------------------
 {
     CompilerExpression expr(*this);
-    JIT::Value_p result = expr.Evaluate(tree, force);
+    JIT::Value_g result = expr.Evaluate(tree, force);
     if (returned)
         Return(tree, result);
     return function;
 }
 
 
-JIT::Value_p CompilerFunction::Return(Tree *tree, JIT::Value_p value)
+JIT::Value_g CompilerFunction::Return(Tree *tree, JIT::Value_g value)
 // ----------------------------------------------------------------------------
 //   Return the given value, after appropriate boxing
 // ----------------------------------------------------------------------------
 {
-    JIT::Type_p retTy = jit.ReturnType(function);
+    JIT::Type_g retTy = jit.ReturnType(function);
     value = Autobox(tree, value, retTy);
     code.Store(value, returned);
     return value;
@@ -208,7 +208,7 @@ eval_fn CompilerFunction::Finalize(bool createCode)
     // Insert return in exit block
     if (returned)
     {
-        JIT::Value_p retVal = exit.Load(JIT::ReturnType(function),
+        JIT::Value_g retVal = exit.Load(JIT::ReturnType(function),
                                         returned, "retval");
         exit.Return(retVal);
     }
@@ -250,8 +250,8 @@ void CompilerFunction::InitializeArgs()
 {
     // Associate the value for the additional arguments (read-only, no alloca)
     JITArguments args(function);
-    JIT::Value_p scope = *args++;
-    JIT::Value_p self = *args++;
+    JIT::Value_g scope = *args++;
+    JIT::Value_g self = *args++;
 
     // Insert 'self', mapping to pattern, and 'scope' for the evaluation scope
     values[scope_type] = scope;
@@ -273,7 +273,7 @@ void CompilerFunction::InitializeArgs(CompilerRewriteCandidate *rc)
     // Read the actual parameters
     for (RewriteBinding &binding : rc->bindings)
     {
-        JIT::Value_p input = *inputs++;
+        JIT::Value_g input = *inputs++;
         values[binding.name] = input;
     }
 
@@ -285,7 +285,7 @@ void CompilerFunction::InitializeArgs(CompilerRewriteCandidate *rc)
 }
 
 
-JIT::Value_p CompilerFunction::Compile(Tree *call,
+JIT::Value_g CompilerFunction::Compile(Tree *call,
                                        CompilerRewriteCandidate *rc,
                                        const JIT::Values &args)
 // ----------------------------------------------------------------------------
@@ -294,7 +294,7 @@ JIT::Value_p CompilerFunction::Compile(Tree *call,
 {
     // Check if cache already contains a compilation for this function
     Scope *scope = rc->scope;
-    JIT::Function_p &function = unit.Compiled(scope, rc, args);
+    JIT::Function_g &function = unit.Compiled(scope, rc, args);
     if (function == nullptr)
     {
         Tree *body = rc->RewriteBody();
@@ -307,7 +307,7 @@ JIT::Value_p CompilerFunction::Compile(Tree *call,
         // Identify the return type for the rewrite
         CompilerTypes      *btypes = rc->BindingTypes();
         Tree               *base   = btypes->BaseType(rc->type);
-        JIT::Type_p         retTy  = rc->RewriteType();
+        JIT::Type_g         retTy  = rc->RewriteType();
         if (!retTy && rc->type)
         {
             retTy = BoxedType(base);
@@ -353,8 +353,8 @@ JIT::Value_p CompilerFunction::Compile(Tree *call,
                 // Constructor for a 'data' form, e.g. [X,Y is self]
                 unsigned index = 0;
                 Tree *pattern = PatternBase(rc->RewritePattern());
-                JIT::Value_p box     = evalfn.returned;
-                JIT::Type_p  boxTy   = JIT::ReturnType(function);
+                JIT::Value_g box     = evalfn.returned;
+                JIT::Type_g  boxTy   = JIT::ReturnType(function);
                 evalfn.Data(pattern, box, boxTy, index);
             }
 
@@ -366,15 +366,15 @@ JIT::Value_p CompilerFunction::Compile(Tree *call,
 }
 
 
-JIT::Value_p CompilerFunction::Data(Tree        *expr,
-                                    JIT::Value_p box,
-                                    JIT::Type_p boxTy,
+JIT::Value_g CompilerFunction::Data(Tree        *expr,
+                                    JIT::Value_g box,
+                                    JIT::Type_g boxTy,
                                     unsigned &index)
 // ----------------------------------------------------------------------------
 //    Generate a constructor for a data pattern, e.g. [X,Y is self]
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p left, right, child;
+    JIT::Value_g left, right, child;
 
     switch(expr->Kind())
     {
@@ -384,8 +384,8 @@ JIT::Value_p CompilerFunction::Data(Tree        *expr,
     {
         // For all these cases, simply compute the corresponding value
         CompilerExpression subexpr(*this);
-        JIT::Value_p result = subexpr.Evaluate(expr);
-        JIT::Value_p ptr = code.StructGEP(boxTy, box, index++, "resultp");
+        JIT::Value_g result = subexpr.Evaluate(expr);
+        JIT::Value_g ptr = code.StructGEP(boxTy, box, index++, "resultp");
         result = code.Store(result, ptr);
         return result;
     }
@@ -400,10 +400,10 @@ JIT::Value_p CompilerFunction::Data(Tree        *expr,
         assert (existing || !"TypeAnalysis didn't realize a name was missing");
 
         // Arguments bound here are returned directly as a tree
-        if (JIT::Value_p result = Known(existing))
+        if (JIT::Value_g result = Known(existing))
         {
             // Store that in the result tree
-            JIT::Value_p ptr = code.StructGEP(boxTy, box, index++, "resultp");
+            JIT::Value_g ptr = code.StructGEP(boxTy, box, index++, "resultp");
             result = code.Store(result, ptr);
             return result;
         }
@@ -451,9 +451,9 @@ JIT::Value_p CompilerFunction::Data(Tree        *expr,
 }
 
 
-JIT::Value_p CompilerFunction::Autobox(Tree        *source,
-                                       JIT::Value_p value,
-                                       JIT::Type_p  req)
+JIT::Value_g CompilerFunction::Autobox(Tree        *source,
+                                       JIT::Value_g value,
+                                       JIT::Type_g  req)
 // ----------------------------------------------------------------------------
 //   Automatically box/unbox types
 // ----------------------------------------------------------------------------
@@ -462,9 +462,9 @@ JIT::Value_p CompilerFunction::Autobox(Tree        *source,
 //   - In native form, e.g. as an natural
 //   This function automatically converts from one to the other as necessary
 {
-    JIT::Type_p     type   = JIT::Type(value);
-    JIT::Value_p    result = value;
-    JIT::Function_p boxFn  = nullptr;
+    JIT::Type_g     type   = JIT::Type(value);
+    JIT::Value_g    result = value;
+    JIT::Function_g boxFn  = nullptr;
 
     // Short circuit if we are already there
     if (req == type)
@@ -474,7 +474,7 @@ JIT::Value_p CompilerFunction::Autobox(Tree        *source,
     if (req == compiler.booleanTy)
     {
         assert (type == compiler.treePtrTy || type == compiler.nameTreePtrTy);
-        JIT::Value_p falsePtr = code.PointerValue(ConstantTree(xl_false));
+        JIT::Value_g falsePtr = code.PointerValue(ConstantTree(xl_false));
         value = code.PointerValue(value);
         result = code.ICmpNE(value, falsePtr, "notfalse");
     }
@@ -529,9 +529,9 @@ JIT::Value_p CompilerFunction::Autobox(Tree        *source,
     else if (type == compiler.booleanTy)
     {
         assert(req == compiler.nameTreePtrTy || req == compiler.treePtrTy);
-        JIT::Value_p truep = code.PointerConstant(compiler.nameTreePtrTy,
+        JIT::Value_g truep = code.PointerConstant(compiler.nameTreePtrTy,
                                                   xl_true);
-        JIT::Value_p falsep = code.PointerConstant(compiler.nameTreePtrTy,
+        JIT::Value_g falsep = code.PointerConstant(compiler.nameTreePtrTy,
                                                    xl_false);
         result = code.Select(value, truep, falsep);
     }
@@ -585,7 +585,7 @@ JIT::Value_p CompilerFunction::Autobox(Tree        *source,
             boxFn = unit.CompiledUnbox(type);
             if (boxFn)
             {
-                JIT::Value_p storage = NeedStorage(source, type);
+                JIT::Value_g storage = NeedStorage(source, type);
                 code.Store(result, storage);
                 result = storage;
                 result = code.Load(type, result, "box");
@@ -597,7 +597,7 @@ JIT::Value_p CompilerFunction::Autobox(Tree        *source,
     if (boxFn)
     {
         uint64_t pos = source->Position();
-        JIT::Value_p posValue = code.IntegerConstant(compiler.ulongTy, pos);
+        JIT::Value_g posValue = code.IntegerConstant(compiler.ulongTy, pos);
         result = code.Call(boxFn, posValue, result);
     }
     type = JIT::Type(result);
@@ -617,14 +617,14 @@ JIT::Value_p CompilerFunction::Autobox(Tree        *source,
 }
 
 
-JIT::Function_p CompilerFunction::UnboxFunction(JIT::Type_p type,
+JIT::Function_g CompilerFunction::UnboxFunction(JIT::Type_g type,
                                                 Tree *pattern)
 // ----------------------------------------------------------------------------
 //    Create a function transforming a boxed (structure) value into tree form
 // ----------------------------------------------------------------------------
 {
     // Check if we have a matching boxing function
-    JIT::Function_p &function = unit.CompiledUnbox(type);
+    JIT::Function_g &function = unit.CompiledUnbox(type);
 
     if (!function)
     {
@@ -632,22 +632,22 @@ JIT::Function_p CompilerFunction::UnboxFunction(JIT::Type_p type,
             pattern = inner;
 
         // Get original form representing that data type
-        JIT::Type_p mtype = compiler.treePtrTy;
+        JIT::Type_g mtype = compiler.treePtrTy;
 
         // Create a function that looks like [Tree *unboxfn(boxtype *)]
         JIT::Signature sig { compiler.ulongTy, type };
-        JIT::FunctionType_p fty = jit.FunctionType(mtype, sig);
+        JIT::FunctionType_g fty = jit.FunctionType(mtype, sig);
         CompilerFunction unbox(unit, pattern, pattern, types, fty, "xl.unbox");
 
         // Find the first input argument, which is the boxed value pointer
         function = unbox.Function();
         auto args = function->arg_begin();
-        JIT::Value_p position = &*args++; // Ignored?
-        JIT::Value_p arg = &*args++;
+        JIT::Value_g position = &*args++; // Ignored?
+        JIT::Value_g arg = &*args++;
 
         // Generate the code to create the unboxed tree
         unsigned index = 0;
-        JIT::Value_p rval = unbox.Unbox(arg, type, pattern, index);
+        JIT::Value_g rval = unbox.Unbox(arg, type, pattern, index);
         rval = unbox.Autobox(pattern, rval, mtype);
         unbox.Return(pattern, rval);
 
@@ -663,16 +663,16 @@ JIT::Function_p CompilerFunction::UnboxFunction(JIT::Type_p type,
 }
 
 
-JIT::Value_p CompilerFunction::Unbox(JIT::Value_p boxed,
-                                     JIT::Type_p boxedTy,
+JIT::Value_g CompilerFunction::Unbox(JIT::Value_g boxed,
+                                     JIT::Type_g boxedTy,
                                      Tree *pattern,
                                      uint &index)
 // ----------------------------------------------------------------------------
 //   Recursively generate code to unbox a value within UnboxFunction
 // ----------------------------------------------------------------------------
 {
-    JIT::Type_p ttp = compiler.treePtrTy;
-    JIT::Value_p ref, left, right, child;
+    JIT::Type_g ttp = compiler.treePtrTy;
+    JIT::Value_g ref, left, right, child;
 
     switch(pattern->Kind())
     {
@@ -690,7 +690,7 @@ JIT::Value_p CompilerFunction::Unbox(JIT::Value_p boxed,
     case NAME:
     {
         // Get element from input argument
-        JIT::Value_p result = code.StructLoad(boxedTy, boxed, index++, "boxp");
+        JIT::Value_g result = code.StructLoad(boxedTy, boxed, index++, "boxp");
         return result;
     }
 
@@ -751,12 +751,12 @@ JIT::Value_p CompilerFunction::Unbox(JIT::Value_p boxed,
 }
 
 
-JIT::Value_p CompilerFunction::NeedStorage(Tree *tree, JIT::Type_p mtype)
+JIT::Value_g CompilerFunction::NeedStorage(Tree *tree, JIT::Type_g mtype)
 // ----------------------------------------------------------------------------
 //    Allocate storage for a given tree
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p result = storage[tree];
+    JIT::Value_g result = storage[tree];
     if (!result)
     {
         // Get the associated machine type
@@ -770,7 +770,7 @@ JIT::Value_p CompilerFunction::NeedStorage(Tree *tree, JIT::Type_p mtype)
         // If this started with a value, initialize it here
         if (values.count(tree))
         {
-            JIT::Value_p initializer = values[tree];
+            JIT::Value_g initializer = values[tree];
             assert(initializer && initializer->getType() == mtype);
             code.Store(initializer, result);
         }
@@ -795,7 +795,7 @@ bool CompilerFunction::IsKnown(Tree *tree, uint which)
 }
 
 
-JIT::Value_p CompilerFunction::Known(Tree *tree, uint which)
+JIT::Value_g CompilerFunction::Known(Tree *tree, uint which)
 // ----------------------------------------------------------------------------
 //   Return the known local or global value if any
 // ----------------------------------------------------------------------------
@@ -822,73 +822,73 @@ JIT::Value_p CompilerFunction::Known(Tree *tree, uint which)
 }
 
 
-JIT::Value_p CompilerFunction::ConstantNatural(Natural *what)
+JIT::Value_g CompilerFunction::ConstantNatural(Natural *what)
 // ----------------------------------------------------------------------------
 //    Generate an Natural tree
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p result = code.PointerConstant(compiler.naturalTreePtrTy, what);
+    JIT::Value_g result = code.PointerConstant(compiler.naturalTreePtrTy, what);
     return result;
 }
 
 
-JIT::Value_p CompilerFunction::ConstantReal(Real *what)
+JIT::Value_g CompilerFunction::ConstantReal(Real *what)
 // ----------------------------------------------------------------------------
 //    Generate a Real tree
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p result = code.PointerConstant(compiler.realTreePtrTy, what);
+    JIT::Value_g result = code.PointerConstant(compiler.realTreePtrTy, what);
     return result;
 }
 
 
-JIT::Value_p CompilerFunction::ConstantText(Text *what)
+JIT::Value_g CompilerFunction::ConstantText(Text *what)
 // ----------------------------------------------------------------------------
 //    Generate a Text tree
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p result = code.PointerConstant(compiler.textTreePtrTy, what);
+    JIT::Value_g result = code.PointerConstant(compiler.textTreePtrTy, what);
     return result;
 }
 
 
-JIT::Value_p CompilerFunction::ConstantTree(Tree *what)
+JIT::Value_g CompilerFunction::ConstantTree(Tree *what)
 // ----------------------------------------------------------------------------
 //    Generate a constant tree
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p result = code.PointerConstant(compiler.treePtrTy, what);
+    JIT::Value_g result = code.PointerConstant(compiler.treePtrTy, what);
     return result;
 }
 
 
-JIT::Value_p CompilerFunction::CallFormError(Tree *what)
+JIT::Value_g CompilerFunction::CallFormError(Tree *what)
 // ----------------------------------------------------------------------------
 //   Report a type error trying to evaluate some argument
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p ptr = ConstantTree(what);
-    JIT::Value_p scope = ConstantTree(types->TypesScope());
+    JIT::Value_g ptr = ConstantTree(what);
+    JIT::Value_g scope = ConstantTree(types->TypesScope());
     scope = code.BitCast(scope, compiler.scopePtrTy);
-    JIT::Value_p callVal = code.Call(unit.xl_form_error, scope, ptr);
+    JIT::Value_g callVal = code.Call(unit.xl_form_error, scope, ptr);
     return callVal;
 }
 
 
-JIT::Value_p CompilerFunction::CallTypeCheck(Tree *type, JIT::Value_p value)
+JIT::Value_g CompilerFunction::CallTypeCheck(Tree *type, JIT::Value_g value)
 // ----------------------------------------------------------------------------
 //   Report a type error trying to evaluate some argument
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p typePtr = ConstantTree(type);
-    JIT::Value_p scope = ConstantTree(types->TypesScope());
+    JIT::Value_g typePtr = ConstantTree(type);
+    JIT::Value_g scope = ConstantTree(types->TypesScope());
     scope = code.BitCast(scope, compiler.scopePtrTy);
-    JIT::Value_p callVal = code.Call(unit.xl_typecheck, scope, typePtr, value);
+    JIT::Value_g callVal = code.Call(unit.xl_typecheck, scope, typePtr, value);
     return callVal;
 }
 
 
-JIT::Type_p CompilerFunction::ValueMachineType(Tree *tree, bool mayfail)
+JIT::Type_g CompilerFunction::ValueMachineType(Tree *tree, bool mayfail)
 // ----------------------------------------------------------------------------
 //    Return machine type associated to a type name or expression, if any
 // ----------------------------------------------------------------------------
@@ -904,7 +904,7 @@ JIT::Type_p CompilerFunction::ValueMachineType(Tree *tree, bool mayfail)
     }
 
     // Find the corresponding machine type
-    JIT::Type_p type = BoxedType(base);
+    JIT::Type_g type = BoxedType(base);
     if (!type)
     {
         if (mayfail)
@@ -917,7 +917,7 @@ JIT::Type_p CompilerFunction::ValueMachineType(Tree *tree, bool mayfail)
 }
 
 
-void CompilerFunction::ValueMachineType(Tree *tree, JIT::Type_p type)
+void CompilerFunction::ValueMachineType(Tree *tree, JIT::Type_g type)
 // ----------------------------------------------------------------------------
 //    Record the global value associated to a type name or expression
 // ----------------------------------------------------------------------------
@@ -927,7 +927,7 @@ void CompilerFunction::ValueMachineType(Tree *tree, JIT::Type_p type)
 }
 
 
-void CompilerFunction::AddBoxedType(Tree *type, JIT::Type_p mtype)
+void CompilerFunction::AddBoxedType(Tree *type, JIT::Type_g mtype)
 // ----------------------------------------------------------------------------
 //   Associate a tree type to a boxed machine type
 // ----------------------------------------------------------------------------
@@ -938,23 +938,23 @@ void CompilerFunction::AddBoxedType(Tree *type, JIT::Type_p mtype)
 }
 
 
-JIT::Type_p CompilerFunction::HasBoxedType(Tree *type)
+JIT::Type_g CompilerFunction::HasBoxedType(Tree *type)
 // ----------------------------------------------------------------------------
 //   Return the boxed type if there is one
 // ----------------------------------------------------------------------------
 {
-    JIT::Type_p result = types->BoxedType(type);
+    JIT::Type_g result = types->BoxedType(type);
     return result;
 }
 
 
-JIT::Type_p CompilerFunction::BoxedType(Tree *type)
+JIT::Type_g CompilerFunction::BoxedType(Tree *type)
 // ----------------------------------------------------------------------------
 //   Return the machine "boxed" type for a given tree type
 // ----------------------------------------------------------------------------
 {
     // Check if we already had it
-    JIT::Type_p mtype = types->BoxedType(type);
+    JIT::Type_g mtype = types->BoxedType(type);
     if (mtype)
         return mtype;
     Tree *base = types->BaseType(type);
@@ -1061,21 +1061,21 @@ JIT::Type_p CompilerFunction::BoxedType(Tree *type)
 }
 
 
-JIT::Type_p CompilerFunction::ReturnType(Tree *parmForm)
+JIT::Type_g CompilerFunction::ReturnType(Tree *parmForm)
 // ----------------------------------------------------------------------------
 //   Compute the return type associated with the given form
 // ----------------------------------------------------------------------------
 {
     // Type inference gives us the return type for this form
     Tree *type = types->CodeGenerationType(parmForm);
-    JIT::Type_p mtype = BoxedType(type);
+    JIT::Type_g mtype = BoxedType(type);
     if (!mtype)
         mtype = jit.VoidType();
     return mtype;
 }
 
 
-JIT::Type_p CompilerFunction::StructureType(Tree *rwform,
+JIT::Type_g CompilerFunction::StructureType(Tree *rwform,
                                             Tree *base)
 // ----------------------------------------------------------------------------
 //   Build a structure type when the signature is not known
@@ -1087,18 +1087,18 @@ JIT::Type_p CompilerFunction::StructureType(Tree *rwform,
 }
 
 
-JIT::Type_p CompilerFunction::StructureType(const JIT::Signature &signature,
+JIT::Type_g CompilerFunction::StructureType(const JIT::Signature &signature,
                                             Tree *rwform,
                                             Tree *base)
 // ----------------------------------------------------------------------------
 //   Compute the return type associated with a data form
 // ----------------------------------------------------------------------------
 {
-    if (JIT::Type_p mtype = HasBoxedType(base))
+    if (JIT::Type_g mtype = HasBoxedType(base))
         return mtype;
 
     // Build the corresponding structure type
-    JIT::StructType_p stype = jit.StructType(signature, "boxed");
+    JIT::StructType_g stype = jit.StructType(signature, "boxed");
 
     // Record boxing and unboxing for that particular tree
     AddBoxedType(base, stype);
@@ -1108,7 +1108,7 @@ JIT::Type_p CompilerFunction::StructureType(const JIT::Signature &signature,
 }
 
 
-JIT::Value_p CompilerFunction::BoxedTree(Tree *what)
+JIT::Value_g CompilerFunction::BoxedTree(Tree *what)
 // ----------------------------------------------------------------------------
 //   Compute a boxed tree value
 // ----------------------------------------------------------------------------
@@ -1123,13 +1123,13 @@ JIT::Value_p CompilerFunction::BoxedTree(Tree *what)
     JIT::Signature sig;
     BoxedTreeType(sig, what);
     Tree *base = types->BaseType(what);
-    JIT::Type_p sty = StructureType(sig, what, base);
+    JIT::Type_g sty = StructureType(sig, what, base);
     record(compiler_function, "Boxed tree %t is type %v", what, sty);
 
     // Generate the data
     unsigned index = 0;
-    JIT::Value_p box = NeedStorage(what, sty);
-    JIT::Value_p result = Data(what, box, sty, index);
+    JIT::Value_g box = NeedStorage(what, sty);
+    JIT::Value_g result = Data(what, box, sty, index);
 
     result = code.Load(sty, box);
     return result;
@@ -1175,10 +1175,10 @@ void CompilerFunction::BoxedTreeType(JIT::Signature &sig, Tree *what)
 }
 
 
-JIT::Value_p CompilerFunction::Primitive(Tree *what,
+JIT::Value_g CompilerFunction::Primitive(Tree *what,
                                          text name,
                                          uint arity,
-                                         JIT::Value_p *args)
+                                         JIT::Value_g *args)
 // ----------------------------------------------------------------------------
 //   Invoke an LLVM primitive, assuming it's found in the table
 // ----------------------------------------------------------------------------
@@ -1201,7 +1201,7 @@ JIT::Value_p CompilerFunction::Primitive(Tree *what,
     }
 
     // Invoke the entry
-    JIT::Value_p result = (this->*primitive.function)(what, args);
+    JIT::Value_g result = (this->*primitive.function)(what, args);
     return result;
 }
 
@@ -1214,36 +1214,36 @@ JIT::Value_p CompilerFunction::Primitive(Tree *what,
 // ============================================================================
 
 #define MTYPE(Name, Arity, Code)                                        \
-    JIT::Type_p CompilerFunction::llvm_type_##Name(Tree *source)        \
+    JIT::Type_g CompilerFunction::llvm_type_##Name(Tree *source)        \
     {                                                                   \
         Code;                                                           \
     }
 
 #define UNARY(Name)                                                     \
-    JIT::Value_p CompilerFunction::llvm_##Name(Tree *source,            \
-                                               JIT::Value_p *args)      \
+    JIT::Value_g CompilerFunction::llvm_##Name(Tree *source,            \
+                                               JIT::Value_g *args)      \
     {                                                                   \
         return code.Name(args[0]);                                      \
     }
 
 #define BINARY(Name)                                                    \
-    JIT::Value_p CompilerFunction::llvm_##Name(Tree *source,            \
-                                               JIT::Value_p *args)      \
+    JIT::Value_g CompilerFunction::llvm_##Name(Tree *source,            \
+                                               JIT::Value_g *args)      \
     {                                                                   \
         return code.Name(args[0], args[1]);                             \
     }
 
 #define CAST(Name)                                                      \
-    JIT::Value_p CompilerFunction::llvm_##Name(Tree *source,            \
-                                               JIT::Value_p *args)      \
+    JIT::Value_g CompilerFunction::llvm_##Name(Tree *source,            \
+                                               JIT::Value_g *args)      \
     {                                                                   \
-        return code.Name(args[0], (JIT::Type_p) args[1]);               \
+        return code.Name(args[0], (JIT::Type_g) args[1]);               \
     }
 
 
 #define SPECIAL(Name, Arity, Code)                                      \
-    JIT::Value_p CompilerFunction::llvm_##Name(Tree *source,            \
-                                               JIT::Value_p *args)      \
+    JIT::Value_g CompilerFunction::llvm_##Name(Tree *source,            \
+                                               JIT::Value_g *args)      \
     {                                                                   \
         Code;                                                           \
     }

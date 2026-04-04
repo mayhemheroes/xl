@@ -77,19 +77,19 @@ struct Context;                                 // Execution context
 //
 // ============================================================================
 
-typedef GCPtr<Tree>                     Tree_p;
-typedef GCPtr<Natural, longlong>        Natural_p;
-typedef GCPtr<Real, double>             Real_p;
-typedef GCPtr<Text, text>               Text_p;
-typedef GCPtr<Name>                     Name_p;
-typedef GCPtr<Block>                    Block_p;
-typedef GCPtr<Prefix>                   Prefix_p;
-typedef GCPtr<Postfix>                  Postfix_p;
-typedef GCPtr<Infix>                    Infix_p;
+typedef GCPtr<Tree>                     Tree_g;
+typedef GCPtr<Natural, longlong>        Natural_g;
+typedef GCPtr<Real, double>             Real_g;
+typedef GCPtr<Text, text>               Text_g;
+typedef GCPtr<Name>                     Name_g;
+typedef GCPtr<Block>                    Block_g;
+typedef GCPtr<Prefix>                   Prefix_g;
+typedef GCPtr<Postfix>                  Postfix_g;
+typedef GCPtr<Infix>                    Infix_g;
 typedef Prefix                          Scope;
 
 typedef ulong TreePosition;                     // Position in source files
-typedef std::vector<Tree_p> TreeList;           // A list of trees
+typedef std::vector<Tree_g> TreeList;           // A list of trees
 typedef Tree *(*eval_fn) (Scope *, Tree *);     // Compiled evaluation code
 
 
@@ -330,7 +330,7 @@ struct Block : Tree
                     return block->child;
         return nullptr;
     }
-    Tree_p              child;
+    Tree_g              child;
     text                opening, closing;
     static text         indent, unindent;
     GARBAGE_COLLECT(Block);
@@ -350,8 +350,8 @@ struct Prefix : Tree
         Tree(PREFIX, pos), left(l), right(r) {}
     Prefix(Prefix *p, Tree *l, Tree *r):
         Tree(PREFIX, p), left(l), right(r) {}
-    Tree_p               left;
-    Tree_p               right;
+    Tree_g               left;
+    Tree_g               right;
     GARBAGE_COLLECT(Prefix);
 };
 
@@ -369,8 +369,8 @@ struct Postfix : Tree
         Tree(POSTFIX, pos), left(l), right(r) {}
     Postfix(Postfix *p, Tree *l, Tree *r):
         Tree(POSTFIX, p), left(l), right(r) {}
-    Tree_p              left;
-    Tree_p              right;
+    Tree_g              left;
+    Tree_g              right;
     GARBAGE_COLLECT(Postfix);
 };
 
@@ -389,8 +389,8 @@ struct Infix : Tree
     Infix(Infix *i, Tree *l, Tree *r):
         Tree(INFIX, i), left(l), right(r), name(i->name) {}
     Infix *             LastStatement(text sep1 = ";", text sep2 = "\n");
-    Tree_p              left;
-    Tree_p              right;
+    Tree_g              left;
+    Tree_g              right;
     text                name;
     GARBAGE_COLLECT(Infix);
 };
@@ -651,10 +651,10 @@ retry:
     return nullptr;
 }
 
-extern Name_p   xl_true;
-extern Name_p   xl_false;
-extern Name_p   xl_nil;
-extern Name_p   xl_self;
+extern Name_g   xl_true;
+extern Name_g   xl_false;
+extern Name_g   xl_nil;
+extern Name_g   xl_self;
 
 XL_END
 

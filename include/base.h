@@ -149,7 +149,7 @@ typedef intptr_t        ptrint;
 /* Constant and non constant C-style string and void pointer */
 typedef char *          cstring;
 typedef const char *    kstring;
-typedef void *          void_p;
+typedef void *          void_g;
 typedef std::string     text;
 
 /* Unicode character */

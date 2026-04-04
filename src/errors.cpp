@@ -346,7 +346,7 @@ Error &Errors::Log(const Error &e, bool isContext)
 }
 
 
-Tree_p Errors::aborting;
+Tree_g Errors::aborting;
 
 
 

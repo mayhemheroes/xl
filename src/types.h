@@ -44,12 +44,12 @@ XL_BEGIN
 
 // Forward classes
 class Types;
-typedef GCPtr<Types> Types_p;
+typedef GCPtr<Types> Types_g;
 struct RewriteCandidate;
 struct RewriteCalls;
-typedef GCPtr<RewriteCalls> RewriteCalls_p;
-typedef std::map<Tree_p, RewriteCalls_p> rcall_map;
-extern Name_p tree_type;
+typedef GCPtr<RewriteCalls> RewriteCalls_g;
+typedef std::map<Tree_g, RewriteCalls_g> rcall_map;
+extern Name_g tree_type;
 
 
 class Types
@@ -153,7 +153,7 @@ protected:
         Tree *  Do(Prefix *what);
         Tree *  Evaluate(Tree *what);
 
-        Types_p types;
+        Types_g types;
     };
 
 public:
@@ -172,13 +172,13 @@ public:
     GARBAGE_COLLECT(Types);
 
 protected:
-    Context_p   context;        // Context for lookups
+    Context_g   context;        // Context for lookups
     tree_map    types;          // Type associated with an expression if any
     tree_map    unifications;   // Map a type to its reference type
     tree_map    captured;       // Trees captured from enclosing context
     rcall_map   rcalls;         // Rewrites to call for a given tree
-    Types_p     parent;         // Parent type information if any
-    Types_p     values;         // Call-side values for binding types
+    Types_g     parent;         // Parent type information if any
+    Types_g     values;         // Call-side values for binding types
     bool        declaration;    // Analyzing type of a declaration
     static uint id;             // Id of next type
 };

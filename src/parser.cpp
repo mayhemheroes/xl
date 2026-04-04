@@ -76,7 +76,7 @@ struct Pending
     Pending(text o, Tree *a, int p, ulong pos):
         opcode(o), argument(a), priority(p), position(pos) {}
     text   opcode;
-    Tree_p argument;
+    Tree_g argument;
     int    priority;
     ulong  position;
 };

@@ -47,7 +47,7 @@ RECORDER_DECLARE(bindings);
 XL_BEGIN
 
 class Types;
-typedef GCPtr<Types> Types_p;
+typedef GCPtr<Types> Types_g;
 
 enum BindingStrength { FAILED, POSSIBLE, PERFECT };
 
@@ -61,8 +61,8 @@ struct RewriteBinding
     RewriteBinding(Name *name, Tree *value)
         : name(name), value(value) {}
     bool       IsDeferred();
-    Name_p     name;
-    Tree_p     value;
+    Name_g     name;
+    Tree_g     value;
 };
 typedef std::vector<RewriteBinding> RewriteBindings;
 
@@ -75,8 +75,8 @@ struct RewriteCondition
 //   the condition [X > 0] along with [2].
 {
     RewriteCondition(Tree *value, Tree *test): value(value), test(test) {}
-    Tree_p      value;
-    Tree_p      test;
+    Tree_g      value;
+    Tree_g      test;
 };
 typedef std::vector<RewriteCondition> RewriteConditions;
 
@@ -89,8 +89,8 @@ struct RewriteTypeCheck
 //   as [foo Z], this will check that [Z] hss an infix kind.
 {
     RewriteTypeCheck(Tree *value, Tree *type): value(value), type(type) {}
-    Tree_p      value;
-    Tree_p      type;
+    Tree_g      value;
+    Tree_g      type;
 };
 typedef std::vector<RewriteTypeCheck> RewriteTypeChecks;
 
@@ -134,21 +134,21 @@ struct RewriteCandidate
     void                Dump();
 
 public:
-    Infix_p             rewrite;
-    Scope_p             scope;
+    Infix_g             rewrite;
+    Scope_g             scope;
     RewriteBindings     bindings;
     RewriteTypeChecks   typechecks;
     RewriteConditions   conditions;
-    Types_p             value_types;
-    Types_p             binding_types;
-    Tree_p              type;
-    Tree_p              defined;
+    Types_g             value_types;
+    Types_g             binding_types;
+    Tree_g              type;
+    Tree_g              defined;
     text                defined_name;
 
     GARBAGE_COLLECT(RewriteCandidate);
 };
-typedef GCPtr<RewriteCandidate> RewriteCandidate_p;
-typedef std::vector<RewriteCandidate_p> RewriteCandidates;
+typedef GCPtr<RewriteCandidate> RewriteCandidate_g;
+typedef std::vector<RewriteCandidate_g> RewriteCandidates;
 
 
 struct RewriteCalls
@@ -179,14 +179,14 @@ struct RewriteCalls
     void                Evaluated(bool eval)    { evaluated = eval; }
 
 private:
-    Types_p             types;
+    Types_g             types;
     RewriteCandidates   candidates;
     bool                evaluated;
 public:
     GARBAGE_COLLECT(RewriteCalls);
 };
-typedef GCPtr<RewriteCalls> RewriteCalls_p;
-typedef std::map<Tree_p, RewriteCalls_p> rcall_map;
+typedef GCPtr<RewriteCalls> RewriteCalls_g;
+typedef std::map<Tree_g, RewriteCalls_g> rcall_map;
 
 XL_END
 
