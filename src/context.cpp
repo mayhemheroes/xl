@@ -911,10 +911,10 @@ void Context::Dump(std::ostream &out, Scope *scope, bool recurse)
         Scope *parent = Enclosing(scope);
         Rewrite *rw = ScopeRewrites(scope);
         Dump(out, rw);
-        if (parent)
-            out << "// === Parent " << (void *) parent << " ================\n";
         if (!recurse)
             break;
+        if (parent)
+            out << "// === Parent " << (void *) parent << " ================\n";
         scope = parent;
     }
 }
@@ -988,7 +988,7 @@ XL::Scope *xldebug(XL::Scope *scope)
     {
         if (IsScope(scope))
         {
-            XL::Context::Dump(std::cerr, scope, true);
+            XL::Context::Dump(std::cerr, scope, false);
             scope = Enclosing(scope);
         }
         else
