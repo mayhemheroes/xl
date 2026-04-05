@@ -49,6 +49,9 @@ RECORDER(interpreter, 128, "Interpreted evaluation of XL code");
 RECORDER(interpreter_lazy, 64, "Interpreter lazy evaluation");
 RECORDER(interpreter_eval, 128, "Primary evaluation entry point");
 RECORDER(interpreter_typecheck, 64, "Type checks");
+RECORDER(interpreter_metabox, 64, "Metabox handling");
+RECORDER(interpreter_bind, 64, "Bind values to names");
+
 
 XL_BEGIN
 // ============================================================================
@@ -184,7 +187,7 @@ struct Bindings
     bool  Do(Block *what);
 
     // Evaluation and binding of values
-    void  MustEvaluate(bool updateContext = false);
+    void  MustEvaluate(bool unwrap = false, Context_g *context = nullptr);
     Tree *MustEvaluate(Context *context, Tree *what);
     void  Bind(Name *name, Tree *value);
     void  BindClosure(Name *name, Tree *value);
@@ -280,6 +283,14 @@ bool Bindings::Do(Block *what)
 //   The pattern contains a block: look inside
 // ----------------------------------------------------------------------------
 {
+    if (Tree *child = what->IsMetaBox())
+    {
+        record(interpreter_metabox, "Test %t against %t", test, what);
+        Tree  *value = MustEvaluate(context, child);
+        MustEvaluate(true);
+        record(interpreter_metabox, "Eval %t against %t", test, value);
+        return Tree::Equal(test, value);
+    }
     if (Block *testBlock = test->AsBlock())
         if (testBlock->opening == what->opening &&
             testBlock->closing == what->closing)
@@ -445,7 +456,7 @@ bool Bindings::Do(Infix *what)
     if (!ifx)
     {
         // Try to get an infix by evaluating what we have
-        MustEvaluate(true);
+        MustEvaluate(true, &context);
         ifx = test->AsInfix();
     }
     if (ifx)
@@ -471,7 +482,7 @@ bool Bindings::Do(Infix *what)
 }
 
 
-void Bindings::MustEvaluate(bool updateContext)
+void Bindings::MustEvaluate(bool unwrap, Context_g *updateContext)
 // ----------------------------------------------------------------------------
 //   Evaluate 'test', ensuring that each bound arg is evaluated at most once
 // ----------------------------------------------------------------------------
@@ -489,9 +500,9 @@ void Bindings::MustEvaluate(bool updateContext)
     }
 
     test = evaluated;
-    if (updateContext)
+    if (unwrap)
     {
-        if (Tree *inside = Interpreter::IsClosure(test, &context))
+        if (Tree *inside = Interpreter::IsClosure(test, updateContext))
         {
             record(interpreter_lazy, "Encapsulate %t in closure %t",
                    test, inside);
@@ -529,13 +540,12 @@ Tree *Bindings::MustEvaluate(Context *context, Tree *tval)
 }
 
 
-RECORDER(bind, 64, "Bind values to names");
 void Bindings::Bind(Name *name, Tree *value)
 // ----------------------------------------------------------------------------
 //   Enter a new binding in the current context, remember left and right
 // ----------------------------------------------------------------------------
 {
-    record(bind, "Bind %t = %t", name, value);
+    record(interpreter_bind, "Bind %t = %t", name, value);
     args.push_back(value);
     locals->Define(name, value);
 }
