@@ -728,10 +728,13 @@ Tree *Context::Bound(Tree *pattern,
 {
     Prefix info(nullptr, nullptr);
     Tree *result = Lookup(pattern, findValueX, &info, recurse);
-    if (ctx)
-        *ctx = info.left->As<Scope>();
-    if (rewrite)
-        *rewrite = info.right->As<Rewrite>();
+    if (result)
+    {
+        if (ctx)
+            *ctx = info.left->As<Scope>();
+        if (rewrite)
+            *rewrite = info.right->As<Rewrite>();
+    }
     return result;
 }
 
