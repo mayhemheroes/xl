@@ -326,6 +326,7 @@ public:
     JIT::Constant_g     IntegerConstant(JIT::Type_g ty, unsigned value);
     JIT::Constant_g     IntegerConstant(JIT::Type_g ty, int value);
     JIT::Constant_g     FloatConstant(JIT::Type_g ty, double value);
+    JIT::Constant_g     NullConstant(JIT::Type_g ty);
     JIT::Constant_g     PointerConstant(JIT::Type_g pty, void *address);
     JIT::Value_g        TextConstant(JIT::Type_g pty, text value);
 

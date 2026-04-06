@@ -1766,6 +1766,17 @@ JIT::Constant_g JITBlock::FloatConstant(JIT::Type_g ty, double value)
 }
 
 
+JIT::Constant_g JITBlock::NullConstant(JIT::Type_g ty)
+// ----------------------------------------------------------------------------
+//   Build LLVM's null / zero value for a first-class type
+// ----------------------------------------------------------------------------
+{
+    JIT::Constant_g result = llvm::Constant::getNullValue(ty);
+    record(llvm_constants, "Null constant %v for type %T", result, ty);
+    return result;
+}
+
+
 JIT::Constant_g JITBlock::PointerConstant(JIT::Type_g type, void *pointer)
 // ----------------------------------------------------------------------------
 //    Create a constant pointer

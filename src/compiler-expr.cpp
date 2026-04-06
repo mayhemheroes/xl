@@ -52,6 +52,42 @@ RECORDER(compiler_expr,   128, "Expression reduction (compilation of calls)");
 XL_BEGIN
 
 
+static bool RewriteBodyReferencesName(Tree *tree, const text &nm)
+// ----------------------------------------------------------------------------
+//   True if the rewrite RHS references this binding name as an identifier.
+// ----------------------------------------------------------------------------
+//   Pattern-only bindings must not be evaluated before the RHS (e.g. the
+//   then-branch of [if [[false]] then TrueBody is false] is not executed).
+{
+    if (!tree)
+        return false;
+    if (Name *n = tree->AsName())
+        return n->value == nm;
+    if (Block *b = tree->AsBlock())
+        return RewriteBodyReferencesName(b->child, nm);
+    if (Prefix *p = tree->AsPrefix())
+        return RewriteBodyReferencesName(p->left, nm) ||
+               RewriteBodyReferencesName(p->right, nm);
+    if (Infix *ix = tree->AsInfix())
+        return RewriteBodyReferencesName(ix->left, nm) ||
+               RewriteBodyReferencesName(ix->right, nm);
+    if (Postfix *px = tree->AsPostfix())
+        return RewriteBodyReferencesName(px->left, nm) ||
+               RewriteBodyReferencesName(px->right, nm);
+    return false;
+}
+
+
+static JIT::Value_g UnusedRewriteBindingValue(JITBlock &code, JIT::Type_g ty)
+// ----------------------------------------------------------------------------
+//   Placeholder value for a binding not referenced by the rewrite RHS.
+// ----------------------------------------------------------------------------
+//   The compiled body must not load this argument; type matches the signature.
+{
+    return code.NullConstant(ty);
+}
+
+
 // ============================================================================
 //
 //    Compile an expression
@@ -419,10 +455,25 @@ JIT::Value_g CompilerExpression::DoRewrite(Tree *call,
     RewriteBindings &bnds = cand->bindings;
     CompilerTypes   *btypes = (CompilerTypes *) cand->BindingTypes();
     CompilerTypes   *vtypes = (CompilerTypes *) cand->ValueTypes();
+    CompilerTypes::Decl rwcat = CompilerTypes::RewriteCategory(cand);
+    bool lazyBindings = (rwcat == CompilerTypes::Decl::NORMAL);
+    Tree *rhs = rw->right;
     for (RewriteBinding &b : bnds)
     {
         Tree        *arg   = b.value;
-        JIT::Value_g value = Value(arg);
+        JIT::Value_g value = nullptr;
+
+        if (lazyBindings && rhs && b.name &&
+            !RewriteBodyReferencesName(rhs, b.name->value))
+        {
+            JIT::Type_g mtype = function.ValueMachineType(arg);
+            value = UnusedRewriteBindingValue(code, mtype);
+            record(compiler_expr,
+                   "Rewrite %t: skip eager eval for unused binding %t",
+                   rw, b.name);
+        }
+        else
+            value = Value(arg);
         args.push_back(value);
 
         Tree       *argtype = vtypes->ValueType(arg);
