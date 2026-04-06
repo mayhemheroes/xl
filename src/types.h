@@ -105,6 +105,7 @@ protected:
     Tree *              DoStatements(Tree *expr, Tree *left, Tree *right);
     Tree *              DoTypeAnnotation(Infix *decl);
     Tree *              DoRewrite(Infix *rewrite);
+    Tree *              DoAssignment(Infix *assignment);
 
     // Type compatibility checks
     Tree *              TypeCoversType(Tree *type, Tree *ref);

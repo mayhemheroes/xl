@@ -222,14 +222,16 @@ JIT::Value_g CompilerExpression::Do(Infix *infix)
 
     // Type casts - REVISIT: may need to do some actual conversion
     if (IsTypeAnnotation(infix))
-    {
         return infix->left->Do(this);
-    }
 
     // Declarations: it's too early to define a function just yet,
     // because we don't have the actual argument types.
     if (IsDefinition(infix))
         return function.ConstantTree(infix);
+
+    // Assignment
+    if (IsAssignment(infix))
+        return DoAssignment(infix);
 
     // General case: expression
     return DoCall(infix);
@@ -540,6 +542,23 @@ JIT::Value_g CompilerExpression::DoRewrite(Tree *call,
     }
 
     return result;
+}
+
+
+JIT::Value_g CompilerExpression::DoAssignment(Infix *assign)
+// ----------------------------------------------------------------------------
+//   Store into the storage for the value being assigned to
+// ----------------------------------------------------------------------------
+{
+    Scope_g       where;
+    Rewrite_g     rw;
+    JITBlock     &code        = function.code;
+    Context      *context     = function.FunctionContext();
+    Tree         *existing    = context->Bound(assign->left, true, &rw, &where);
+    JIT::Type_g   storageType = function.ValueMachineType(existing);
+    JIT::Value_g  storage     = function.NeedStorage(existing, storageType);
+    JIT::Value_g  value       = Evaluate(assign->right);
+    return code.Store(storage, value);
 }
 
 

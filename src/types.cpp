@@ -401,6 +401,10 @@ Tree *Types::Do(Infix *what)
     if (IsDefinition(what))
         return DoRewrite(what);
 
+    // Case of [X := Y]: type analysis for assignments
+    if (IsAssignment(what))
+        return DoAssignment(what);
+
     // For all other cases, evaluate the infix
     return Evaluate(what);
 }
@@ -494,6 +498,34 @@ Tree *Types::DoRewrite(Infix *rewrite)
 {
     record(types, "Rewrite %t evaluates as declaration", rewrite);
     return declaration_type;
+}
+
+
+Tree *Types::DoAssignment(Infix *assign)
+// ----------------------------------------------------------------------------
+//   The type of an assignment is the type of the assigned value
+// ----------------------------------------------------------------------------
+{
+    record(types, "Assignment %t", assign);
+    Tree *assignee = assign->left;
+    Tree *type = nullptr;
+    Tree *value = assign->right;
+    Tree *vtype = Type(value);
+    if (Name *name = assignee->AsName())
+    {
+        context->Assign(name, value);
+        AssignType(name, vtype);
+    }
+    else if (Infix *tann = IsTypeAnnotation(assignee))
+    {
+        Tree *dtype = DoTypeAnnotation(tann);
+        if (Name *name = tann->left->AsName())
+        {
+            context->Assign(name, value);
+            vtype = Unify(vtype, dtype, value, name);
+        }
+    }
+    return vtype;
 }
 
 
