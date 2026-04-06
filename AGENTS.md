@@ -5,6 +5,51 @@
 This file records conventions and debugging context for automated assistants
 (Cursor, Copilot, etc.). Keep it factual and actionable.
 
+- **Language design:** Prefer **`docs/`** (e.g. **`docs/HANDBOOK.adoc`**) as the
+  reference for intent. XL aims to be **user-extensible**: control structures
+  like **`while`** / **`loop`** in **`src/builtins.xl`** should remain ordinary
+  rewrites, not hard-coded compiler pattern lists.
+
+### MustEvaluate, closures, and O3 rewrites
+
+- **MustEvaluate** (see **`Bindings::MustEvaluate`** and
+  **`Bindings::MustEvaluate(Context *, Tree *)`** in **`src/interpreter.cpp`**):
+  when matching a rewrite, parts of the **actual** tree are evaluated (at most
+  once per cache entry) where the pattern requires a **value**—literals,
+  metabox `[[…]]`, re-checks of bound names, etc. That is the meaning of
+  **MustEvaluate**: evaluation happens to satisfy the match, not “eagerly for
+  every parameter” in one lump.
+
+- **Factorial / recursion (`N!`, `(N-1)`, …):** **Lazy** parameter IR is **not**
+  required. Uses of **`N`** in **MustEvaluate** contexts (e.g. comparisons to
+  **`0`**, naturals in the pattern) **force evaluation** as specified by the
+  language design. O3 can keep **eager** machine values for those bindings
+  (`Value` / boxed types in **`DoRewrite`**) without simulating “lazy trees”
+  for factorial.
+
+- **`while Condition loop Body`:** Align with the **interpreter**: **`Body`**
+  should behave as a **closure** over the binding environment—see
+  **`Bindings::BindClosure`**, **`Interpreter::MakeClosure`**, and closure
+  execution in **`src/interpreter.cpp`**. **Condition** participates in that
+  story and is evaluated when needed (e.g. when the expanded **`if Condition
+  then …`** must match metabox forms like **`if [[true]] then …`**). **O3
+  target:** closure + **MustEvaluate** semantics, not a growing list of
+  `while` AST shapes in C++.
+
+- **`xl_new_closure`** (runtime / **`compiler-fast.cpp`**): builds **non-boxed**
+  closures (tree captures + **`eval_fn`**). For O3 IR it is only an
+  intermediate: pass the result through **`CompilerFunction::Autobox`** (or an
+  equivalent boxing path) so it matches the **boxed** machine type at the use
+  site. Do not assume **`xl_new_closure`** output is already LLVM-boxed.
+
+- **Recursive boxing (open design):** when nesting closures or capturing an
+  enclosing closure, decide explicitly whether **outer** environments stay
+  **boxed** (nested boxed values, uniform calling conventions) or as **raw
+  pointers** (e.g. **`Scope*`** / **`Tree*`** with lighter layers but more
+  manual lifetime and type edges). Document the choice in code comments when
+  implementing **`while`** / loop closure lowering; mixing models by accident
+  will confuse **Autobox** and **`ValueMachineType`**.
+
 ## Workflow (standing rule)
 
 - Before treating a change as **done**, run **`make tests`** from the repo root
@@ -15,6 +60,8 @@ This file records conventions and debugging context for automated assistants
   in asking for two commands when one will do the two steps.
 - Focused runs (e.g. `./alltests ... PATTERN`) are for fast iteration only.
   They do not replace a full `make tests` pass before marking work done.
+- Claims about tests: do not assert that failures are “pre-existing” without
+  verifying (e.g. `git stash` / checkout) the same tests on the base revision.
 
 - **LLVM stays in `llvm-crap`:** Do not add `#include <llvm/...>` (or any LLVM
   header) to other translation units such as `src/compiler-expr.cpp`. Put every
@@ -173,7 +220,13 @@ A recorder used across `.cpp` files can be declared in a header using
 - `src/types.cpp` — `Types::Evaluate`, `IsEvalInProgress`, `EvaluatingGuard`
   usage.
 - `src/compiler-expr.cpp` — codegen when `TreeRewriteCalls` is missing after
-  failed inference (`No operator matches`).
+  failed inference (`No operator matches`). For **`DoRewrite`**, the
+  unused-binding branch (null placeholder when **`RewriteBodyReferencesName`**
+  is false) must run **before** **`Value(arg)`** so metabox short-circuit forms
+  like **`if [[false]] then …`** do not evaluate the unused branch. Keep
+  **`AddBoxedType`** on logical types via **`ValueMachineType(arg)`** only.
+  See **MustEvaluate, closures, and O3 rewrites** above for factorial vs
+  **`while`** (closure) design.
 - `src/compiler-types.cpp` — `AddBoxedType` should not assert on conflicting
   machine types; prefer a clear error.
 
