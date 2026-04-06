@@ -39,6 +39,7 @@
 #include "compiler-unit.h"
 #include "compiler-rewrites.h"
 #include "compiler-types.h"
+#include "context.h"
 #include "save.h"
 #include "basics.h"
 #include "errors.h"
@@ -233,7 +234,17 @@ JIT::Value_g CompilerExpression::Do(Prefix *what)
             return function.Primitive(what, op, sz, a);
         }
     }
-    return DoCall(what);
+
+    // [write Rest] must become [write value-of-Rest] for rewrite lookup
+    Prefix *call = what;
+    if (Name *arg = what->right->AsName())
+        if (Tree *bound = function.FunctionContext()->Bound(arg))
+            call = new Prefix(what->left, bound, what->Position());
+    JIT::Value_g result = DoCall(call);
+    if (call != what)
+        if (Tree *kt = function.types->KnownType(call))
+            function.types->AssignType(what, kt);
+    return result;
 }
 
 
@@ -265,13 +276,18 @@ JIT::Value_g CompilerExpression::DoCall(Tree *call, bool mayfail)
     record(compiler_expr, "Call %t", call);
     CompilerTypes *types = function.types;
     CompilerRewriteCalls *rc = types->TreeRewriteCalls(call);
+    if (!rc)
+    {
+        // Top-level TypeAnalysis may not have walked nested rewrite bodies
+        // (e.g. builtins). Infer the call here so rcalls exist for codegen.
+        types->Type(call);
+        rc = types->TreeRewriteCalls(call);
+    }
     record(types_calls, "Looking up %t in %p: got %p", call, types, rc);
     if (mayfail && !rc)
         return nullptr;
     if (!rc)
     {
-        // Types::Evaluate erased rewrite candidates after a failed unification;
-        // do not reach AddBoxedType with inconsistent types.
         Ooops("No operator matches $1", call);
         return nullptr;
     }
@@ -403,7 +419,8 @@ JIT::Value_g CompilerExpression::DoRewrite(Tree *call,
 
         Tree       *argtype = vtypes->ValueType(arg);
         JIT::Type_g mtype   = function.ValueMachineType(arg);
-        btypes->AddBoxedType(argtype, mtype);
+        if (!btypes->IsPatternType(argtype))
+            btypes->AddBoxedType(argtype, mtype);
 
         record(compiler_expr, "Rewrite %t arg %t value %v", rw, arg, value);
     }
@@ -457,7 +474,8 @@ JIT::Value_g CompilerExpression::DoRewrite(Tree *call,
         CompilerTypes *vtypes = cand->ValueTypes();
         Tree *base = vtypes->CodeGenerationType(call);
         JIT::Type_g retTy = code.Type(result);
-        function.AddBoxedType(base, retTy);
+        if (!vtypes->IsPatternType(base))
+            function.AddBoxedType(base, retTy);
         record(compiler_expr, "Transporting type %t (%T) of %t into %p",
                base, retTy, call, vtypes);
     }

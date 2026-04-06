@@ -856,6 +856,18 @@ Tree *ArgumentMatch::Do(Block *what)
 //   Check if we match a block
 // ----------------------------------------------------------------------------
 {
+    if (Tree *metaInner = what->IsMetaBox())
+    {
+        Tree *testCode = Compile(test, false);
+        Tree *innerCode = Compile(metaInner, false);
+        if (!testCode || !compile.unit.IsKnown(testCode))
+            return nullptr;
+        if (!innerCode || !compile.unit.IsKnown(innerCode))
+            return nullptr;
+        compile.unit.ShapeTest(testCode, innerCode);
+        return what;
+    }
+
     // Test if we exactly match the block, i.e. the reference is a block
     if (Block *bt = test->AsBlock())
     {

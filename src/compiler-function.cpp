@@ -39,6 +39,7 @@
 #include "compiler-function.h"
 #include "compiler-expr.h"
 #include "basics.h"
+#include "save.h"
 #include <stdint.h>
 
 
@@ -304,27 +305,44 @@ JIT::Value_g CompilerFunction::Compile(Tree *call,
         bool isC = d == CompilerTypes::Decl::C;
         bool isData = d == CompilerTypes::Decl::DATA;
 
-        // Identify the return type for the rewrite
-        CompilerTypes      *btypes = rc->BindingTypes();
-        Tree               *base   = btypes->BaseType(rc->type);
-        JIT::Type_g         retTy  = rc->RewriteType();
+        // Identify the return type for the rewrite.
+        // Use the candidate's binding types for BoxedType / KnownType:
+        // the caller's types may be an outer scope where CodeGenerationType
+        // falls back to natural.
+        Save<CompilerTypes_g> saveTypes(types, rc->BindingTypes());
+        CompilerTypes *const btypes     = rc->BindingTypes();
+        Tree *const          base       = btypes->BaseType(rc->type);
+        JIT::Type_g          retTy      = rc->RewriteType();
         if (!retTy && rc->type)
         {
             retTy = BoxedType(base);
             if (retTy)
             {
-                btypes->AddBoxedType(base, retTy);
+                // [matching ...] pattern types can appear with different
+                // projections for the same call tree; avoid pinning one.
+                if (!btypes->IsPatternType(base))
+                    btypes->AddBoxedType(base, retTy);
                 rc->RewriteType(retTy);
             }
         }
         if (!retTy)
         {
             if (isData)
+            {
                 retTy = StructureType(rc->RewriteSignature(),
                                       rc->RewritePattern(),
                                       base);
+            }
             else
-                retTy = ValueMachineType(rc->RewritePattern(), true);
+            {
+                Tree *bodyType = types->KnownType(body);
+                if (!bodyType)
+                    bodyType = base;
+                if (bodyType)
+                    retTy = BoxedType(bodyType);
+                if (!retTy)
+                    retTy = ValueMachineType(rc->RewritePattern(), true);
+            }
             if (!retTy)
                 retTy = jit.VoidType();
             rc->RewriteType(retTy);

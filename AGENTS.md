@@ -13,6 +13,8 @@ This file records conventions and debugging context for automated assistants
 - Preferably build and test using `make tests` at least initially. Do not
   try to optimize the build away: `make test` does build beforehand, so no point
   in asking for two commands when one will do the two steps.
+- Focused runs (e.g. `./alltests ... PATTERN`) are for fast iteration only.
+  They do not replace a full `make tests` pass before marking work done.
 
 - When dealing with LLVM, put as much of the llvm-specific code as possible
   under `llvm-crap` files. This layer adds compatibility for all variants of

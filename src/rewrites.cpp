@@ -451,8 +451,41 @@ BindingStrength RewriteCandidate::Bind(Tree *pattern, Tree *value)
 
     case BLOCK:
     {
-        // Ignore blocks, just look inside
         Block *block = (Block *) pattern;
+
+        // Metabox [[X]]: match only if value equals evaluated X.
+        if (Tree *metaInner = block->IsMetaBox())
+        {
+            vtype = ValueType(value);
+            if (!vtype)
+            {
+                record(bindings,
+                       "Binding metabox %t to %t in %p: value has no type",
+                       pattern, value, this);
+                return FAILED;
+            }
+            Tree *innerType = value_types->Type(metaInner);
+            if (!innerType)
+            {
+                record(bindings,
+                       "Binding metabox %t to %t in %p: inner has no type",
+                       pattern, value, this);
+                return FAILED;
+            }
+            if (!Unify(vtype, innerType, value, metaInner))
+            {
+                record(bindings,
+                       "Binding metabox %t to %t in %p: type mismatch",
+                       pattern, value, this);
+                return FAILED;
+            }
+            Condition(value, metaInner);
+            BindingStrength result = Unconditional() ? PERFECT : POSSIBLE;
+            record(bindings,
+                   "Binding metabox %t to %t in %p is %+s",
+                   pattern, value, this, sname[result]);
+            return result;
+        }
         BindingStrength ok = Bind(block->child, value);
         record(bindings, "Binding block %t to %t in %p is %+s",
                pattern, value, this, sname[ok]);
