@@ -16,12 +16,13 @@ This file records conventions and debugging context for automated assistants
 - Focused runs (e.g. `./alltests ... PATTERN`) are for fast iteration only.
   They do not replace a full `make tests` pass before marking work done.
 
-- When dealing with LLVM, put as much of the llvm-specific code as possible
-  under `llvm-crap` files. This layer adds compatibility for all variants of
-  LLVM. XL presently builds and runs correctly with LLVM versions 7 through 22.
-  After any significant change to llvm-crap, this compatibility should be tested
-  with `make llvm-tests`, which runs the build through all the supported
-  releases.
+- **LLVM stays in `llvm-crap`:** Do not add `#include <llvm/...>` (or any LLVM
+  header) to other translation units such as `src/compiler-expr.cpp`. Put every
+  LLVM API use and every LLVM include in **`llvm-crap.cpp`** / **`llvm-crap.h`**
+  (or another dedicated llvm-crap source), and call only the wrappers from the
+  rest of the compiler. This layer carries compatibility for all LLVM variants;
+  XL builds with LLVM 7 through 22. After significant llvm-crap changes, run
+  **`make llvm-tests`** across supported releases.
 
 ## How to maintain this file (standing rule)
 
@@ -178,6 +179,12 @@ A recorder used across `.cpp` files can be declared in a header using
 
 ## LLVM IR helpers and failure style (`llvm-crap.cpp`)
 
+- **Hard rule:** LLVM headers and LLVM types/APIs belong only in llvm-crap (see
+  **`llvm-crap.cpp`**, **`llvm-crap.h`**, **`llvm-crap.tbl`**). Elsewhere, use
+  **`JITBlock`**, **`JIT`**, **`CompilerUnit`**, etc., never `#include <llvm/…>`
+  and never `llvm::` in non–llvm-crap sources. If you need a new IR primitive,
+  add a method to **`JITBlock`** or the appropriate wrapper, implement it in
+  **`llvm-crap.cpp`**, then call that from call sites.
 - Anything LLVM-specific should go into llvm-crap
 - **`llvm_error` recorder:** Internal codegen mistakes (bad pointer constants,
   non-pointer callees, `StructLoad` on non-struct) should log with
