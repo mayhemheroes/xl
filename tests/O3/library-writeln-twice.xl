@@ -29,3 +29,5 @@
 
 print "Hello"
 print "World"
+print "Hello, 42=", 42
+print "World, 1968=", 1968

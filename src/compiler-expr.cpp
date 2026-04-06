@@ -140,8 +140,12 @@ JIT::Value_g CompilerExpression::Do(Name *what)
     assert(existing || !"Type checking didn't realize a name is missing");
     Tree *from = PatternBase(rewrite->left);
     if (where == context->Symbols())
+    {
         if (JIT::Value_g result = function.Known(from))
             return result;
+        if (JIT::Value_g result = function.KnownPatternName(what))
+            return result;
+    }
 
     // Check true and false values
     if (existing == xl_true)
@@ -235,11 +239,15 @@ JIT::Value_g CompilerExpression::Do(Prefix *what)
         }
     }
 
-    // [write Rest] must become [write value-of-Rest] for rewrite lookup
+    // If type analysis left no rcalls (e.g. [write Rest] in [write Head,Rest]),
+    // Bound(arg) gives a shaped tree so Type/DoCall can match [write X:text].
+    // When rcalls exist, do not substitute: codegen uses Known / KnownPatternName
+    // for parameters (avoids baking an earlier Bound() for the same Name id).
     Prefix *call = what;
     if (Name *arg = what->right->AsName())
-        if (Tree *bound = function.FunctionContext()->Bound(arg))
-            call = new Prefix(what->left, bound, what->Position());
+        if (!function.types->TreeRewriteCalls(what))
+            if (Tree *bound = function.FunctionContext()->Bound(arg))
+                call = new Prefix(what->left, bound, what->Position());
     JIT::Value_g result = DoCall(call);
     if (call != what)
         if (Tree *kt = function.types->KnownType(call))
