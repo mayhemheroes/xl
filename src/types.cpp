@@ -548,8 +548,8 @@ Tree *Types::TypeCoversType(Tree *wideType, Tree *narrowType)
         }
         if (Tree *npat = IsPatternType(narrowType))
         {
-            if (Tree *t = PatternCoversPattern(pattern, npat, narrowType))
-                return t;
+            if (Tree *upat = PatternCoversPattern(pattern, npat))
+                return new Prefix(xl_matching, upat);
         }
         if (Infix *typeAnnotation = IsTypeAnnotation(pattern))
         {
@@ -564,6 +564,10 @@ Tree *Types::TypeCoversType(Tree *wideType, Tree *narrowType)
 
         return nullptr;
     }
+
+    // An anonymous type can be matched through unification
+    if (IsUnknownType(wideType))
+        return Unify(wideType, narrowType);
 
     // The tree type matches anything
     if (wideType == tree_type)
@@ -776,50 +780,83 @@ Tree *Types::TypeCoversType(Tree *wideType, Tree *narrowType)
 }
 
 
-Tree *Types::PatternCoversPattern(Tree *wide, Tree *narrow, Tree *type)
+Tree *Types::PatternCoversPattern(Tree *wide, Tree *narrow)
 // ----------------------------------------------------------------------------
-//   Check if a pattern covers a type, return narrower type
+//   Check if a pattern covers a type, return narrower pattern
 // ----------------------------------------------------------------------------
 {
-#define CONSTANT_PATTERN(Type)                                          \
-    if (Type *nval = narrow->As<Type>())                                \
-        if (nval->value == ((Type *) wide)->value)                      \
-            return type;                                                \
-    return nullptr
-
     switch(wide->Kind())
     {
+#define CONSTANT_PATTERN(Type)                     \
+    if (Type *nval = narrow->As<Type>())           \
+        if (nval->value == ((Type *) wide)->value) \
+            return nval;                           \
+    return nullptr
+
     case NATURAL:       CONSTANT_PATTERN(Natural);
     case REAL:          CONSTANT_PATTERN(Real);
     case TEXT:          CONSTANT_PATTERN(Text);
-    case NAME:          return narrow;
+#undef CONSTANT_PATTERN
+
+    case NAME:
+        // For a name, return the narrow pattern, e.g. N can cover A+B
+        return narrow;
 
     case INFIX:
-        if (Infix *typeAnnotation = IsTypeAnnotation(wide))
+    {
+        Tree *wty = nullptr;
+        Tree *nty = nullptr;
+        if (Infix *wta = IsTypeAnnotation(wide))
         {
-            Tree *declaredType = typeAnnotation->right;
-            return TypeCoversType(declaredType, type);
+            wty = wta->right;
+            wide = wta->left;
+        }
+        if (Infix *nta = IsTypeAnnotation(narrow))
+        {
+            nty = nta->right;
+            narrow = nta->left;
+        }
+
+        // If either side is a type annotation, match types first
+        if (nty || wty)
+        {
+            if (!wty)
+                wty = UnknownType(wide->Position());
+            if (!nty)
+                nty = UnknownType(narrow->Position());
+            if (TypeCoversType(wty, nty))
+                // Here at least wide or narrow has changed, retry patterns
+                if (PatternCoversPattern(wide, narrow))
+                    if (Unify(wty, nty, wide, narrow))
+                        return narrow;
+            return nullptr;
         }
         if (IsPatternCondition(wide))
         {
             Ooops("Not implemented yet; Condition in pattern $1", wide);
             return nullptr;
         }
+        if (IsPatternCondition(narrow))
+        {
+            Ooops("Not implemented yet; Condition in pattern $1", narrow);
+            return nullptr;
+        }
         if (Infix *ni = narrow->AsInfix())
             if (Infix *wi = (Infix *) wide)
                 if (ni->name == wi->name)
-                    if (PatternCoversPattern(wi->left, ni->left, type))
-                        if (PatternCoversPattern(wi->right, ni->right, type))
-                            return type;
+                    if (PatternCoversPattern(wi->left, ni->left))
+                        if (PatternCoversPattern(wi->right, ni->right))
+                            return narrow;
         return nullptr;
+    }
     case PREFIX:
         if (Prefix *np = narrow->AsPrefix())
             if (Prefix *wp = (Prefix *) wide)
                 if (Name *nn = np->left->AsName())
                     if (Name *wn = wp->left->AsName())
                         if (nn->value == wn->value)
-                            if (PatternCoversPattern(wp->right,np->right,type))
-                                return type;
+                            if (PatternCoversPattern(wp->right,np->right))
+                                return narrow;
         return nullptr;
     case POSTFIX:
         if (Postfix *np = narrow->AsPostfix())
@@ -827,13 +864,12 @@ Tree *Types::PatternCoversPattern(Tree *wide, Tree *narrow, Tree *type)
                 if (Name *nn = np->right->AsName())
                     if (Name *wn = wp->right->AsName())
                         if (nn->value == wn->value)
-                            if (PatternCoversPattern(wp->left,np->left, type))
-                                return type;
+                            if (PatternCoversPattern(wp->left,np->left))
+                                return narrow;
         return nullptr;
     case BLOCK:
-        return PatternCoversPattern(((Block *) wide)->child, narrow, type);
+        return PatternCoversPattern(((Block *) wide)->child, narrow);
     }
-#undef CONSTANT_PATTERN
     return nullptr;
 }
 

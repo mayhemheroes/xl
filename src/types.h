@@ -109,7 +109,7 @@ protected:
 
     // Type compatibility checks
     Tree *              TypeCoversType(Tree *type, Tree *ref);
-    Tree *              PatternCoversPattern(Tree *w, Tree *n, Tree *type);
+    Tree *              PatternCoversPattern(Tree *w, Tree *n);
 
 public:
     // Evaluate expression and perform required unifications
