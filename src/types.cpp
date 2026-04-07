@@ -508,7 +508,6 @@ Tree *Types::DoAssignment(Infix *assign)
 {
     record(types, "Assignment %t", assign);
     Tree *assignee = assign->left;
-    Tree *type = nullptr;
     Tree *value = assign->right;
     Tree *vtype = Type(value);
     if (Name *name = assignee->AsName())
@@ -519,10 +518,10 @@ Tree *Types::DoAssignment(Infix *assign)
     else if (Infix *tann = IsTypeAnnotation(assignee))
     {
         Tree *dtype = DoTypeAnnotation(tann);
-        if (Name *name = tann->left->AsName())
+        if (Name *dname = tann->left->AsName())
         {
-            context->Assign(name, value);
-            vtype = Unify(vtype, dtype, value, name);
+            context->Assign(dname, value);
+            vtype = Unify(vtype, dtype, value, dname);
         }
     }
     return vtype;
@@ -1310,6 +1309,21 @@ Tree *Types::PatternType(Tree *expr)
             if (Tree *declared = context->DeclaredPattern(expr))
                 if (declared != expr)
                     type = PatternType(declared);
+
+        // Lookup the name and check if the original has a type
+        if (Tree *existing = context->Bound(name))
+        {
+            if (Tree *known = KnownType(existing))
+                return known;
+            // Assign an anonymous type for the moment
+            type = UnknownType(existing->Position());
+            AssignType(expr, type);
+            AssignType(existing, type);
+        }
+        else
+        {
+            type = UnknownType(expr->Position());
+        }
         break;
     }
 
