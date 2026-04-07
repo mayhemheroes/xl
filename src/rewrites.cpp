@@ -262,7 +262,7 @@ BindingStrength RewriteCandidate::Bind(Tree *pattern, Tree *value)
 
             // Add type binding with the given type
             Tree *valueType = value_types->Type(value);
-            if (!Unify(valueType, vtype, value, pattern, true))
+            if (!Unify(valueType, vtype, value, pattern))
             {
                 record(bindings,
                        "Binding typed %t to %t in %p type mismatch",
@@ -527,8 +527,7 @@ BindingStrength RewriteCandidate::BindBinary(Tree *pattern1, Tree *value1,
 
 
 bool RewriteCandidate::Unify(Tree *valueType, Tree *patternType,
-                             Tree *value, Tree *pattern,
-                             bool declaration)
+                             Tree *value, Tree *pattern)
 // ----------------------------------------------------------------------------
 //   Check unification for types in a given candidate
 // ----------------------------------------------------------------------------
@@ -546,12 +545,15 @@ bool RewriteCandidate::Unify(Tree *valueType, Tree *patternType,
     }
 
     // Otherwise, do type inference
-    Tree *unified = binding_types->Unify(patternType, valueType,
-                                         pattern, value);
+    Tree *unified = binding_types->Unify(valueType, patternType,
+                                         value, pattern);
 
     // If successful unification, then set the type for the pattern
     if (unified)
+    {
         value_types->AssignType(pattern, patternType);
+        value_types->AssignType(value, valueType);
+    }
 
     return unified;
 }

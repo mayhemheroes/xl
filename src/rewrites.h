@@ -123,8 +123,7 @@ struct RewriteCandidate
     BindingStrength     BindBinary(Tree *form1, Tree *value1,
                                    Tree *form2, Tree *value2);
     bool                Unify(Tree *valueType, Tree *formType,
-                              Tree *value, Tree *pattern,
-                              bool declaration = false);
+                              Tree *value, Tree *pattern);
 
     // Code generation
     Tree *              RewritePattern()        { return rewrite->left; }

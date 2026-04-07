@@ -1393,7 +1393,7 @@ Tree *Types::MakeTypesExplicit(Tree *expr)
     case NATURAL:
     case REAL:
     case TEXT:
-        return expr;
+        return expr;            // Matching constants exactly
 
     case NAME:
     {
