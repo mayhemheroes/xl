@@ -111,7 +111,7 @@ Tree *Interpreter::Evaluate(Scope *scope, Tree *what)
 {
     Context_g context = new Context(scope);
     Tree *result = EvaluateClosure(context, what);
-    if (Tree *inside = IsClosure(result, nullptr))
+    if (Tree *inside = Context::IsClosure(result, nullptr))
         result = inside;
     return result;
 }
@@ -502,7 +502,7 @@ void Bindings::MustEvaluate(bool unwrap, Context_g *updateContext)
     test = evaluated;
     if (unwrap)
     {
-        if (Tree *inside = Interpreter::IsClosure(test, updateContext))
+        if (Tree *inside = Context::IsClosure(test, updateContext))
         {
             record(interpreter_lazy, "Encapsulate %t in closure %t",
                    test, inside);
@@ -530,7 +530,7 @@ Tree *Bindings::MustEvaluate(Context *context, Tree *tval)
         record(interpreter_lazy, "Evaluate %t in context %t is old %t",
                tval, context, evaluated);
     }
-    if (Tree *inside = Interpreter::IsClosure(evaluated, nullptr))
+    if (Tree *inside = Context::IsClosure(evaluated))
     {
         record(interpreter_lazy, "Encapsulate %t in closure %t",
                evaluated, inside);
@@ -556,7 +556,7 @@ void Bindings::BindClosure(Name *name, Tree *value)
 //   Enter a new binding in the current context, preserving its environment
 // ----------------------------------------------------------------------------
 {
-    value = Interpreter::MakeClosure(context, value);
+    value = context->Closure(value);
     Bind(name, value);
 }
 
@@ -667,7 +667,7 @@ static Tree *evalLookup(Scope *evalScope, Scope *declScope,
     if (resultType != tree_type)
         result = new Infix("as", result, resultType, self->Position());
 
-    result = Interpreter::MakeClosure(locals, result);
+    result = locals->Closure(result);
     record(interpreter_eval, "Eval%u %t in context %t = %t",
            depth, locals->Symbols(), self, result);
     return result;
@@ -680,7 +680,7 @@ inline Tree *encloseResult(Context *context, Scope *old, Tree *what)
 // ----------------------------------------------------------------------------
 {
     if (context->Symbols() != old)
-        what = Interpreter::MakeClosure(context, what);
+        what = context->Closure(what);
     return what;
 }
 
@@ -704,7 +704,7 @@ Tree *Interpreter::Instructions(Context_g context, Tree_g what)
                 return eval;
             MAIN->errors->Clear();
             result = eval;
-            if (Tree *inside = IsClosure(eval, &context))
+            if (Tree *inside = Context::IsClosure(eval, &context))
             {
                 what = inside;
                 continue;
@@ -740,7 +740,7 @@ Tree *Interpreter::Instructions(Context_g context, Tree_g what)
         case PREFIX:
         {
             // If we have a prefix on the left, check if it's a closure
-            if (Tree *closed = IsClosure(what, &context))
+            if (Tree *closed = Context::IsClosure(what, &context))
             {
                 what = closed;
                 continue;
@@ -752,7 +752,7 @@ Tree *Interpreter::Instructions(Context_g context, Tree_g what)
 
             // Check if we had something like '(X->X+1) 31' as closure
             Context_g calleeContext = nullptr;
-            if (Tree *inside = IsClosure(callee, &calleeContext))
+            if (Tree *inside = Context::IsClosure(callee, &calleeContext))
                 callee = inside;
 
             if (Name *name = callee->AsName())
@@ -801,7 +801,7 @@ Tree *Interpreter::Instructions(Context_g context, Tree_g what)
                 arg = Instructions(context, arg);
 
                 // We built a new context if left was a block
-                if (Tree *inside = IsClosure(newCallee, &context))
+                if (Tree *inside = Context::IsClosure(newCallee, &context))
                 {
                     what = arg;
                     // Check if we have a single definition on the left
@@ -870,7 +870,7 @@ Tree *Interpreter::Instructions(Context_g context, Tree_g what)
             if (name == ".")
             {
                 Tree *left = Instructions(context, infix->left);
-                IsClosure(left, &context);
+                Context::IsClosure(left, &context);
                 what = infix->right;
                 continue;
             }
@@ -929,7 +929,7 @@ struct Expansion
     {
         if (Tree *bound = context->Bound(what))
         {
-            if (Tree *eval = Interpreter::IsClosure(bound, nullptr))
+            if (Tree *eval = Context::IsClosure(bound, nullptr))
                 bound = eval;
             return bound;
         }
@@ -1003,7 +1003,7 @@ static Tree *formTypeCheck(Scope *scope, Tree *shape, Tree *value)
 
     // The value is associated to the symbols we extracted
     record(interpreter_typecheck, "Shape of tree %t matches %t", value, shape);
-    return Interpreter::MakeClosure(locals, value);
+    return locals->Closure(value);
 }
 
 

@@ -255,6 +255,10 @@ public:
     Context *           Pointer()               { return this; }
     operator Scope *()                          { return symbols; }
 
+    // Closure management
+    static Tree *       IsClosure(Tree *tree, Context_g *context = nullptr);
+    Tree *              Closure(Tree *value);
+
     // Special forms of evaluation
     Tree *              Call(text prefix, TreeList &args);
 
@@ -267,10 +271,11 @@ public:
     Rewrite *           Define(text name, Tree *to, bool overwrite=false);
     Tree *              Assign(Tree *target, Tree *source);
 
-    // Set and get per-context tree info
+    // Get and set per-context tree info
     Tree *              Info(text key, Tree *what, bool recurse = false);
     Rewrite *           SetInfo(text key, Tree *what, Tree *value);
 
+    // Set and get type for a tree
     Tree *              Type(Tree *what);
     Rewrite *           SetType(Tree *what, Tree *type);
 

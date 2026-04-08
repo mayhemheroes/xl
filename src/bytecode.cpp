@@ -236,7 +236,7 @@ struct ArgEvalOp : FailOp
 
         // Evaluate in place
         Tree *self = data[argId];
-        if (Tree *inside = Interpreter::IsClosure(self, &context))
+        if (Tree *inside = Context::IsClosure(self, &context))
             self = inside;
         Context *ctx = context;
         if (self->IsConstant())
@@ -245,7 +245,7 @@ struct ArgEvalOp : FailOp
             result = xl_evaluate(ctx->Symbols(), self);
         if (result)
         {
-            result = Interpreter::MakeClosure(ctx, result);
+            result = ctx->Closure(result);
             data[id] = result;
             return success;
         }
@@ -297,7 +297,7 @@ struct ClosureOp : Op
     virtual Op *        Run(Data data)
     {
         Tree *result = DataResult(data);
-        result = Interpreter::MakeClosure(context, result);
+        result = context->Closure(result);
         DataResult(data, result);
         return success;
     }
@@ -474,7 +474,7 @@ struct IndexOp : FailOp
 
         // Check if we have a closure
         Context_g context = new Context(scope);
-        if (Tree *inside = Interpreter::IsClosure(callee, &context))
+        if (Tree *inside = Context::IsClosure(callee, &context))
         {
             scope = context->Symbols();
             callee = inside;
@@ -1316,7 +1316,7 @@ bool CodeBuilder::Instructions(Context *ctx, Tree *what)
             if (hasInstructions)
                 continue;
             if (hasDecls)
-                what = Interpreter::MakeClosure(ctx, what);
+                what = context->Closure(what);
             Add(new ConstOp(what));
             if (hasDecls)
                 ctx->PopScope();
@@ -1327,7 +1327,7 @@ bool CodeBuilder::Instructions(Context *ctx, Tree *what)
         case PREFIX:
         {
             // If we have a prefix on the left, check if it's a closure
-            if (Tree *closed = Interpreter::IsClosure(what, &gcContext))
+            if (Tree *closed = Context::IsClosure(what, &gcContext))
             {
                 ctx = gcContext;
                 what = closed;
@@ -1779,7 +1779,7 @@ struct InfixMatchOp : FailOp
     {
         Tree *test = DataResult(data);
         Context_g ctx = nullptr;
-        if (Tree *inside = Interpreter::IsClosure(test, &ctx))
+        if (Tree *inside = Context::IsClosure(test, &ctx))
             test = inside;
         if (Infix *ifx = test->AsInfix())
         {
@@ -1787,8 +1787,8 @@ struct InfixMatchOp : FailOp
             {
                 if (ctx)
                 {
-                    data[lid] = Interpreter::MakeClosure(ctx, ifx->left);
-                    data[rid] = Interpreter::MakeClosure(ctx, ifx->right);
+                    data[lid] = ctx->Closure(ifx->left);
+                    data[rid] = ctx->Closure(ifx->right);
                 }
                 else
                 {

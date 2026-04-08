@@ -230,7 +230,7 @@ static Tree_g xl_merge_context(Context &context, Tree *code)
             }
 
             // And make the resulting code a closure at that location
-            code = Interpreter::MakeClosure(codeCtx, code);
+            code = codeCtx->Closure(code);
         }
     }
 

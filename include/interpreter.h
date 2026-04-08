@@ -36,9 +36,9 @@
 // If not, see <https://www.gnu.org/licenses/>.
 // *****************************************************************************
 
-#include "tree.h"
 #include "context.h"
 #include "evaluator.h"
+#include "tree.h"
 
 
 XL_BEGIN
@@ -62,92 +62,10 @@ public:
     static Tree *       Instructions(Context_g context, Tree_g what);
 
 public:
-    static Tree *       IsClosure(Tree *value, Context_g *scope);
-    static Tree *       MakeClosure(Context *context, Tree *value);
-
     static Opcode *     SetInfo(Infix *decl, Opcode *opcode);
     static Opcode *     OpcodeInfo(Infix *decl);
 };
 
-
-// ============================================================================
-//
-//    Closure management (keeping scoping information with values)
-//
-// ============================================================================
-
-struct ClosureInfo : Info
-// ----------------------------------------------------------------------------
-//   Mark a given Prefix as a closure
-// ----------------------------------------------------------------------------
-{};
-
-
-inline Tree *Interpreter::IsClosure(Tree *tree, Context_g *context)
-// ----------------------------------------------------------------------------
-//   Check if something is a closure, if so set scope and/or context
-// ----------------------------------------------------------------------------
-{
-    if (Scope *closure = tree->AsPrefix())
-    {
-        if (Scope *scope = Enclosing(closure))
-        {
-            if (closure->GetInfo<ClosureInfo>())
-            {
-                // We normally have a scope on the left
-                if (context)
-                    *context = new Context(scope);
-                return closure->right;
-            }
-        }
-    }
-    return nullptr;
-}
-
-
-inline Tree *Interpreter::MakeClosure(Context *ctx, Tree *value)
-// ----------------------------------------------------------------------------
-//   Create a closure encapsulating the current context
-// ----------------------------------------------------------------------------
-{
-    Context_g context = ctx;
-
-retry:
-    kind valueKind = value->Kind();
-
-    if (valueKind >= NAME || context->HasRewritesFor(valueKind))
-    {
-        if (valueKind == NAME)
-        {
-            if (Tree *bound = context->Bound(value))
-            {
-                if (Tree *inside = IsClosure(bound, &context))
-                {
-                    if (value != inside)
-                    {
-                        value = inside;
-                        goto retry;
-                    }
-                }
-                if (value != bound)
-                {
-                    value = bound;
-                    goto retry;
-                }
-            }
-        }
-
-        if (valueKind != PREFIX || !value->GetInfo<ClosureInfo>())
-        {
-            Scope *scope = context->Symbols();
-            value = new Prefix(scope, value);
-
-            ClosureInfo *closureMarker = new ClosureInfo;
-            value->SetInfo(closureMarker);
-        }
-    }
-    return value;
-}
 
 XL_END
 

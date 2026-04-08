@@ -48,9 +48,11 @@ class Evaluator
 public:
     virtual ~Evaluator() {}
 
-    virtual Tree *      Evaluate(Scope *, Tree *source) = 0;
-    virtual Tree *      TypeCheck(Scope *, Tree *type, Tree *value) = 0;
+    virtual Tree       *Evaluate(Scope *, Tree *source)             = 0;
+    virtual Tree       *TypeCheck(Scope *, Tree *type, Tree *value) = 0;
 };
+
+
 
 XL_END
 
