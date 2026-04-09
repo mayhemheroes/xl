@@ -1544,7 +1544,7 @@ JIT::Function_p JIT::Prototype(JIT::Function_p function)
 }
 
 
-JIT::Value_p JIT::Prototype(Value_p callee)
+JIT::Value_p JIT::Prototype(FunctionType_p fntype, Value_p callee)
 // ----------------------------------------------------------------------------
 //   Build a prototype from a callee that may not be a function
 // ----------------------------------------------------------------------------
@@ -1848,9 +1848,10 @@ void JITBlock::SwitchTo(JIT::BasicBlock_p block)
 
 
 #if LLVM_VERSION < 1100
-#define Callee(V)       (V)
+#define Callee(T, V)       (V)
 #else // LLVM_VERSION >= 1100 (FunctionCallee Callee)
-static inline llvm::FunctionCallee Callee(JIT::Value_p callee)
+static inline llvm::FunctionCallee Callee(JIT::FunctionType_p fty,
+                                          JIT::Value_p callee)
 // ----------------------------------------------------------------------------
 //   Another totally useless wrapper with more damage to come
 // ----------------------------------------------------------------------------
@@ -1870,7 +1871,7 @@ static inline llvm::FunctionCallee Callee(JIT::Value_p callee)
 #if LLVM_VERSION >= 1500
     if (auto fn = llvm::dyn_cast<llvm::Function>(callee))
         return llvm::FunctionCallee(fn);
-    return llvm::FunctionCallee(nullptr, callee);
+    return llvm::FunctionCallee(fty, callee);
 #else // LLVM_VERSION < 1500
     llvm::PointerType *ptype = cast<llvm::PointerType>(type);
 # if LLVM_VERSION >= 1300
@@ -1891,55 +1892,60 @@ static inline llvm::FunctionCallee Callee(JIT::Value_p callee)
 #endif // LLVM_VERSION < 1100 / >= 1100 (Callee macro vs function)
 
 
-JIT::Value_p JITBlock::Call(JIT::Value_p callee, JIT::Value_p arg1)
+JIT::Value_p JITBlock::Call(JIT::FunctionType_p fty,
+                            JIT::Value_p        callee,
+                            JIT::Value_p        arg1)
 // ----------------------------------------------------------------------------
 //   Create a call with one argument
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p proto = b.jit.Prototype(callee);
-    JIT::Value_p result = b->CreateCall(Callee(proto), {arg1});
+    JIT::Value_p proto = b.jit.Prototype(fty, callee);
+    JIT::Value_p result = b->CreateCall(Callee(fty, proto), {arg1});
     record(llvm_ir, "Call %v(%v) = %v", callee, arg1, result);
     return result;
 }
 
 
-JIT::Value_p JITBlock::Call(JIT::Value_p callee,
-                            JIT::Value_p arg1,
-                            JIT::Value_p arg2)
+JIT::Value_p JITBlock::Call(JIT::FunctionType_p fty,
+                            JIT::Value_p        callee,
+                            JIT::Value_p        arg1,
+                            JIT::Value_p        arg2)
 // ----------------------------------------------------------------------------
 //   Create a call with two arguments
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p proto = b.jit.Prototype(callee);
-    JIT::Value_p result = b->CreateCall(Callee(proto), {arg1, arg2});
+    JIT::Value_p proto = b.jit.Prototype(fty, callee);
+    JIT::Value_p result = b->CreateCall(Callee(fty, proto), {arg1, arg2});
     record(llvm_ir, "Call %v(%v, %v) = %v", callee, arg1, arg2, result);
     return result;
 }
 
 
-JIT::Value_p JITBlock::Call(JIT::Value_p callee,
-                            JIT::Value_p arg1,
-                            JIT::Value_p arg2,
-                            JIT::Value_p arg3)
+JIT::Value_p JITBlock::Call(JIT::FunctionType_p fty,
+                            JIT::Value_p        callee,
+                            JIT::Value_p        arg1,
+                            JIT::Value_p        arg2,
+                            JIT::Value_p        arg3)
 // ----------------------------------------------------------------------------
 //   Create a call with three arguments
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p proto = b.jit.Prototype(callee);
-    JIT::Value_p result = b->CreateCall(Callee(proto), {arg1, arg2, arg3});
+    JIT::Value_p proto = b.jit.Prototype(fty, callee);
+    JIT::Value_p result = b->CreateCall(Callee(fty, proto), {arg1, arg2, arg3});
     record(llvm_ir, "Call %v(%v, %v, %v) = %v", callee, arg1,arg2,arg3, result);
     return result;
 }
 
 
-JIT::Value_p JITBlock::Call(JIT::Value_p callee,
-                            JIT::Values &args)
+JIT::Value_p JITBlock::Call(JIT::FunctionType_p fty,
+                            JIT::Value_p        callee,
+                            JIT::Values        &args)
 // ----------------------------------------------------------------------------
 //   Create a call with an arbitrary list of arguments
 // ----------------------------------------------------------------------------
 {
-    JIT::Value_p proto = b.jit.Prototype(callee);
-    JIT::Value_p result = b->CreateCall(Callee(proto),
+    JIT::Value_p proto = b.jit.Prototype(fty, callee);
+    JIT::Value_p result = b->CreateCall(Callee(fty, proto),
                                         ArrayRef<JIT::Value_p>(args));
     record(llvm_ir, "Call %v(#%u) = %v", callee, args.size(), result);
     return result;

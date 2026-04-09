@@ -286,9 +286,9 @@ void CompilerFunction::InitializeArgs(CompilerRewriteCandidate *rc)
 }
 
 
-JIT::Value_p CompilerFunction::Compile(Tree *call,
-                                       CompilerRewriteCandidate *rc,
-                                       const JIT::Values &args)
+JIT::Function_p CompilerFunction::Compile(Tree *call,
+                                          CompilerRewriteCandidate *rc,
+                                          const JIT::Values &args)
 // ----------------------------------------------------------------------------
 //    Compile a given rewrite for a tree
 // ----------------------------------------------------------------------------

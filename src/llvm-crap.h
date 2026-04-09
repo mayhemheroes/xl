@@ -239,8 +239,7 @@ public:
     // Prototypes and external functions
     Function_p          ExternFunction(FunctionType_p fty, text name);
     Function_p          Prototype(Function_p callee);
-    Value_p             Prototype(Value_p callee);
-
+    Value_p             Prototype(FunctionType_p fntype, Value_p callee);
 };
 
 
@@ -333,14 +332,24 @@ public:
     void                SwitchTo(JITBlock &block);
     void                SwitchTo(JIT::BasicBlock_p block);
 
-    JIT::Value_p        Call(JIT::Value_p c,
+    JIT::Value_p        Call(JIT::FunctionType_p fty,
+                             JIT::Value_p c,
                              JIT::Value_p a);
-    JIT::Value_p        Call(JIT::Value_p c,
+    JIT::Value_p        Call(JIT::FunctionType_p fty,
+                             JIT::Value_p c,
                              JIT::Value_p a1, JIT::Value_p a2);
-    JIT::Value_p        Call(JIT::Value_p c,
+    JIT::Value_p        Call(JIT::FunctionType_p fty,
+                             JIT::Value_p c,
                              JIT::Value_p a1, JIT::Value_p a2, JIT::Value_p a3);
-    JIT::Value_p        Call(JIT::Value_p c,
+    JIT::Value_p        Call(JIT::FunctionType_p fty,
+                             JIT::Value_p c,
                              JIT::Values &args);
+
+    template <typename ...Args>
+    JIT::Value_p        Call(JIT::Function_p fn, Args... args)
+    {
+        return Call(fn->getFunctionType(), fn, args...);
+    }
 
     JIT::BasicBlock_p   Block();
     JIT::BasicBlock_p   NewBlock(kstring name);

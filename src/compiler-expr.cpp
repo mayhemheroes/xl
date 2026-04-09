@@ -516,7 +516,7 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
                    rw, builtin, result);
         }
     }
-    else if (JIT::Value_p fn = function.Compile(call, cand, args))
+    else if (JIT::Function_p fn = function.Compile(call, cand, args))
     {
         result = code.Call(fn, args);
         record(compiler_expr, "Rewrite %t function %v call %v",

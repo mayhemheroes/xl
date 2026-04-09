@@ -106,7 +106,7 @@ private:
 
 private:
     // Compilation of rewrites and data
-    JIT::Value_p        Compile(Tree *call,
+    JIT::Function_p     Compile(Tree *call,
                                 CompilerRewriteCandidate *rc,
                                 const JIT::Values &args);
     JIT::Value_p        Data(Tree        *pattern,

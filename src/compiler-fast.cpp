@@ -324,8 +324,8 @@ adapter_fn FastCompiler::ArrayToArgsAdapter(uint numargs)
     called.push_back(treePtrTy);
     for (uint a = 0; a < numargs; a++)
         called.push_back(treePtrTy);
-    JIT::PointerType_p calledPtrType =
-        jit.FunctionPointerType(treePtrTy, called);
+    JIT::PointerType_p calledPtrTy = jit.FunctionPointerType(treePtrTy, called);
+    JIT::FunctionType_p calledTy = jit.FunctionType(treePtrTy, called);
 
     // Create the entry for the function we generate
     JITBlock code(jit, adapter, "adapt");
@@ -338,7 +338,7 @@ adapter_fn FastCompiler::ArrayToArgsAdapter(uint numargs)
     JIT::Value_p treeArray = *inputs++;
 
     // Cast the input function pointer to right type
-    JIT::Value_p fnTyped = code.BitCast(fnToCall, calledPtrType, "xl.fnCast");
+    JIT::Value_p fnTyped = code.BitCast(fnToCall, calledPtrTy, "xl.fnCast");
 
     // Add source as first argument to output arguments
     JIT::Values outArgs;
@@ -355,7 +355,7 @@ adapter_fn FastCompiler::ArrayToArgsAdapter(uint numargs)
     }
 
     // Call the function
-    JIT::Value_p retVal = code.Call(fnTyped, outArgs);
+    JIT::Value_p retVal = code.Call(calledTy, fnTyped, outArgs);
 
     // Return the result
     code.Return(retVal);
@@ -461,8 +461,9 @@ eval_fn FastCompiler::ClosureAdapter(uint numtrees)
 
     // Call the resulting function
     JIT::PointerType_p fnPtrTy = jit.FunctionPointerType(treeTy, signature);
+    JIT::FunctionType_p fnTy = jit.FunctionType(treeTy, signature);
     JIT::Value_p toCall = code.BitCast(callCode, fnPtrTy);
-    JIT::Value_p callVal = code.Call(toCall, argV);
+    JIT::Value_p callVal = code.Call(fnTy, toCall, argV);
     code.Return(callVal);
 
     if (jit.VerifyFunction(function))
