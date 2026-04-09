@@ -76,59 +76,59 @@ struct Compiler : Evaluator
     Tree *              TypeCheck(Scope *, Tree *type, Tree *val) override;
 
     // Find the machine type corresponding to the tree type or value
-    JIT::PointerType_g  TreeMachineType(Tree *tree);
-    JIT::Type_g         MachineType(Tree *tree);
+    JIT::PointerType_p  TreeMachineType(Tree *tree);
+    JIT::Type_p         MachineType(Tree *tree);
     void                RebindTypesToJITContext();
 
 public:
     JIT                 jit;
-    JIT::Type_g         voidTy;
-    JIT::IntegerType_g  booleanTy;
-    JIT::IntegerType_g  naturalTy;
-    JIT::IntegerType_g  natural8Ty;
-    JIT::IntegerType_g  natural16Ty;
-    JIT::IntegerType_g  natural32Ty;
-    JIT::IntegerType_g  natural64Ty;
-    JIT::IntegerType_g  natural128Ty;
-    JIT::IntegerType_g  unsignedTy;
-    JIT::IntegerType_g  ulongTy;
-    JIT::IntegerType_g  ulonglongTy;
-    JIT::Type_g         realTy;
-    JIT::Type_g         real16Ty;
-    JIT::Type_g         real32Ty;
-    JIT::Type_g         real64Ty;
-    JIT::IntegerType_g  characterTy;
-    JIT::PointerType_g  charPtrTy;
-    JIT::PointerType_g  charPtrPtrTy;
-    JIT::StructType_g   textTy;
-    JIT::PointerType_g  textPtrTy;
-    JIT::StructType_g   infoTy;
-    JIT::PointerType_g  infoPtrTy;
-    JIT::StructType_g   treeTy;
-    JIT::PointerType_g  treePtrTy;
-    JIT::PointerType_g  treePtrPtrTy;
-    JIT::StructType_g   naturalTreeTy;
-    JIT::PointerType_g  naturalTreePtrTy;
-    JIT::StructType_g   realTreeTy;
-    JIT::PointerType_g  realTreePtrTy;
-    JIT::StructType_g   textTreeTy;
-    JIT::PointerType_g  textTreePtrTy;
-    JIT::StructType_g   nameTreeTy;
-    JIT::PointerType_g  nameTreePtrTy;
-    JIT::StructType_g   blockTreeTy;
-    JIT::PointerType_g  blockTreePtrTy;
-    JIT::StructType_g   prefixTreeTy;
-    JIT::PointerType_g  prefixTreePtrTy;
-    JIT::StructType_g   postfixTreeTy;
-    JIT::PointerType_g  postfixTreePtrTy;
-    JIT::StructType_g   infixTreeTy;
-    JIT::PointerType_g  infixTreePtrTy;
-    JIT::StructType_g   scopeTy;
-    JIT::PointerType_g  scopePtrTy;
-    JIT::FunctionType_g evalTy;
-    JIT::PointerType_g  evalFnTy;
+    JIT::Type_p         voidTy;
+    JIT::IntegerType_p  booleanTy;
+    JIT::IntegerType_p  naturalTy;
+    JIT::IntegerType_p  natural8Ty;
+    JIT::IntegerType_p  natural16Ty;
+    JIT::IntegerType_p  natural32Ty;
+    JIT::IntegerType_p  natural64Ty;
+    JIT::IntegerType_p  natural128Ty;
+    JIT::IntegerType_p  unsignedTy;
+    JIT::IntegerType_p  ulongTy;
+    JIT::IntegerType_p  ulonglongTy;
+    JIT::Type_p         realTy;
+    JIT::Type_p         real16Ty;
+    JIT::Type_p         real32Ty;
+    JIT::Type_p         real64Ty;
+    JIT::IntegerType_p  characterTy;
+    JIT::PointerType_p  charPtrTy;
+    JIT::PointerType_p  charPtrPtrTy;
+    JIT::StructType_p   textTy;
+    JIT::PointerType_p  textPtrTy;
+    JIT::StructType_p   infoTy;
+    JIT::PointerType_p  infoPtrTy;
+    JIT::StructType_p   treeTy;
+    JIT::PointerType_p  treePtrTy;
+    JIT::PointerType_p  treePtrPtrTy;
+    JIT::StructType_p   naturalTreeTy;
+    JIT::PointerType_p  naturalTreePtrTy;
+    JIT::StructType_p   realTreeTy;
+    JIT::PointerType_p  realTreePtrTy;
+    JIT::StructType_p   textTreeTy;
+    JIT::PointerType_p  textTreePtrTy;
+    JIT::StructType_p   nameTreeTy;
+    JIT::PointerType_p  nameTreePtrTy;
+    JIT::StructType_p   blockTreeTy;
+    JIT::PointerType_p  blockTreePtrTy;
+    JIT::StructType_p   prefixTreeTy;
+    JIT::PointerType_p  prefixTreePtrTy;
+    JIT::StructType_p   postfixTreeTy;
+    JIT::PointerType_p  postfixTreePtrTy;
+    JIT::StructType_p   infixTreeTy;
+    JIT::PointerType_p  infixTreePtrTy;
+    JIT::StructType_p   scopeTy;
+    JIT::PointerType_p  scopePtrTy;
+    JIT::FunctionType_p evalTy;
+    JIT::PointerType_p  evalFnTy;
 
-    bool                IsTreeType(JIT::Type_g ty) const
+    bool                IsTreeType(JIT::Type_p ty) const
     {
         return (ty == treeTy            ||
                 ty == naturalTreeTy     ||
@@ -140,7 +140,7 @@ public:
                 ty == postfixTreeTy     ||
                 ty == infixTreeTy);
     }
-    bool                IsTreePointerType(JIT::Type_g ty) const
+    bool                IsTreePointerType(JIT::Type_p ty) const
     {
         return (ty == treePtrTy         ||
                 ty == naturalTreePtrTy  ||

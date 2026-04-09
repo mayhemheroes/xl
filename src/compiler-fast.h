@@ -49,7 +49,7 @@ XL_BEGIN
 
 struct O1CompileUnit;
 typedef Tree * (*adapter_fn) (eval_fn, Scope *src, Tree *self, Tree **args);
-typedef std::map<Tree *, JIT::Value_g>  value_map;
+typedef std::map<Tree *, JIT::Value_p>  value_map;
 typedef std::set<Tree *>                data_set;
 typedef std::map<Name_g, Tree_g>        captures;       // Symbol capture table
 typedef std::map<text, eval_fn>         call_map;       // Pre-compiled calls
@@ -94,12 +94,12 @@ struct FastCompiler : Compiler
     eval_fn                     ClosureAdapter(uint numtrees);
 
     static FastCompilerInfo *   Info(Tree *tree, bool create = false);
-    static JIT::Function_g      TreeFunction(Tree *tree);
+    static JIT::Function_p      TreeFunction(Tree *tree);
     static void                 SetTreeFunction(Tree *tree,
-                                                JIT::Function_g function);
-    static JIT::Function_g      TreeClosure(Tree *tree);
+                                                JIT::Function_p function);
+    static JIT::Function_p      TreeClosure(Tree *tree);
     static void                 SetTreeClosure(Tree *tree,
-                                               JIT::Function_g closure);
+                                               JIT::Function_p closure);
     static eval_fn              TreeCode(Tree *tree);
     static void                 SetTreeCode(Tree *tree, eval_fn code);
 
@@ -132,60 +132,60 @@ struct O1CompileUnit
 
     enum { knowAll = -1, knowLocals = 1, knowValues = 2 };
 
-    JIT::Value_g        NeedStorage(Tree *tree, Tree *source = nullptr);
+    JIT::Value_p        NeedStorage(Tree *tree, Tree *source = nullptr);
     bool                IsKnown(Tree *tree, uint which = knowAll);
-    JIT::Value_g        Known(Tree *tree, uint which = knowAll );
+    JIT::Value_p        Known(Tree *tree, uint which = knowAll );
 
     // Return the address of a pointer to the tree
-    JIT::Constant_g     ConstantNatural(Natural *what);
-    JIT::Constant_g     ConstantReal(Real *what);
-    JIT::Constant_g     ConstantText(Text *what);
-    JIT::Constant_g     ConstantTree(Tree *what);
+    JIT::Constant_p     ConstantNatural(Natural *what);
+    JIT::Constant_p     ConstantReal(Real *what);
+    JIT::Constant_p     ConstantText(Text *what);
+    JIT::Constant_p     ConstantTree(Tree *what);
 
-    JIT::Value_g        NeedLazy(Tree *subexpr, bool allocate = true);
-    JIT::Value_g        MarkComputed(Tree *subexpr, JIT::Value_g value);
-    JIT::BasicBlock_g   BeginLazy(Tree *subexpr);
-    void                EndLazy(Tree *subexpr, JIT::BasicBlock_g skip);
+    JIT::Value_p        NeedLazy(Tree *subexpr, bool allocate = true);
+    JIT::Value_p        MarkComputed(Tree *subexpr, JIT::Value_p value);
+    JIT::BasicBlock_p   BeginLazy(Tree *subexpr);
+    void                EndLazy(Tree *subexpr, JIT::BasicBlock_p skip);
 
-    JIT::BasicBlock_g   NeedTest();
-    JIT::Value_g        Left(Tree *);
-    JIT::Value_g        Right(Tree *);
-    JIT::Value_g        Copy(Tree *src, Tree *dst, bool markDone=true);
-    JIT::Value_g        Invoke(Tree *subexpr, Tree *callee, TreeList args);
-    JIT::Value_g        CallEvaluate(Tree *);
-    JIT::Value_g        CallFillBlock(Block *);
-    JIT::Value_g        CallFillPrefix(Prefix *);
-    JIT::Value_g        CallFillPostfix(Postfix *);
-    JIT::Value_g        CallFillInfix(Infix *);
-    JIT::Value_g        CallNatural2Real(Tree *cast, Tree *natural);
-    JIT::Value_g        CallArrayIndex(Tree *self, Tree *l, Tree *r);
-    JIT::Value_g        CreateClosure(Tree *callee,
+    JIT::BasicBlock_p   NeedTest();
+    JIT::Value_p        Left(Tree *);
+    JIT::Value_p        Right(Tree *);
+    JIT::Value_p        Copy(Tree *src, Tree *dst, bool markDone=true);
+    JIT::Value_p        Invoke(Tree *subexpr, Tree *callee, TreeList args);
+    JIT::Value_p        CallEvaluate(Tree *);
+    JIT::Value_p        CallFillBlock(Block *);
+    JIT::Value_p        CallFillPrefix(Prefix *);
+    JIT::Value_p        CallFillPostfix(Postfix *);
+    JIT::Value_p        CallFillInfix(Infix *);
+    JIT::Value_p        CallNatural2Real(Tree *cast, Tree *natural);
+    JIT::Value_p        CallArrayIndex(Tree *self, Tree *l, Tree *r);
+    JIT::Value_p        CreateClosure(Tree *callee,
                                       TreeList &parms,
                                       TreeList &args,
-                                      JIT::Function_g);
-    JIT::Value_g         CallTypeError(Tree *what);
+                                      JIT::Function_p);
+    JIT::Value_p         CallTypeError(Tree *what);
 
-    JIT::BasicBlock_g   TagTest(Tree *code, unsigned tag);
-    JIT::BasicBlock_g   NaturalTest(Tree *code, longlong value);
-    JIT::BasicBlock_g   RealTest(Tree *code, double value);
-    JIT::BasicBlock_g   TextTest(Tree *code, text value);
-    JIT::BasicBlock_g   ShapeTest(Tree *code, Tree *other);
-    JIT::BasicBlock_g   InfixMatchTest(Tree *code, Infix *ref);
-    JIT::BasicBlock_g   TypeTest(Tree *code, Tree *type);
+    JIT::BasicBlock_p   TagTest(Tree *code, unsigned tag);
+    JIT::BasicBlock_p   NaturalTest(Tree *code, longlong value);
+    JIT::BasicBlock_p   RealTest(Tree *code, double value);
+    JIT::BasicBlock_p   TextTest(Tree *code, text value);
+    JIT::BasicBlock_p   ShapeTest(Tree *code, Tree *other);
+    JIT::BasicBlock_p   InfixMatchTest(Tree *code, Infix *ref);
+    JIT::BasicBlock_p   TypeTest(Tree *code, Tree *type);
 
 public:
     FastCompiler &      compiler;       // The compiler environment we use
     Context             symbols;        // The symbols for this compilation unit
     Tree_g              source;         // The original source we compile
 
-    JIT::Function_g     function;       // Function we generate
+    JIT::Function_p     function;       // Function we generate
     JITBlock            code;           // Instruction builder for code
     JITBlock            data;           // Instruction builder for data
 
-    JIT::BasicBlock_g   entrybb;        // Entry point for that code
-    JIT::BasicBlock_g   exitbb;         // Exit point for that code
-    JIT::BasicBlock_g   failbb;         // Where we go if tests fail
-    JIT::Value_g        scopePtr;       // Storage for scope pointer
+    JIT::BasicBlock_p   entrybb;        // Entry point for that code
+    JIT::BasicBlock_p   exitbb;         // Exit point for that code
+    JIT::BasicBlock_p   failbb;         // Where we go if tests fail
+    JIT::Value_p        scopePtr;       // Storage for scope pointer
 
     value_map           value;          // Map tree -> LLVM value
     value_map           storage;        // Map tree -> LLVM alloca space
@@ -200,7 +200,7 @@ private:
 #define CAST(Name)
 #define ALIAS(Name, Arity, Original)
 #define SPECIAL(Name, Arity, Code)
-#define EXTERNAL(Name, RetTy, ...)      JIT::Function_g  Name;
+#define EXTERNAL(Name, RetTy, ...)      JIT::Function_p  Name;
 #include "compiler-primitives.tbl"
  };
 
@@ -221,14 +221,14 @@ public:
     CompileAction &     compile;         // Compile action for this expression
     Tree *              source;         // Tree we build (mostly for debugging)
 
-    JIT::Value_g        storage;        // Storage for expression value
-    JIT::Value_g        computed;       // Flag telling if value was computed
+    JIT::Value_p        storage;        // Storage for expression value
+    JIT::Value_p        computed;       // Flag telling if value was computed
 
-    JIT::BasicBlock_g   savedfailbb;    // Saved location of failbb
+    JIT::BasicBlock_p   savedfailbb;    // Saved location of failbb
 
-    JIT::BasicBlock_g   entrybb;        // Entry point to subcase
-    JIT::BasicBlock_g   savedbb;        // Saved position before subcase
-    JIT::BasicBlock_g   successbb;      // Successful completion of expression
+    JIT::BasicBlock_p   entrybb;        // Entry point to subcase
+    JIT::BasicBlock_p   savedbb;        // Saved position before subcase
+    JIT::BasicBlock_p   successbb;      // Successful completion of expression
 
     value_map           savedvalue;     // Saved compile unit value map
 

@@ -54,7 +54,7 @@
 
 XL_BEGIN
 
-typedef std::map<Tree_g, JIT::Type_g>    box_map;
+typedef std::map<Tree_g, JIT::Type_p>    box_map;
 
 
 // ============================================================================
@@ -81,8 +81,8 @@ public:
     Tree *      TypeAnalysis(Tree *source) override;
 
     // Machine types management
-    void        AddBoxedType(Tree *treeType, JIT::Type_g machineType);
-    JIT::Type_g BoxedType(Tree *type);
+    void        AddBoxedType(Tree *treeType, JIT::Type_p machineType);
+    JIT::Type_p BoxedType(Tree *type);
 
 public:
     // Get type, used during code generation (checks that it is already known)

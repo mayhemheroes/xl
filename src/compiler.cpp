@@ -241,7 +241,7 @@ Tree * Compiler::TypeCheck(Scope *, Tree *type, Tree *val)
 }
 
 
-JIT::PointerType_g Compiler::TreeMachineType(Tree *tree)
+JIT::PointerType_p Compiler::TreeMachineType(Tree *tree)
 // ----------------------------------------------------------------------------
 //    Return the LLVM tree type associated to a given XL expression
 // ----------------------------------------------------------------------------

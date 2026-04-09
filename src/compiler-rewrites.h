@@ -59,11 +59,11 @@ struct CompilerRewriteCandidate : RewriteCandidate
     Tree *              ValueType(Tree *value);
 
     // Code generation
-    JIT::Function_g     Prototype(JIT &jit);
-    JIT::FunctionType_g FunctionType(JIT &jit);
+    JIT::Function_p     Prototype(JIT &jit);
+    JIT::FunctionType_p FunctionType(JIT &jit);
     JIT::Signature      RewriteSignature();
-    JIT::Type_g         RewriteType();
-    void                RewriteType(JIT::Type_g type);
+    JIT::Type_p         RewriteType();
+    void                RewriteType(JIT::Type_p type);
 
     // Access types in Compiler form
     CompilerTypes *     ValueTypes()

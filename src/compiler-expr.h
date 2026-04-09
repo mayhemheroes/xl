@@ -53,7 +53,7 @@ class CompilerExpression
     value_map           computed;       // Values we already computed
 
 public:
-    typedef JIT::Value_g value_type;
+    typedef JIT::Value_p value_type;
     CompilerExpression(CompilerFunction &function);
 
 public:

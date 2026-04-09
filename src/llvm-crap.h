@@ -48,8 +48,8 @@
 // ============================================================================
 
 namespace XL { namespace JIT {
-typedef struct Interpreter_Type *       Type_g;
-typedef struct Interpreter_Value *      Value_g;
+typedef struct Interpreter_Type *       Type_p;
+typedef struct Interpreter_Value *      Value_p;
 }}
 
 
@@ -163,23 +163,23 @@ class JIT
 
 public:
     // LLVM data types required for the JIT interface
-    typedef llvm::Type                  *Type_g;
-    typedef llvm::IntegerType           *IntegerType_g;
-    typedef llvm::Type                  *PointerType_g;
-    typedef llvm::ArrayType             *ArrayType_g;
-    typedef llvm::StructType            *StructType_g;
-    typedef llvm::FunctionType          *FunctionType_g;
+    typedef llvm::Type                  *Type_p;
+    typedef llvm::IntegerType           *IntegerType_p;
+    typedef llvm::Type                  *PointerType_p;
+    typedef llvm::ArrayType             *ArrayType_p;
+    typedef llvm::StructType            *StructType_p;
+    typedef llvm::FunctionType          *FunctionType_p;
 
-    typedef llvm::Module                *Module_g;
-    typedef llvm::Function              *Function_g;
-    typedef llvm::BasicBlock            *BasicBlock_g;
-    typedef llvm::Value                 *Value_g;
-    typedef llvm::GlobalValue           *GlobalValue_g;
-    typedef llvm::GlobalVariable        *GlobalVariable_g;
-    typedef llvm::Constant              *Constant_g;
+    typedef llvm::Module                *Module_p;
+    typedef llvm::Function              *Function_p;
+    typedef llvm::BasicBlock            *BasicBlock_p;
+    typedef llvm::Value                 *Value_p;
+    typedef llvm::GlobalValue           *GlobalValue_p;
+    typedef llvm::GlobalVariable        *GlobalVariable_p;
+    typedef llvm::Constant              *Constant_p;
 
-    typedef std::vector<Type_g>         Signature;
-    typedef std::vector<Value_g>        Values;
+    typedef std::vector<Type_p>         Signature;
+    typedef std::vector<Value_p>        Values;
 
     typedef intptr_t                    ModuleID;
 
@@ -191,17 +191,17 @@ public:
     ~JIT();
 
 public:
-    static Type_g       Type(Value_g value);
-    static Type_g       ReturnType(Function_g fn);
-    static Type_g       PointedType(Type_g ptrt);
-    static bool         IsStructType(Type_g strt);
+    static Type_p       Type(Value_p value);
+    static Type_p       ReturnType(Function_p fn);
+    static Type_p       PointedType(Type_p ptrt);
+    static bool         IsStructType(Type_p strt);
 
-    static bool         InUse(Function_g f);
-    static void         EraseFromParent(Function_g f);
+    static bool         InUse(Function_p f);
+    static void         EraseFromParent(Function_p f);
 
-    static bool         VerifyFunction(Function_g function);
-    static void         Print(kstring label, Value_g value);
-    static void         Print(kstring label, Type_g type);
+    static bool         VerifyFunction(Function_p function);
+    static void         Print(kstring label, Value_p value);
+    static void         Print(kstring label, Type_p type);
     static void         Comment(kstring comment);
 
 public:
@@ -213,33 +213,33 @@ public:
 
     // Types
     template<typename T>
-    IntegerType_g       IntegerType();
-    IntegerType_g       IntegerType(unsigned bits);
-    Type_g              FloatType(unsigned bits);
-    StructType_g        OpaqueType(kstring name = nullptr);
-    StructType_g        StructType(StructType_g base, const Signature &body);
-    StructType_g        StructType(const Signature &items, kstring n = nullptr);
-    FunctionType_g      FunctionType(Type_g r,
+    IntegerType_p       IntegerType();
+    IntegerType_p       IntegerType(unsigned bits);
+    Type_p              FloatType(unsigned bits);
+    StructType_p        OpaqueType(kstring name = nullptr);
+    StructType_p        StructType(StructType_p base, const Signature &body);
+    StructType_p        StructType(const Signature &items, kstring n = nullptr);
+    FunctionType_p      FunctionType(Type_p r,
                                      const Signature &p,bool va=false);
-    PointerType_g       FunctionPointerType(Type_g r,
+    PointerType_p       FunctionPointerType(Type_p r,
                                             const Signature &p,bool va=false);
-    Type_g              PointerType(Type_g rty, kstring name);
-    PointerType_g       MachinePointerType(Type_g wrapper) const;
-    Type_g              VoidType();
+    Type_p              PointerType(Type_p rty, kstring name);
+    PointerType_p       MachinePointerType(Type_p wrapper) const;
+    Type_p              VoidType();
 
     // Modules
     ModuleID            CreateModule(text name);
     void                DeleteModule(ModuleID id);
 
     // Functions
-    Function_g          Function(FunctionType_g type, text name);
-    void                Finalize(Function_g function);
-    void *              ExecutableCode(Function_g f);
+    Function_p          Function(FunctionType_p type, text name);
+    void                Finalize(Function_p function);
+    void *              ExecutableCode(Function_p f);
 
     // Prototypes and external functions
-    Function_g          ExternFunction(FunctionType_g fty, text name);
-    Function_g          Prototype(Function_g callee);
-    Value_g             Prototype(Value_g callee);
+    Function_p          ExternFunction(FunctionType_p fty, text name);
+    Function_p          Prototype(Function_p callee);
+    Value_p             Prototype(Value_p callee);
 
 };
 
@@ -249,10 +249,10 @@ struct JITArguments
 //   Encapsulate argument lists with a nicer syntax
 // ----------------------------------------------------------------------------
 {
-    JITArguments(JIT::Function_g function)
+    JITArguments(JIT::Function_p function)
         : args(function->arg_begin()), count(function->arg_size()) {}
 
-    JIT::Value_g        operator*(void)         { return &*args; }
+    JIT::Value_p        operator*(void)         { return &*args; }
     JITArguments &      operator++(void)        { ++args; return *this; }
     JITArguments        operator++(int)
     {
@@ -270,7 +270,7 @@ private:
 
 
 template<typename T>
-inline JIT::IntegerType_g JIT::IntegerType()
+inline JIT::IntegerType_p JIT::IntegerType()
 // ----------------------------------------------------------------------------
 //    Return the integer type for type T
 // ----------------------------------------------------------------------------
@@ -304,92 +304,92 @@ class JITBlock
     class JITBlockPrivate &b;
 
 public:
-    JITBlock(JIT &jit, JIT::Function_g function, kstring name);
+    JITBlock(JIT &jit, JIT::Function_p function, kstring name);
     JITBlock(const JITBlock &from, kstring name);
     JITBlock(JIT &jit);
     ~JITBlock();
 
     JITBlock &          operator=(const JITBlock &o);
 
-    static JIT::Type_g  Type(JIT::Value_g value)
+    static JIT::Type_p  Type(JIT::Value_p value)
     {
         return JIT::Type(value);
     }
-    static JIT::Type_g  ReturnType(JIT::Function_g f)
+    static JIT::Type_p  ReturnType(JIT::Function_p f)
     {
         return JIT::ReturnType(f);
     }
 
-    JIT::Constant_g     BooleanConstant(bool value);
-    JIT::Constant_g     IntegerConstant(JIT::Type_g ty, uint64_t value);
-    JIT::Constant_g     IntegerConstant(JIT::Type_g ty, int64_t value);
-    JIT::Constant_g     IntegerConstant(JIT::Type_g ty, unsigned value);
-    JIT::Constant_g     IntegerConstant(JIT::Type_g ty, int value);
-    JIT::Constant_g     FloatConstant(JIT::Type_g ty, double value);
-    JIT::Constant_g     NullConstant(JIT::Type_g ty);
-    JIT::Constant_g     PointerConstant(JIT::Type_g pty, void *address);
-    JIT::Value_g        TextConstant(JIT::Type_g pty, text value);
+    JIT::Constant_p     BooleanConstant(bool value);
+    JIT::Constant_p     IntegerConstant(JIT::Type_p ty, uint64_t value);
+    JIT::Constant_p     IntegerConstant(JIT::Type_p ty, int64_t value);
+    JIT::Constant_p     IntegerConstant(JIT::Type_p ty, unsigned value);
+    JIT::Constant_p     IntegerConstant(JIT::Type_p ty, int value);
+    JIT::Constant_p     FloatConstant(JIT::Type_p ty, double value);
+    JIT::Constant_p     NullConstant(JIT::Type_p ty);
+    JIT::Constant_p     PointerConstant(JIT::Type_p pty, void *address);
+    JIT::Value_p        TextConstant(JIT::Type_p pty, text value);
 
     void                SwitchTo(JITBlock &block);
-    void                SwitchTo(JIT::BasicBlock_g block);
+    void                SwitchTo(JIT::BasicBlock_p block);
 
-    JIT::Value_g        Call(JIT::Value_g c,
-                             JIT::Value_g a);
-    JIT::Value_g        Call(JIT::Value_g c,
-                             JIT::Value_g a1, JIT::Value_g a2);
-    JIT::Value_g        Call(JIT::Value_g c,
-                             JIT::Value_g a1, JIT::Value_g a2, JIT::Value_g a3);
-    JIT::Value_g        Call(JIT::Value_g c,
+    JIT::Value_p        Call(JIT::Value_p c,
+                             JIT::Value_p a);
+    JIT::Value_p        Call(JIT::Value_p c,
+                             JIT::Value_p a1, JIT::Value_p a2);
+    JIT::Value_p        Call(JIT::Value_p c,
+                             JIT::Value_p a1, JIT::Value_p a2, JIT::Value_p a3);
+    JIT::Value_p        Call(JIT::Value_p c,
                              JIT::Values &args);
 
-    JIT::BasicBlock_g   Block();
-    JIT::BasicBlock_g   NewBlock(kstring name);
-    JIT::Value_g        Return(JIT::Value_g value = nullptr);
-    JIT::Value_g        Branch(JITBlock &to);
-    JIT::Value_g        Branch(JIT::BasicBlock_g to);
-    JIT::Value_g        IfBranch(JIT::Value_g cond,
+    JIT::BasicBlock_p   Block();
+    JIT::BasicBlock_p   NewBlock(kstring name);
+    JIT::Value_p        Return(JIT::Value_p value = nullptr);
+    JIT::Value_p        Branch(JITBlock &to);
+    JIT::Value_p        Branch(JIT::BasicBlock_p to);
+    JIT::Value_p        IfBranch(JIT::Value_p cond,
                                  JITBlock &t, JITBlock &f);
-    JIT::Value_g        IfBranch(JIT::Value_g cond,
-                                 JIT::BasicBlock_g t, JIT::BasicBlock_g f);
-    JIT::Value_g        Select(JIT::Value_g cond,
-                               JIT::Value_g t, JIT::Value_g f);
-    JIT::Value_g        IsNullPointer(JIT::Value_g pointer, kstring name = "");
-    JIT::Value_g        IsOKPointer(JIT::Value_g pointer, kstring name = "");
+    JIT::Value_p        IfBranch(JIT::Value_p cond,
+                                 JIT::BasicBlock_p t, JIT::BasicBlock_p f);
+    JIT::Value_p        Select(JIT::Value_p cond,
+                               JIT::Value_p t, JIT::Value_p f);
+    JIT::Value_p        IsNullPointer(JIT::Value_p pointer, kstring name = "");
+    JIT::Value_p        IsOKPointer(JIT::Value_p pointer, kstring name = "");
 
-    JIT::Value_g        Alloca(JIT::Type_g type, kstring name = "");
-    JIT::Value_g        AllocateReturnValue(JIT::Function_g f,
+    JIT::Value_p        Alloca(JIT::Type_p type, kstring name = "");
+    JIT::Value_p        AllocateReturnValue(JIT::Function_p f,
                                             kstring name = "");
-    JIT::Value_g        StructGEP(JIT::Type_g structTy,
-                                  JIT::Value_g ptr,
+    JIT::Value_p        StructGEP(JIT::Type_p structTy,
+                                  JIT::Value_p ptr,
                                   unsigned idx,
                                   kstring name="");
-    JIT::Value_g        ArrayGEP(JIT::Type_g elementTy,
-                                  JIT::Value_g ptr,
+    JIT::Value_p        ArrayGEP(JIT::Type_p elementTy,
+                                  JIT::Value_p ptr,
                                  uint32_t idx,
                                  kstring name="");
-    JIT::Value_g        Load(JIT::Type_g ty,
-                             JIT::Value_g ptr,
+    JIT::Value_p        Load(JIT::Type_p ty,
+                             JIT::Value_p ptr,
                              kstring name = "");
-    JIT::Value_g        StructLoad(JIT::Type_g structTy,
-                                   JIT::Value_g ptr,
+    JIT::Value_p        StructLoad(JIT::Type_p structTy,
+                                   JIT::Value_p ptr,
                                    unsigned idx,
                                    kstring name="");
-    JIT::Value_g        PointerValue(JIT::Value_g ptr);
-    JIT::Value_g        WrappedValue(JIT::Value_g ptr, JIT::Type_g type);
-    JIT::Value_g        BitCast(JIT::Value_g v,
-                                JIT::Type_g t,
+    JIT::Value_p        PointerValue(JIT::Value_p ptr);
+    JIT::Value_p        WrappedValue(JIT::Value_p ptr, JIT::Type_p type);
+    JIT::Value_p        BitCast(JIT::Value_p v,
+                                JIT::Type_p t,
                                 kstring name = "");
 
 #define UNARY(Name)                                                     \
-    JIT::Value_g        Name(JIT::Value_g l,                            \
+    JIT::Value_p        Name(JIT::Value_p l,                            \
                              kstring name = "");
 #define BINARY(Name)                                                    \
-    JIT::Value_g        Name(JIT::Value_g l,                            \
-                             JIT::Value_g r,                            \
+    JIT::Value_p        Name(JIT::Value_p l,                            \
+                             JIT::Value_p r,                            \
                              kstring name = "");
 #define CAST(Name)                                                      \
-    JIT::Value_g        Name(JIT::Value_g l,                            \
-                             JIT::Type_g r,                             \
+    JIT::Value_p        Name(JIT::Value_p l,                            \
+                             JIT::Type_p r,                             \
                              kstring name = "");
 #include "llvm-crap.tbl"
 };
@@ -398,8 +398,8 @@ public:
 
 #endif // INTERPRETER_ONLY
 
-extern XL::JIT::Value_g xldebug(XL::JIT::Value_g);
-extern XL::JIT::Type_g  xldebug(XL::JIT::Type_g);
+extern XL::JIT::Value_p xldebug(XL::JIT::Value_p);
+extern XL::JIT::Type_p  xldebug(XL::JIT::Type_p);
 
 #endif // LLVM_CRAP_H
 

@@ -67,12 +67,12 @@ SPECIAL(TreeKind, 1,
 // ----------------------------------------------------------------------------
 //   Return the kind for the input tree
 // ----------------------------------------------------------------------------
-        JIT::Value_g treeValue = Autobox(source, args[0], compiler.treePtrTy);
-        JIT::Value_g ptr = code.StructGEP(compiler.treeTy,
+        JIT::Value_p treeValue = Autobox(source, args[0], compiler.treePtrTy);
+        JIT::Value_p ptr = code.StructGEP(compiler.treeTy,
                                           treeValue, TAG_INDEX, "tagp");
-        JIT::Value_g tag = code.Load(compiler.naturalTy, ptr, "tag");
-        JIT::Value_g mask = code.IntegerConstant(code.Type(tag),Tree::KINDMASK);
-        JIT::Value_g kind = code.And(tag, mask, "tagAndMask");
+        JIT::Value_p tag = code.Load(compiler.naturalTy, ptr, "tag");
+        JIT::Value_p mask = code.IntegerConstant(code.Type(tag),Tree::KINDMASK);
+        JIT::Value_p kind = code.And(tag, mask, "tagAndMask");
         kind = code.BitCast(kind, compiler.naturalTy);
         return kind;
     )
@@ -82,11 +82,11 @@ SPECIAL(TreeLeft, 1,
 // ----------------------------------------------------------------------------
 //   Return the left for an infix, prefix, or postfix trees
 // ----------------------------------------------------------------------------
-        JIT::Value_g prefixValue = Autobox(source, args[0],
+        JIT::Value_p prefixValue = Autobox(source, args[0],
                                            compiler.prefixTreePtrTy);
-        JIT::Value_g ptr = code.StructGEP(compiler.prefixTreeTy, prefixValue,
+        JIT::Value_p ptr = code.StructGEP(compiler.prefixTreeTy, prefixValue,
                                           LEFT_VALUE_INDEX, "leftp");
-        JIT::Value_g result = code.Load(compiler.treePtrTy, ptr, "left");
+        JIT::Value_p result = code.Load(compiler.treePtrTy, ptr, "left");
         return result;
     )
 
@@ -95,11 +95,11 @@ SPECIAL(TreeRight, 1,
 // ----------------------------------------------------------------------------
 //   Return the right for the infix, prefix or postfix trees
 // ----------------------------------------------------------------------------
-        JIT::Value_g prefixValue = Autobox(source, args[0],
+        JIT::Value_p prefixValue = Autobox(source, args[0],
                                            compiler.prefixTreePtrTy);
-        JIT::Value_g ptr = code.StructGEP(compiler.prefixTreeTy, prefixValue,
+        JIT::Value_p ptr = code.StructGEP(compiler.prefixTreeTy, prefixValue,
                                           RIGHT_VALUE_INDEX, "rightp");
-        JIT::Value_g result = code.Load(compiler.treePtrTy, ptr, "right");
+        JIT::Value_p result = code.Load(compiler.treePtrTy, ptr, "right");
         return result;
     )
 
@@ -108,9 +108,9 @@ SPECIAL(InfixName, 1,
 // ----------------------------------------------------------------------------
 //   Return the name for an infix tree
 // ----------------------------------------------------------------------------
-        JIT::Value_g infixValue = Autobox(source, args[0],
+        JIT::Value_p infixValue = Autobox(source, args[0],
                                           compiler.infixTreePtrTy);
-        JIT::Value_g result = code.Call(unit.xl_infix_name, infixValue);
+        JIT::Value_p result = code.Call(unit.xl_infix_name, infixValue);
         return result;
     )
 
@@ -119,11 +119,11 @@ SPECIAL(TextOpening, 1,
 // ----------------------------------------------------------------------------
 //   Return the text opening for a text tree
 // ----------------------------------------------------------------------------
-        JIT::Value_g textValue = Autobox(source, args[0],
+        JIT::Value_p textValue = Autobox(source, args[0],
                                          compiler.textTreePtrTy);
-        JIT::Value_g ptr = code.StructGEP(compiler.textTreeTy, textValue,
+        JIT::Value_p ptr = code.StructGEP(compiler.textTreeTy, textValue,
                                           TEXT_OPENING_INDEX, "openingp");
-        JIT::Value_g result = code.Load(compiler.textTy, ptr, "opening");
+        JIT::Value_p result = code.Load(compiler.textTy, ptr, "opening");
         return result;
     )
 
@@ -132,11 +132,11 @@ SPECIAL(TextClosing, 1,
 // ----------------------------------------------------------------------------
 //   Return the text closing for a text tree
 // ----------------------------------------------------------------------------
-        JIT::Value_g textValue = Autobox(source, args[0],
+        JIT::Value_p textValue = Autobox(source, args[0],
                                          compiler.textTreePtrTy);
-        JIT::Value_g ptr = code.StructGEP(compiler.textTreeTy, textValue,
+        JIT::Value_p ptr = code.StructGEP(compiler.textTreeTy, textValue,
                                           TEXT_CLOSING_INDEX, "closingp");
-        JIT::Value_g result = code.Load(compiler.textTy, ptr, "closing");
+        JIT::Value_p result = code.Load(compiler.textTy, ptr, "closing");
         return result;
     )
 
@@ -145,11 +145,11 @@ SPECIAL(BlockChild, 1,
 // ----------------------------------------------------------------------------
 //   Return the child for a block tree
 // ----------------------------------------------------------------------------
-        JIT::Value_g blockValue = Autobox(source, args[0],
+        JIT::Value_p blockValue = Autobox(source, args[0],
                                          compiler.blockTreePtrTy);
-        JIT::Value_g ptr = code.StructGEP(compiler.blockTreeTy, blockValue,
+        JIT::Value_p ptr = code.StructGEP(compiler.blockTreeTy, blockValue,
                                           BLOCK_CHILD_INDEX, "childp");
-        JIT::Value_g result = code.Load(compiler.treePtrTy, ptr, "child");
+        JIT::Value_p result = code.Load(compiler.treePtrTy, ptr, "child");
         return result;
     )
 
@@ -158,11 +158,11 @@ SPECIAL(BlockOpening, 1,
 // ----------------------------------------------------------------------------
 //   Return the opening text for a block tree
 // ----------------------------------------------------------------------------
-        JIT::Value_g blockValue = Autobox(source, args[0],
+        JIT::Value_p blockValue = Autobox(source, args[0],
                                          compiler.blockTreePtrTy);
-        JIT::Value_g ptr = code.StructGEP(compiler.blockTreeTy, blockValue,
+        JIT::Value_p ptr = code.StructGEP(compiler.blockTreeTy, blockValue,
                                           BLOCK_OPENING_INDEX, "bopenp");
-        JIT::Value_g result = code.Load(compiler.textTy, ptr, "bopen");
+        JIT::Value_p result = code.Load(compiler.textTy, ptr, "bopen");
         return result;
     )
 
@@ -171,11 +171,11 @@ SPECIAL(BlockClosing, 1,
 // ----------------------------------------------------------------------------
 //   Return the closing text for a block tree
 // ----------------------------------------------------------------------------
-        JIT::Value_g blockValue = Autobox(source, args[0],
+        JIT::Value_p blockValue = Autobox(source, args[0],
                                          compiler.blockTreePtrTy);
-        JIT::Value_g ptr = code.StructGEP(compiler.blockTreeTy, blockValue,
+        JIT::Value_p ptr = code.StructGEP(compiler.blockTreeTy, blockValue,
                                           BLOCK_CLOSING_INDEX, "bclosep");
-        JIT::Value_g result = code.Load(compiler.textTy, ptr, "bclose");
+        JIT::Value_p result = code.Load(compiler.textTy, ptr, "bclose");
         return result;
     )
 
@@ -230,12 +230,12 @@ SPECIAL(IAbs, 1,
 // ----------------------------------------------------------------------------
 //   Return the absolute value for an natural input
 // ----------------------------------------------------------------------------
-        JIT::Value_g value = args[0];
-        JIT::Type_g type = code.Type(value);
-        JIT::Value_g zero = code.IntegerConstant(type, 0);
-        JIT::Value_g cmp = code.ICmpSLT(value, zero);
-        JIT::Value_g neg = code.Neg(value);
-        JIT::Value_g result = code.Select(cmp, neg, value);
+        JIT::Value_p value = args[0];
+        JIT::Type_p type = code.Type(value);
+        JIT::Value_p zero = code.IntegerConstant(type, 0);
+        JIT::Value_p cmp = code.ICmpSLT(value, zero);
+        JIT::Value_p neg = code.Neg(value);
+        JIT::Value_p result = code.Select(cmp, neg, value);
         return result;
     )
 
@@ -243,12 +243,12 @@ SPECIAL(FAbs, 1,
 // ----------------------------------------------------------------------------
 //   Return the absolute value for a floating-point input
 // ----------------------------------------------------------------------------
-        JIT::Value_g value = args[0];
-        JIT::Type_g type = code.Type(value);
-        JIT::Value_g zero = code.FloatConstant(type, 0.0);
-        JIT::Value_g cmp = code.FCmpOLT(value, zero);
-        JIT::Value_g neg = code.FNeg(value);
-        JIT::Value_g result = code.Select(cmp, neg, value);
+        JIT::Value_p value = args[0];
+        JIT::Type_p type = code.Type(value);
+        JIT::Value_p zero = code.FloatConstant(type, 0.0);
+        JIT::Value_p cmp = code.FCmpOLT(value, zero);
+        JIT::Value_p neg = code.FNeg(value);
+        JIT::Value_p result = code.Select(cmp, neg, value);
         return result;
     )
 
@@ -259,16 +259,16 @@ SPECIAL(SMod, 2,
 // ----------------------------------------------------------------------------
 //   See equivalent code in interpreter's xl_mod support function
 
-        JIT::Value_g left = args[0];
-        JIT::Value_g right = args[1];
-        JIT::Value_g rem = code.SRem(left, right);
-        JIT::Value_g xored = code.Xor(left, right);
-        JIT::Value_g zero = code.IntegerConstant(code.Type(xored), 0);
-        JIT::Value_g cmp1 = code.ICmpSLT(xored, zero);
-        JIT::Value_g cmp2 = code.ICmpNE(rem, zero);
-        JIT::Value_g cmp = code.And(cmp1, cmp2);
-        JIT::Value_g mod = code.Add(rem, right);
-        JIT::Value_g result = code.Select(cmp, mod, rem);
+        JIT::Value_p left = args[0];
+        JIT::Value_p right = args[1];
+        JIT::Value_p rem = code.SRem(left, right);
+        JIT::Value_p xored = code.Xor(left, right);
+        JIT::Value_p zero = code.IntegerConstant(code.Type(xored), 0);
+        JIT::Value_p cmp1 = code.ICmpSLT(xored, zero);
+        JIT::Value_p cmp2 = code.ICmpNE(rem, zero);
+        JIT::Value_p cmp = code.And(cmp1, cmp2);
+        JIT::Value_p mod = code.Add(rem, right);
+        JIT::Value_p result = code.Select(cmp, mod, rem);
         return result;
     )
 

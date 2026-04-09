@@ -140,7 +140,7 @@ Tree *CompilerTypes::CodeGenerationType(Tree *expr)
 //
 // ============================================================================
 
-void CompilerTypes::AddBoxedType(Tree *type, JIT::Type_g mtype)
+void CompilerTypes::AddBoxedType(Tree *type, JIT::Type_p mtype)
 // ----------------------------------------------------------------------------
 //   Associate a tree type to a boxed machine type
 // ----------------------------------------------------------------------------
@@ -159,7 +159,7 @@ void CompilerTypes::AddBoxedType(Tree *type, JIT::Type_g mtype)
 }
 
 
-JIT::Type_g CompilerTypes::BoxedType(Tree *type)
+JIT::Type_p CompilerTypes::BoxedType(Tree *type)
 // ----------------------------------------------------------------------------
 //   Return the boxed type if there is one
 // ----------------------------------------------------------------------------
@@ -202,7 +202,7 @@ void CompilerTypes::Dump()
     for (auto &b : boxed)
     {
         Tree *type = b.first;
-        JIT::Type_g mtype = b.second;
+        JIT::Type_p mtype = b.second;
         std::cerr << type;
         JIT::Print("\t= ", mtype);
         std::cerr << "\n";

@@ -62,8 +62,8 @@ struct xl_type
 {
     typedef Tree *            tree_type;
     typedef T                 native_type;
-    static JIT::PointerType_g TreeType(Compiler &c)   { return c.treePtrTy; }
-    static JIT::PointerType_g NativeType(Compiler &c) { return c.treePtrTy; }
+    static JIT::PointerType_p TreeType(Compiler &c)   { return c.treePtrTy; }
+    static JIT::PointerType_p NativeType(Compiler &c) { return c.treePtrTy; }
     static Tree *             Shape()                 { return XL::tree_type; }
 };
 
@@ -78,12 +78,12 @@ struct xl_type<Num,
     typedef Natural *    tree_type;
     typedef Num          native_type;
 
-    static JIT::PointerType_g TreeType(Compiler &c)
+    static JIT::PointerType_p TreeType(Compiler &c)
     {
         return c.naturalTreePtrTy;
     }
 
-    static JIT::Type_g NativeType(Compiler &c)
+    static JIT::Type_p NativeType(Compiler &c)
     {
         return c.jit.IntegerType<Num>();
     }
@@ -114,12 +114,12 @@ struct xl_type<Num,
     typedef Real *       tree_type;
     typedef Num          native_type;
 
-    static JIT::PointerType_g TreeType(Compiler &c)
+    static JIT::PointerType_p TreeType(Compiler &c)
     {
         return c.realTreePtrTy;
     }
 
-    static JIT::Type_g NativeType(Compiler &c)
+    static JIT::Type_p NativeType(Compiler &c)
     {
         return c.jit.FloatType(c.jit.BitsPerByte * sizeof(Num));
     }
@@ -143,12 +143,12 @@ struct xl_type<kstring>
     typedef Text *       tree_type;
     typedef kstring      native_type;
 
-    static JIT::PointerType_g TreeType(Compiler &c)
+    static JIT::PointerType_p TreeType(Compiler &c)
     {
         return c.textTreePtrTy;
     }
 
-    static JIT::Type_g NativeType(Compiler &c)
+    static JIT::Type_p NativeType(Compiler &c)
     {
         return c.charPtrTy;
     }
@@ -169,12 +169,12 @@ struct xl_type<text>
     typedef Text *       tree_type;
     typedef text         native_type;
 
-    static JIT::PointerType_g TreeType(Compiler &c)
+    static JIT::PointerType_p TreeType(Compiler &c)
     {
         return c.textTreePtrTy;
     }
 
-    static JIT::Type_g NativeType(Compiler &c)
+    static JIT::Type_p NativeType(Compiler &c)
     {
         return c.textPtrTy;
     }
@@ -195,12 +195,12 @@ struct xl_type<Scope *>
     typedef Tree *       tree_type;
     typedef Scope *      native_type;
 
-    static JIT::PointerType_g TreeType(Compiler &c)
+    static JIT::PointerType_p TreeType(Compiler &c)
     {
         return c.scopePtrTy;
     }
 
-    static JIT::Type_g NativeType(Compiler &c)
+    static JIT::Type_p NativeType(Compiler &c)
     {
         return c.scopePtrTy;
     }
@@ -252,7 +252,7 @@ struct function_type<R(*)(T)>
     typedef R return_type;
     static void Args(Compiler &compiler, JIT::Signature &signature)
     {
-        JIT::Type_g argTy = xl_type<T>::NativeType(compiler);
+        JIT::Type_p argTy = xl_type<T>::NativeType(compiler);
         signature.push_back(argTy);
     }
     static Tree_g Shape(uint &index)
@@ -321,9 +321,9 @@ struct NativeInterface
 // ----------------------------------------------------------------------------
 {
     virtual     ~NativeInterface() {}
-    virtual     JIT::Type_g          ReturnType(Compiler &)              = 0;
-    virtual     JIT::FunctionType_g  FunctionType(Compiler &)            = 0;
-    virtual     JIT::Function_g      Prototype(Compiler &, text name)    = 0;
+    virtual     JIT::Type_p          ReturnType(Compiler &)              = 0;
+    virtual     JIT::FunctionType_p  FunctionType(Compiler &)            = 0;
+    virtual     JIT::Function_p      Prototype(Compiler &, text name)    = 0;
     virtual     Tree_g               Shape(uint &index)                  = 0;
 };
 
@@ -334,16 +334,16 @@ struct NativeImplementation : NativeInterface
 //   Generate the interface
 // ----------------------------------------------------------------------------
 {
-    virtual JIT::Type_g ReturnType(Compiler &compiler) override
+    virtual JIT::Type_p ReturnType(Compiler &compiler) override
     {
         typedef typename function_type<fntype>::return_type return_type;
         xl_type<return_type> xlt;
         return xlt.NativeType(compiler);
     }
 
-    virtual JIT::FunctionType_g FunctionType(Compiler &compiler) override
+    virtual JIT::FunctionType_p FunctionType(Compiler &compiler) override
     {
-        JIT::Type_g rty = ReturnType(compiler);
+        JIT::Type_p rty = ReturnType(compiler);
 
         function_type<fntype> ft;
         JIT::Signature sig;
@@ -351,10 +351,10 @@ struct NativeImplementation : NativeInterface
         return compiler.jit.FunctionType(rty, sig);
     }
 
-    virtual JIT::Function_g Prototype(Compiler &compiler, text name) override
+    virtual JIT::Function_p Prototype(Compiler &compiler, text name) override
     {
-        JIT::FunctionType_g fty = FunctionType(compiler);
-        JIT::Function_g f = compiler.jit.ExternFunction(fty, name);
+        JIT::FunctionType_p fty = FunctionType(compiler);
+        JIT::Function_p f = compiler.jit.ExternFunction(fty, name);
         return f;
     }
 
@@ -399,9 +399,9 @@ struct Native
     static Native *     First()                 { return list; }
     Native *            Next()                  { return next; }
 
-    JIT::Type_g         ReturnType(Compiler &compiler);
-    JIT::FunctionType_g FunctionType(Compiler &compiler);
-    JIT::Function_g     Prototype(Compiler &compiler, text name);
+    JIT::Type_p         ReturnType(Compiler &compiler);
+    JIT::FunctionType_p FunctionType(Compiler &compiler);
+    JIT::Function_p     Prototype(Compiler &compiler, text name);
 
     Tree_g              Shape();
 
@@ -419,7 +419,7 @@ private:
 };
 
 
-inline JIT::Type_g Native::ReturnType(Compiler &compiler)
+inline JIT::Type_p Native::ReturnType(Compiler &compiler)
 // ----------------------------------------------------------------------------
 //   Delegate the return type computation to the implementation
 // ----------------------------------------------------------------------------
@@ -428,7 +428,7 @@ inline JIT::Type_g Native::ReturnType(Compiler &compiler)
 }
 
 
-inline JIT::FunctionType_g Native::FunctionType(Compiler &compiler)
+inline JIT::FunctionType_p Native::FunctionType(Compiler &compiler)
 // ----------------------------------------------------------------------------
 //   Delegate the function type computation to the implementation
 // ----------------------------------------------------------------------------
@@ -437,7 +437,7 @@ inline JIT::FunctionType_g Native::FunctionType(Compiler &compiler)
 }
 
 
-inline JIT::Function_g Native::Prototype(Compiler &compiler, text name)
+inline JIT::Function_p Native::Prototype(Compiler &compiler, text name)
 // ----------------------------------------------------------------------------
 //   Delegate the prototype generation to the implementation
 // ----------------------------------------------------------------------------
