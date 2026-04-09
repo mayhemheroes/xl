@@ -1061,6 +1061,7 @@ void Context::Dump(std::ostream &out, Rewrite *rw)
 XL_END
 
 extern XL::Tree *xldebug(XL::Tree *tree);
+extern XL::Scope *xldebug(XL::Context *context);
 
 XL::Scope *xldebug(XL::Scope *scope)
 // ----------------------------------------------------------------------------
@@ -1069,7 +1070,15 @@ XL::Scope *xldebug(XL::Scope *scope)
 {
     if (XL::Allocator<XL::Scope>::IsAllocated(scope))
     {
-        if (IsScope(scope))
+        XL::Context_g context = nullptr;
+        if (XL::Tree *value = XL::Context::IsClosure(scope, &context))
+        {
+            std::cerr << "Closure in context:\n";
+            xldebug((XL::Context *) context);
+            std::cerr << "Value is:\n";
+            xldebug(value);
+        }
+        else if (IsScope(scope))
         {
             XL::Context::Dump(std::cerr, scope, false);
             scope = Enclosing(scope);

@@ -867,6 +867,9 @@ XL_END
 
 bool xldebug_verbose = false;
 
+extern XL::Scope *xldebug(XL::Scope *scope);
+extern XL::Scope *xldebug(XL::Rewrite *rw);
+
 XL::Tree *xldebug(XL::Tree *tree)
 // ----------------------------------------------------------------------------
 //    Emit for debugging purpose
