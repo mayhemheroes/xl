@@ -86,6 +86,7 @@ typedef GCPtr<Block>                    Block_g;
 typedef GCPtr<Prefix>                   Prefix_g;
 typedef GCPtr<Postfix>                  Postfix_g;
 typedef GCPtr<Infix>                    Infix_g;
+typedef GCPtr<Context>                  Context_g;
 typedef Prefix                          Scope;
 
 typedef ulong TreePosition;                     // Position in source files
@@ -153,6 +154,7 @@ struct Tree
     bool                IsValid()             { return IsNull(this); }
     bool                IsLeaf()              { return Kind() <= NAME; }
     bool                IsConstant()          { return Kind() <= TEXT; }
+    Tree *              IsClosure(Context_g *context = nullptr);
     void                SetPosition(TreePosition pos, bool recurse = true);
 
     // Safe cast to an appropriate subclass
@@ -167,6 +169,7 @@ struct Tree
     Prefix *            AsPrefix();
     Postfix *           AsPostfix();
     Tree *              AsTree();
+    Scope *             AsScope();
 
 
     // Info management
@@ -350,6 +353,7 @@ struct Prefix : Tree
         Tree(PREFIX, pos), left(l), right(r) {}
     Prefix(Prefix *p, Tree *l, Tree *r):
         Tree(PREFIX, p), left(l), right(r) {}
+    Tree *               IsClosure(Context_g *context = nullptr);
     Tree_g               left;
     Tree_g               right;
     GARBAGE_COLLECT(Prefix);
@@ -444,6 +448,7 @@ inline Prefix  *Tree::AsPrefix()        { return As<Prefix>(); }
 inline Postfix *Tree::AsPostfix()       { return As<Postfix>(); }
 inline Infix   *Tree::AsInfix()         { return As<Infix>(); }
 inline Tree    *Tree::AsTree()          { return As<Tree>(); }
+inline Scope   *Tree::AsScope()         { return As<Scope>(); }
 
 
 
@@ -655,6 +660,30 @@ extern Name_g   xl_true;
 extern Name_g   xl_false;
 extern Name_g   xl_nil;
 extern Name_g   xl_self;
+
+
+// ============================================================================
+//
+//    Closure management
+//
+// ============================================================================
+
+struct ClosureInfo : Info
+// ----------------------------------------------------------------------------
+//   Marker that something is a closure
+// ----------------------------------------------------------------------------
+{};
+
+
+inline Tree *Tree::IsClosure(Context_g *context)
+// ----------------------------------------------------------------------------
+//  Check if a tree is a closure
+// ----------------------------------------------------------------------------
+{
+    if (Scope *closure = AsScope())
+        return closure->IsClosure(context);
+    return nullptr;
+}
 
 XL_END
 

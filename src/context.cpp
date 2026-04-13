@@ -516,34 +516,6 @@ Rewrite *Context::SetType(Tree *what, Tree *type)
 //
 // ============================================================================
 
-struct ClosureInfo : Info
-// ----------------------------------------------------------------------------
-//   Marker that something is a closure
-// ----------------------------------------------------------------------------
-{};
-
-Tree *Context::IsClosure(Tree *tree, Context_g *context)
-// ----------------------------------------------------------------------------
-//   Check if something is a closure, if so set scope and/or context
-// ----------------------------------------------------------------------------
-{
-    if (Scope *closure = tree->AsPrefix())
-    {
-        if (closure->GetInfo<ClosureInfo>())
-        {
-            if (Scope *scope = Enclosing(closure))
-            {
-                // We normally have a scope on the left
-                if (context)
-                    *context = new Context(scope);
-                return closure->right;
-            }
-        }
-    }
-    return nullptr;
-}
-
-
 Tree *Context::Closure(Tree *value)
 // ----------------------------------------------------------------------------
 //   Create a closure encapsulating the current context
@@ -560,7 +532,7 @@ retry:
         {
             if (Tree *bound = context->Bound(value))
             {
-                if (Tree *inside = IsClosure(bound, &context))
+                if (Tree *inside = bound->IsClosure(&context))
                 {
                     if (value != inside)
                     {
@@ -1071,7 +1043,7 @@ XL::Scope *xldebug(XL::Scope *scope)
     if (XL::Allocator<XL::Scope>::IsAllocated(scope))
     {
         XL::Context_g context = nullptr;
-        if (XL::Tree *value = XL::Context::IsClosure(scope, &context))
+        if (XL::Tree *value = scope->IsClosure(&context))
         {
             std::cerr << "Closure in context:\n";
             xldebug((XL::Context *) context);

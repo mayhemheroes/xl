@@ -236,7 +236,7 @@ struct ArgEvalOp : FailOp
 
         // Evaluate in place
         Tree *self = data[argId];
-        if (Tree *inside = Context::IsClosure(self, &context))
+        if (Tree *inside = self->IsClosure(&context))
             self = inside;
         Context *ctx = context;
         if (self->IsConstant())
@@ -474,7 +474,7 @@ struct IndexOp : FailOp
 
         // Check if we have a closure
         Context_g context = new Context(scope);
-        if (Tree *inside = Context::IsClosure(callee, &context))
+        if (Tree *inside = callee->IsClosure(&context))
         {
             scope = context->Symbols();
             callee = inside;
@@ -1327,7 +1327,7 @@ bool CodeBuilder::Instructions(Context *ctx, Tree *what)
         case PREFIX:
         {
             // If we have a prefix on the left, check if it's a closure
-            if (Tree *closed = Context::IsClosure(what, &gcContext))
+            if (Tree *closed = what->IsClosure(&gcContext))
             {
                 ctx = gcContext;
                 what = closed;
@@ -1779,7 +1779,7 @@ struct InfixMatchOp : FailOp
     {
         Tree *test = DataResult(data);
         Context_g ctx = nullptr;
-        if (Tree *inside = Context::IsClosure(test, &ctx))
+        if (Tree *inside = test->IsClosure(&ctx))
             test = inside;
         if (Infix *ifx = test->AsInfix())
         {

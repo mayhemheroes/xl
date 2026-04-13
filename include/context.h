@@ -256,7 +256,6 @@ public:
     operator Scope *()                          { return symbols; }
 
     // Closure management
-    static Tree *       IsClosure(Tree *tree, Context_g *context = nullptr);
     Tree *              Closure(Tree *value);
 
     // Special forms of evaluation

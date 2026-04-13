@@ -200,6 +200,25 @@ int Tree::Compare(Tree *left, Tree *right, bool recurse)
 }
 
 
+Tree *Scope::IsClosure(Context_g *context)
+// ----------------------------------------------------------------------------
+//  Check if a scope is a closure
+// ----------------------------------------------------------------------------
+{
+    if (GetInfo<ClosureInfo>())
+    {
+        if (Scope *scope = Enclosing(this))
+        {
+            // We normally have a scope on the left
+            if (context)
+                *context = new Context(scope);
+            return right;
+        }
+    }
+    return nullptr;
+}
+
+
 void Tree::SetPosition(TreePosition pos, bool recurse)
 // ----------------------------------------------------------------------------
 //   Set the position for the tree and possibly its children

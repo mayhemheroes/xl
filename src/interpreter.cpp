@@ -111,7 +111,7 @@ Tree *Interpreter::Evaluate(Scope *scope, Tree *what)
 {
     Context_g context = new Context(scope);
     Tree *result = EvaluateClosure(context, what);
-    if (Tree *inside = Context::IsClosure(result, nullptr))
+    if (Tree *inside = result->IsClosure())
         result = inside;
     return result;
 }
@@ -502,7 +502,7 @@ void Bindings::MustEvaluate(bool unwrap, Context_g *updateContext)
     test = evaluated;
     if (unwrap)
     {
-        if (Tree *inside = Context::IsClosure(test, updateContext))
+        if (Tree *inside = test->IsClosure(updateContext))
         {
             record(interpreter_lazy, "Encapsulate %t in closure %t",
                    test, inside);
@@ -530,7 +530,7 @@ Tree *Bindings::MustEvaluate(Context *context, Tree *tval)
         record(interpreter_lazy, "Evaluate %t in context %t is old %t",
                tval, context, evaluated);
     }
-    if (Tree *inside = Context::IsClosure(evaluated))
+    if (Tree *inside = evaluated->IsClosure())
     {
         record(interpreter_lazy, "Encapsulate %t in closure %t",
                evaluated, inside);
@@ -704,7 +704,7 @@ Tree *Interpreter::Instructions(Context_g context, Tree_g what)
                 return eval;
             MAIN->errors->Clear();
             result = eval;
-            if (Tree *inside = Context::IsClosure(eval, &context))
+            if (Tree *inside = eval->IsClosure(&context))
             {
                 what = inside;
                 continue;
@@ -740,7 +740,7 @@ Tree *Interpreter::Instructions(Context_g context, Tree_g what)
         case PREFIX:
         {
             // If we have a prefix on the left, check if it's a closure
-            if (Tree *closed = Context::IsClosure(what, &context))
+            if (Tree *closed = what->IsClosure(&context))
             {
                 what = closed;
                 continue;
@@ -752,7 +752,7 @@ Tree *Interpreter::Instructions(Context_g context, Tree_g what)
 
             // Check if we had something like '(X->X+1) 31' as closure
             Context_g calleeContext = nullptr;
-            if (Tree *inside = Context::IsClosure(callee, &calleeContext))
+            if (Tree *inside = callee->IsClosure(&calleeContext))
                 callee = inside;
 
             if (Name *name = callee->AsName())
@@ -801,7 +801,7 @@ Tree *Interpreter::Instructions(Context_g context, Tree_g what)
                 arg = Instructions(context, arg);
 
                 // We built a new context if left was a block
-                if (Tree *inside = Context::IsClosure(newCallee, &context))
+                if (Tree *inside = newCallee->IsClosure(&context))
                 {
                     what = arg;
                     // Check if we have a single definition on the left
@@ -870,9 +870,13 @@ Tree *Interpreter::Instructions(Context_g context, Tree_g what)
             if (name == ".")
             {
                 Tree *left = Instructions(context, infix->left);
-                Context::IsClosure(left, &context);
-                what = infix->right;
-                continue;
+                if (left->IsClosure(&context))
+                {
+                    what = infix->right;
+                    continue;
+                }
+                Ooops("Invalid closure $1", left);
+                return infix;
             }
 
             // All other cases: failure
@@ -929,7 +933,7 @@ struct Expansion
     {
         if (Tree *bound = context->Bound(what))
         {
-            if (Tree *eval = Context::IsClosure(bound, nullptr))
+            if (Tree *eval = bound->IsClosure())
                 bound = eval;
             return bound;
         }
