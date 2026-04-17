@@ -51,10 +51,12 @@ class CompilerExpression
 {
     CompilerFunction &  function;       // Current compilation function
     value_map           computed;       // Values we already computed
+    Context_g           context;        // Context of evaluation
 
-public:
+  public:
     typedef JIT::Value_p value_type;
     CompilerExpression(CompilerFunction &function);
+    CompilerExpression(CompilerFunction &function, Context *context);
 
 public:
     value_type  Evaluate(Tree *tree, bool force = false);

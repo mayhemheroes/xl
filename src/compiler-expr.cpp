@@ -98,9 +98,19 @@ CompilerExpression::CompilerExpression(CompilerFunction &function)
 // ----------------------------------------------------------------------------
 //   Constructor for a compiler expression
 // ----------------------------------------------------------------------------
-    : function(function)
+    : CompilerExpression(function, function.FunctionContext())
 {}
 
+
+CompilerExpression::CompilerExpression(CompilerFunction &function,
+                                       Context          *context)
+// ----------------------------------------------------------------------------
+//   Constructor for a compiler expression
+// ----------------------------------------------------------------------------
+    : function(function),
+      computed(),
+      context(context)
+{}
 
 
 JIT::Value_p CompilerExpression::Evaluate(Tree *expr, bool force)
@@ -171,7 +181,6 @@ JIT::Value_p CompilerExpression::Do(Name *what)
     JITBlock     &code     = function.code;
     Scope_g       where;
     Rewrite_g     rewrite;
-    Context      *context  = function.FunctionContext();
     Tree         *existing = context->Bound(what, true, &rewrite, &where);
     assert(existing || !"Type checking didn't realize a name is missing");
     Tree *from = PatternBase(rewrite->left);
@@ -284,7 +293,7 @@ JIT::Value_p CompilerExpression::Do(Prefix *what)
     Prefix *call = what;
     if (Name *arg = what->right->AsName())
         if (!function.types->TreeRewriteCalls(what))
-            if (Tree *bound = function.FunctionContext()->Bound(arg))
+            if (Tree *bound = context->Bound(arg))
                 call = new Prefix(what->left, bound, what->Position());
     JIT::Value_p result = DoCall(call);
     if (call != what)
@@ -475,7 +484,9 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
                    rw, b.name);
         }
         else
+        {
             value = Value(arg);
+        }
         args.push_back(value);
 
         Tree       *argtype = vtypes->ValueType(arg);
@@ -553,7 +564,6 @@ JIT::Value_p CompilerExpression::DoAssignment(Infix *assign)
     Scope_g       where;
     Rewrite_g     rw;
     JITBlock     &code        = function.code;
-    Context      *context     = function.FunctionContext();
     Tree         *existing    = context->Bound(assign->left, true, &rw, &where);
     JIT::Type_p   storageType = function.ValueMachineType(existing);
     JIT::Value_p  storage     = function.NeedStorage(existing, storageType);
