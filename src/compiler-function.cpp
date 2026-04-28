@@ -840,21 +840,6 @@ JIT::Value_p CompilerFunction::Known(Tree *tree, uint which)
 }
 
 
-JIT::Value_p CompilerFunction::KnownPatternName(Name *what)
-// ----------------------------------------------------------------------------
-//   Look up a rewrite parameter when Name* keys differ for the same id.
-// ----------------------------------------------------------------------------
-//   Pattern binding stores binding.name; the body may use another Name node.
-//   Known(tree) is pointer-based and misses that case.
-{
-    for (const auto &it : values)
-        if (Name *n = it.first->AsName())
-            if (n->value == what->value)
-                return it.second;
-    return nullptr;
-}
-
-
 JIT::Value_p CompilerFunction::ConstantNatural(Natural *what)
 // ----------------------------------------------------------------------------
 //    Generate an Natural tree

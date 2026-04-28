@@ -188,8 +188,6 @@ JIT::Value_p CompilerExpression::Do(Name *what)
     {
         if (JIT::Value_p result = function.Known(from))
             return result;
-        if (JIT::Value_p result = function.KnownPatternName(what))
-            return result;
     }
 
     // Check true and false values
@@ -286,20 +284,7 @@ JIT::Value_p CompilerExpression::Do(Prefix *what)
         }
     }
 
-    // If type analysis left no rcalls (e.g. [write Rest] in [write Head,Rest]),
-    // Bound(arg) gives a shaped tree so Type/DoCall can match [write X:text].
-    // When rcalls exist, do not substitute: codegen uses Known / KnownPatternName
-    // for parameters (avoids baking an earlier Bound() for the same Name id).
-    Prefix *call = what;
-    if (Name *arg = what->right->AsName())
-        if (!function.types->TreeRewriteCalls(what))
-            if (Tree *bound = context->Bound(arg))
-                call = new Prefix(what->left, bound, what->Position());
-    JIT::Value_p result = DoCall(call);
-    if (call != what)
-        if (Tree *kt = function.types->KnownType(call))
-            function.types->AssignType(what, kt);
-    return result;
+    return DoCall(what);
 }
 
 

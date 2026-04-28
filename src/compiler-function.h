@@ -131,7 +131,6 @@ private:
     JIT::Value_p        NeedStorage(Tree *tree, JIT::Type_p ty = nullptr);
     bool                IsKnown(Tree *tree, uint which = knowAll);
     JIT::Value_p        Known(Tree *tree, uint which = knowAll );
-    JIT::Value_p        KnownPatternName(Name *what);
 
     // Creating constants
     JIT::Value_p        ConstantNatural(Natural *what);
