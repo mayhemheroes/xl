@@ -127,7 +127,9 @@ JIT::Value_p CompilerExpression::Evaluate(Tree *expr, bool force)
         function.ValueMachineType(expr, mtype);
         if (force && unit.IsClosureType(mtype))
         {
-            /* Invoke closure */
+            result = function.InvokeThickClosure(expr, result, mtype);
+            mtype = code.Type(result);
+            function.ValueMachineType(expr, mtype);
         }
     }
     return result;

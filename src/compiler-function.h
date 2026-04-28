@@ -84,6 +84,12 @@ public:
     JIT::Value_p        Return(Tree *tree, JIT::Value_p value);
     eval_fn             Finalize(bool createCode);
 
+    // Thick closure (JIT { data*, invoke* }); see CLOSURES.md §5.2.
+    JIT::Value_p        ThickClosureForExpr(Tree *expr);
+    JIT::Value_p        InvokeThickClosure(Tree *expr,
+                                           JIT::Value_p thick,
+                                           JIT::Type_p  thickTy);
+
     JIT::Type_p         ValueMachineType(Tree *expr, bool mayfail = false);
     void                ValueMachineType(Tree *expr, JIT::Type_p type);
     JIT::Type_p         BoxedType(Tree *type);
@@ -192,6 +198,10 @@ public:
     CompilerEval(CompilerUnit &unit,
                  Tree *body,
                  CompilerTypes *types);
+    CompilerEval(CompilerUnit &unit,
+                 Tree *body,
+                 CompilerTypes *types,
+                 const text &   name);
 
 };
 

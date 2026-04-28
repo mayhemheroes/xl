@@ -127,6 +127,11 @@ public:
     JIT::PointerType_p  scopePtrTy;
     JIT::FunctionType_p evalTy;
     JIT::PointerType_p  evalFnTy;
+    // Boxed lazy value (CLOSURES.md §5.2): { data*, invoke* }; data points at
+    // { Scope*, Tree* } (lexical frame + delayed body).
+    JIT::StructType_p   closureEnvTy;
+    JIT::PointerType_p  closureEnvPtrTy;
+    JIT::StructType_p   closureValueTy;
 
     bool                IsTreeType(JIT::Type_p ty) const
     {

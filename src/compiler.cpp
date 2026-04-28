@@ -120,7 +120,11 @@ Compiler::Compiler(kstring moduleName, unsigned opts, int argc, char **argv)
 #undef TREE2
 
       evalTy            (jit.FunctionType(treePtrTy, {scopePtrTy, treePtrTy})),
-      evalFnTy          (jit.PointerType(evalTy,                "evalfn"))
+      evalFnTy          (jit.PointerType(evalTy,                "evalfn")),
+      closureEnvTy      (jit.StructType({scopePtrTy, treePtrTy}, "xl.closure.env")),
+      closureEnvPtrTy   (jit.PointerType(closureEnvTy,          "xl.closure.envp")),
+      closureValueTy    (jit.StructType({closureEnvPtrTy, evalFnTy},
+                                        "xl.closure.thick"))
 {
     record(compiler, "Created compiler %p", this);
 
@@ -188,6 +192,10 @@ void Compiler::RebindTypesToJITContext()
 
     evalTy = jit.FunctionType(treePtrTy, {scopePtrTy, treePtrTy});
     evalFnTy = jit.PointerType(evalTy, "evalfn");
+    closureEnvTy = jit.StructType({ scopePtrTy, treePtrTy }, "xl.closure.env");
+    closureEnvPtrTy = jit.PointerType(closureEnvTy, "xl.closure.envp");
+    closureValueTy = jit.StructType({ closureEnvPtrTy, evalFnTy },
+                                    "xl.closure.thick");
 }
 
 
