@@ -666,7 +666,7 @@ inline Infix *IsSequence(Tree *tree)
 
 inline bool IsCommaList(Infix *infix)
 // ----------------------------------------------------------------------------
-//    Check if the infix is a comma operator
+//   Check if the infix is a comma operator
 // ----------------------------------------------------------------------------
 {
     return infix->name == ",";

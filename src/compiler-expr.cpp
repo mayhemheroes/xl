@@ -46,6 +46,8 @@
 #include "renderer.h"
 #include "llvm-crap.h"
 
+#include <vector>
+
 
 RECORDER(compiler_expr,   128, "Expression reduction (compilation of calls)");
 
@@ -78,6 +80,133 @@ static bool RewriteBodyReferencesName(Tree *tree, const text &nm)
 }
 
 
+static bool ArgWantsLazyThickClosure(Tree *arg)
+// ----------------------------------------------------------------------------
+//   True if a NORMAL rewrite argument should be passed as a thick closure.
+// ----------------------------------------------------------------------------
+//   Names stay lazy. Composite-form lazy closures are staged separately.
+{
+    if (!arg)
+        return false;
+    return arg->Kind() == NAME;
+}
+
+
+static Tree *LazyCompositeExpansionForName(lazy_binding_map &lazyBindings,
+                                           Context *          ctx,
+                                           Name *             n)
+// ----------------------------------------------------------------------------
+//   Lazy NORMAL binding tree for n when it is composite (!IsLeaf after peel).
+// ----------------------------------------------------------------------------
+//   Maps lazyBindingSource then Bound; unwraps closures. Returns nullptr if n
+//   is missing, leaf-shaped, or unmapped.
+{
+    if (!n)
+        return nullptr;
+    Tree *exp = nullptr;
+    auto lit = lazyBindings.find(n->value);
+    if (lit != lazyBindings.end())
+        exp = lit->second;
+    if (!exp)
+        exp = ctx->Bound(n);
+    if (!exp)
+        return nullptr;
+    Context_g peelCtx = ctx;
+    while (Tree *inner = exp->IsClosure(&peelCtx))
+        exp = inner;
+    if (!exp || exp->IsLeaf())
+        return nullptr;
+    return exp;
+}
+
+
+static bool ApplyLazyBindingPeel(lazy_binding_map & lazyBindings,
+                                 CompilerTypes *    types,
+                                 Context *          context,
+                                 Tree *             call,
+                                 Tree *&            rewriteCall,
+                                 CompilerRewriteCalls *&rc)
+// ----------------------------------------------------------------------------
+//   Replace call with shaped tree when a bound Name hides composite structure.
+// ----------------------------------------------------------------------------
+//   XL encodes calls as PREFIX / INFIX / POSTFIX trees; operand slots that are
+//   still bare Names may need expansion so Lookup sees the argument shape. No
+//   operator names from lazyBindingSource—only composite expansions for Names.
+{
+    auto accept = [&](Tree *peeled) -> bool
+    {
+        CompilerRewriteCalls *rc2 = types->TreeRewriteCalls(peeled);
+        if (!rc2)
+        {
+            types->Type(peeled);
+            rc2 = types->TreeRewriteCalls(peeled);
+        }
+        if (rc2)
+        {
+            rewriteCall = peeled;
+            rc = rc2;
+            return true;
+        }
+        return false;
+    };
+
+    if (Prefix *p = call->AsPrefix())
+    {
+        Name *op = p->left->AsName();
+        Name *argn = p->right->AsName();
+        if (!op || !argn)
+            return false;
+        if (Tree *exp = LazyCompositeExpansionForName(lazyBindings,
+                                                       context,
+                                                       argn))
+        {
+            types->Type(exp);
+            return accept(new Prefix(op, exp, p->Position()));
+        }
+        return false;
+    }
+
+    if (Postfix *px = call->AsPostfix())
+    {
+        Name *argn = px->left->AsName();
+        Name *op = px->right->AsName();
+        if (!op || !argn)
+            return false;
+        if (Tree *exp = LazyCompositeExpansionForName(lazyBindings,
+                                                       context,
+                                                       argn))
+        {
+            types->Type(exp);
+            return accept(new Postfix(exp, op, px->Position()));
+        }
+        return false;
+    }
+
+    if (Infix *ix = call->AsInfix())
+    {
+        Tree *eL = nullptr;
+        Tree *eR = nullptr;
+        if (Name *nl = ix->left->AsName())
+            eL = LazyCompositeExpansionForName(lazyBindings, context, nl);
+        if (Name *nr = ix->right->AsName())
+            eR = LazyCompositeExpansionForName(lazyBindings, context, nr);
+        if (!eL && !eR)
+            return false;
+        if (eL)
+            types->Type(eL);
+        if (eR)
+            types->Type(eR);
+        if (eL && eR)
+            return accept(new Infix(ix->name, eL, eR, ix->Position()));
+        if (eL)
+            return accept(new Infix(ix->name, eL, ix->right, ix->Position()));
+        return accept(new Infix(ix->name, ix->left, eR, ix->Position()));
+    }
+
+    return false;
+}
+
+
 static JIT::Value_p UnusedRewriteBindingValue(JITBlock &code, JIT::Type_p ty)
 // ----------------------------------------------------------------------------
 //   Placeholder value for a binding not referenced by the rewrite RHS.
@@ -85,6 +214,24 @@ static JIT::Value_p UnusedRewriteBindingValue(JITBlock &code, JIT::Type_p ty)
 //   The compiled body must not load this argument; type matches the signature.
 {
     return code.NullConstant(ty);
+}
+
+
+static JIT::Value_p UnwrapThickIfNeeded(CompilerFunction &fn,
+                                        CompilerUnit &   unit,
+                                        JITBlock &       code,
+                                        Tree *           forExpr,
+                                        JIT::Value_p     v)
+// ----------------------------------------------------------------------------
+//   Force-evaluate thick lazy parameters when a bound name is read.
+// ----------------------------------------------------------------------------
+{
+    if (!v)
+        return v;
+    JIT::Type_p t = code.Type(v);
+    if (unit.IsClosureType(t))
+        return fn.InvokeThickClosure(forExpr, v, t);
+    return v;
 }
 
 
@@ -189,7 +336,7 @@ JIT::Value_p CompilerExpression::Do(Name *what)
     if (where == context->Symbols())
     {
         if (JIT::Value_p result = function.Known(from))
-            return result;
+            return UnwrapThickIfNeeded(function, unit, code, what, result);
     }
 
     // Check true and false values
@@ -200,15 +347,15 @@ JIT::Value_p CompilerExpression::Do(Name *what)
 
     // Check if it is a global
     if (JIT::Value_p global = unit.Global(existing))
-        return global;
+        return UnwrapThickIfNeeded(function, unit, code, what, global);
     if (JIT::Value_p global = unit.Global(from))
-        return global;
+        return UnwrapThickIfNeeded(function, unit, code, what, global);
 
     JIT::Value_p result = DoCall(what, true);
     if (!result)
         result = Value(existing);
 
-    return result;
+    return UnwrapThickIfNeeded(function, unit, code, what, result);
 }
 
 
@@ -317,15 +464,22 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
 
     record(compiler_expr, "Call %t", call);
     CompilerTypes *types = function.types;
-    CompilerRewriteCalls *rc = types->TreeRewriteCalls(call);
+    Tree *rewriteCall = call;
+    CompilerRewriteCalls *rc = types->TreeRewriteCalls(rewriteCall);
     if (!rc)
     {
         // Top-level TypeAnalysis may not have walked nested rewrite bodies
         // (e.g. builtins). Infer the call here so rcalls exist for codegen.
-        types->Type(call);
-        rc = types->TreeRewriteCalls(call);
+        types->Type(rewriteCall);
+        rc = types->TreeRewriteCalls(rewriteCall);
     }
-    record(types_calls, "Looking up %t in %p: got %p", call, types, rc);
+    ApplyLazyBindingPeel(function.unit.lazyBindingSource,
+                         types,
+                         context,
+                         call,
+                         rewriteCall,
+                         rc);
+    record(types_calls, "Looking up %t in %p: got %p", rewriteCall, types, rc);
     if (mayfail && !rc)
         return nullptr;
     if (!rc)
@@ -336,28 +490,28 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
 
     // Optimize the frequent case where we have a single call candidate
     uint i, max = rc->Size();
-    record(compiler_expr, "Call %t has %u candidates", call, max);
+    record(compiler_expr, "Call %t has %u candidates", rewriteCall, max);
     if (max == 1)
     {
         // We now evaluate in that rewrite's type system
         CompilerRewriteCandidate* cand = rc->Candidate(0);
         if (cand->Unconditional())
         {
-            result = DoRewrite(call, (CompilerRewriteCandidate *) cand);
+            result = DoRewrite(rewriteCall, (CompilerRewriteCandidate *) cand);
             return result;
         }
     }
     else if (max == 0)
     {
         // If it passed type check and there is no candidate, return tree as is
-        result = function.BoxedTree(call);
+        result = function.BoxedTree(rewriteCall);
         return result;
     }
     // More general case: we need to generate expression reduction
     JITBlock &code = function.code;
     JITBlock isDone(code, "done");
-    JIT::Type_p storageType = function.ValueMachineType(call);
-    JIT::Value_p storage = function.NeedStorage(call, storageType);
+    JIT::Type_p storageType = function.ValueMachineType(rewriteCall);
+    JIT::Value_p storage = function.NeedStorage(rewriteCall, storageType);
     Compiler &compiler = function.compiler;
 
     for (i = 0; i < max; i++)
@@ -403,11 +557,11 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
 
             // REVISIT: Insert cast of types here
 
-            result = DoRewrite(call, (CompilerRewriteCandidate *) cand);
+            result = DoRewrite(rewriteCall, (CompilerRewriteCandidate *) cand);
             computed = saveComputed;
-            result = function.Autobox(call, result, storageType);
+            result = function.Autobox(rewriteCall, result, storageType);
             record(compiler_expr, "Call %t candidate %u is conditional: %v",
-                   call, i, result);
+                   rewriteCall, i, result);
             code.Store(result, storage);
             code.Branch(isDone);
             code.SwitchTo(isBad);
@@ -415,8 +569,8 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
         else
         {
             // If this particular call was unconditional, we are done
-            result = DoRewrite(call, (CompilerRewriteCandidate *) cand);
-            result = function.Autobox(call, result, storageType);
+            result = DoRewrite(rewriteCall, (CompilerRewriteCandidate *) cand);
+            result = function.Autobox(rewriteCall, result, storageType);
             code.Store(result, storage);
             code.Branch(isDone);
             code.SwitchTo(isDone);
@@ -426,7 +580,7 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
     }
 
     // The final call to xl_form_error if nothing worked
-    function.CallFormError(call);
+    function.CallFormError(rewriteCall);
     code.Branch(isDone);
     code.SwitchTo(isDone);
     result = code.Load(storageType, storage);
@@ -445,8 +599,33 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
     Rewrite *rw = cand->rewrite;
     JIT::Value_p result = nullptr;
     JITBlock &code = function.code;
+    Compiler &compiler = function.compiler;
 
     record(compiler_expr, "Rewrite: %t", rw);
+
+    struct ClearThickLazyArgOverride
+    {
+        CompilerRewriteCandidate *rc;
+        explicit ClearThickLazyArgOverride(CompilerRewriteCandidate *c)
+            : rc(c)
+        {}
+        ~ClearThickLazyArgOverride()
+        {
+            rc->thickLazyArgOverride.clear();
+        }
+    } clearThickLazyArg(cand);
+    struct RestoreLazyBindingSource
+    {
+        lazy_binding_map &target;
+        lazy_binding_map saved;
+        explicit RestoreLazyBindingSource(lazy_binding_map &m)
+            : target(m), saved(m)
+        {}
+        ~RestoreLazyBindingSource()
+        {
+            target.swap(saved);
+        }
+    } restoreLazyBindings(function.unit.lazyBindingSource);
 
     // Evaluate parameters
     JIT::Values args;
@@ -456,33 +635,58 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
     CompilerTypes::Decl rwcat = CompilerTypes::RewriteCategory(cand);
     bool lazyBindings = (rwcat == CompilerTypes::Decl::NORMAL);
     Tree *rhs = rw->right;
+    std::vector<JIT::Type_p> thickOverrides;
+    thickOverrides.reserve(bnds.size());
     for (RewriteBinding &b : bnds)
     {
         Tree        *arg   = b.value;
+        Tree        *argtype = vtypes->ValueType(arg);
         JIT::Value_p value = nullptr;
+        JIT::Type_p  sigOverride = nullptr;
+        bool keepLazyShape = ArgWantsLazyThickClosure(arg) &&
+                             btypes->IsPatternType(argtype);
 
-        if (lazyBindings && rhs && b.name &&
-            !RewriteBodyReferencesName(rhs, b.name->value))
+        if (lazyBindings)
         {
-            JIT::Type_p mtype = function.ValueMachineType(arg);
-            value = UnusedRewriteBindingValue(code, mtype);
-            record(compiler_expr,
-                   "Rewrite %t: skip eager eval for unused binding %t",
-                   rw, b.name);
+            if (rhs && b.name &&
+                !RewriteBodyReferencesName(rhs, b.name->value))
+            {
+                value = UnusedRewriteBindingValue(code,
+                                                   compiler.closureValueTy);
+                sigOverride = compiler.closureValueTy;
+                record(compiler_expr,
+                       "Rewrite %t: null thick for unused binding %t",
+                       rw, b.name);
+            }
+            else if (keepLazyShape)
+            {
+                value = function.ThickClosureForExpr(arg);
+                sigOverride = compiler.closureValueTy;
+                record(compiler_expr,
+                       "Rewrite %t: thick closure for lazy binding %t",
+                       rw, b.name);
+            }
+            else
+            {
+                value = Value(arg);
+            }
         }
         else
         {
             value = Value(arg);
         }
+        thickOverrides.push_back(sigOverride);
         args.push_back(value);
+        if (lazyBindings && b.name)
+            function.unit.lazyBindingSource[b.name->value] = arg;
 
-        Tree       *argtype = vtypes->ValueType(arg);
         JIT::Type_p mtype   = function.ValueMachineType(arg);
-        if (!btypes->IsPatternType(argtype))
+        if (!lazyBindings && !btypes->IsPatternType(argtype))
             btypes->AddBoxedType(argtype, mtype);
 
         record(compiler_expr, "Rewrite %t arg %t value %v", rw, arg, value);
     }
+    cand->thickLazyArgOverride.swap(thickOverrides);
 
     // Check if this is an LLVM builtin
     Tree *builtin = nullptr;

@@ -47,6 +47,7 @@ XL_BEGIN
 typedef std::map<Tree *, JIT::Value_p>  value_map;
 typedef std::map<text, JIT::Function_p> compiled_map;
 typedef std::set<JIT::Type_p>           closure_set;
+typedef std::map<text, Tree *>         lazy_binding_map;
 
 class CompilerUnit
 // ----------------------------------------------------------------------------
@@ -62,6 +63,7 @@ class CompilerUnit
     value_map           globals;        // Global definitions in the unit
     compiled_map        compiled;       // Already compiled functions
     closure_set         clotypes;       // Closure types
+    lazy_binding_map    lazyBindingSource; // NORMAL lazy thick arg trees by name
 
     friend class        CompilerPrototype;
     friend class        CompilerFunction;

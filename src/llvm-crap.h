@@ -384,6 +384,8 @@ public:
                                    unsigned idx,
                                    kstring name="");
     JIT::Value_p        PointerValue(JIT::Value_p ptr);
+    // Opaque-pointer era: unwrap single-field struct to ptr for indirect Call.
+    JIT::Value_p        IndirectCallable(JIT::Value_p callee, kstring name = "");
     JIT::Value_p        WrappedValue(JIT::Value_p ptr, JIT::Type_p type);
     JIT::Value_p        BitCast(JIT::Value_p v,
                                 JIT::Type_p t,

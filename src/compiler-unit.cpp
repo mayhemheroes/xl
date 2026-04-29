@@ -159,6 +159,8 @@ eval_fn CompilerUnit::Compile()
     Scope *scope = context->Symbols();
     record(compiler_unit, "Compile %t in scope %t", source, scope);
 
+    lazyBindingSource.clear();
+
     Tree *type = types->TypeAnalysis(source);
     if (!type)
     {

@@ -110,8 +110,14 @@ JIT::Signature CompilerRewriteCandidate::RewriteSignature()
 // ----------------------------------------------------------------------------
 {
     JIT::Signature signature;
-    for (RewriteBinding &binding : bindings)
+    for (size_t i = 0; i < bindings.size(); i++)
     {
+        RewriteBinding &binding = bindings[i];
+        if (i < thickLazyArgOverride.size() && thickLazyArgOverride[i])
+        {
+            signature.push_back(thickLazyArgOverride[i]);
+            continue;
+        }
         Tree *valueType = ValueType(binding.value);
         assert(valueType && "Type for bound value is required during codegen");
         JIT::Type_p valueTy = ValueTypes()->BoxedType(valueType);

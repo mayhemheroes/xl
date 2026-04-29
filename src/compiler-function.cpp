@@ -977,7 +977,8 @@ JIT::Value_p CompilerFunction::InvokeThickClosure(Tree *expr,
     JIT::Value_p bodyV =
         code.Load(compiler.treePtrTy, bodyGEP, "cl.body");
 
-    return code.Call(compiler.evalTy, invokeVal, scopeV, bodyV);
+    JIT::Value_p callee = code.IndirectCallable(invokeVal, "cl.invokep");
+    return code.Call(compiler.evalTy, callee, scopeV, bodyV);
 }
 
 

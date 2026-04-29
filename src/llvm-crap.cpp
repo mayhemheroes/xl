@@ -2214,6 +2214,30 @@ JIT::Value_p JITBlock::PointerValue(JIT::Value_p ptr)
 }
 
 
+JIT::Value_p JITBlock::IndirectCallable(JIT::Value_p callee, kstring name)
+// ----------------------------------------------------------------------------
+//   Value suitable as LLVM indirect Call callee (ptr or function ty).
+// ----------------------------------------------------------------------------
+//   MachinePointerType may miss some wrapper instances; peel one-field
+//   aggregates so Callee() sees an opaque pointer (LLVM 15+).
+{
+    if (!callee)
+        return callee;
+    callee = PointerValue(callee);
+    if (callee->getType()->isPointerTy())
+        return callee;
+#if LLVM_VERSION >= 1500
+    if (llvm::StructType *ST = llvm::dyn_cast<llvm::StructType>(callee->getType()))
+    {
+        if (ST->getNumElements() == 1)
+            return b->CreateExtractValue(callee, {0u},
+                                         (name && name[0]) ? name : "icall");
+    }
+#endif // LLVM_VERSION >= 1500
+    return callee;
+}
+
+
 JIT::Value_p JITBlock::WrappedValue(JIT::Value_p ptr, JIT::Type_p type)
 // ----------------------------------------------------------------------------
 //  Convert to wrapper type in case we need it

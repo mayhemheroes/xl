@@ -42,6 +42,7 @@
 #include "renderer.h"
 
 #include <recorder/recorder.h>
+#include <vector>
 
 
 XL_BEGIN
@@ -64,6 +65,11 @@ struct CompilerRewriteCandidate : RewriteCandidate
     JIT::Signature      RewriteSignature();
     JIT::Type_p         RewriteType();
     void                RewriteType(JIT::Type_p type);
+
+    // Per-parameter: non-null => RewriteSignature uses this machine type
+    // instead of BoxedType (NORMAL lazy rewrites use closureValueTy for
+    // non-scalar args; see CLOSURES.md §5.2).  Cleared after each DoRewrite.
+    std::vector<JIT::Type_p> thickLazyArgOverride;
 
     // Access types in Compiler form
     CompilerTypes *     ValueTypes()
