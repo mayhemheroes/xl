@@ -116,6 +116,7 @@ static Tree *LazyCompositeExpansionForName(lazy_binding_map &lazyBindings,
         exp = inner;
     if (!exp || exp->IsLeaf())
         return nullptr;
+    record(closures, "Lazy composite expansion %t => %t", n, exp);
     return exp;
 }
 
@@ -135,6 +136,7 @@ static bool ApplyLazyBindingPeel(lazy_binding_map & lazyBindings,
 {
     auto accept = [&](Tree *peeled) -> bool
     {
+        record(closures, "Try peeled call %t from %t", peeled, call);
         CompilerRewriteCalls *rc2 = types->TreeRewriteCalls(peeled);
         if (!rc2)
         {
@@ -145,8 +147,11 @@ static bool ApplyLazyBindingPeel(lazy_binding_map & lazyBindings,
         {
             rewriteCall = peeled;
             rc = rc2;
+            record(closures, "Accepted peeled call %t with %u candidates",
+                   rewriteCall, rc2->Size());
             return true;
         }
+        record(closures, "Rejected peeled call %t (no rewrite calls)", peeled);
         return false;
     };
 
@@ -230,7 +235,11 @@ static JIT::Value_p UnwrapThickIfNeeded(CompilerFunction &fn,
         return v;
     JIT::Type_p t = code.Type(v);
     if (unit.IsClosureType(t))
+    {
+        record(closures, "Unwrap thick lazy value %v for %t type %T",
+               v, forExpr, t);
         return fn.InvokeThickClosure(forExpr, v, t);
+    }
     return v;
 }
 
@@ -479,6 +488,8 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
                          call,
                          rewriteCall,
                          rc);
+    if (rewriteCall != call)
+        record(closures, "DoCall rewrote %t -> %t", call, rewriteCall);
     record(types_calls, "Looking up %t in %p: got %p", rewriteCall, types, rc);
     if (mayfail && !rc)
         return nullptr;
@@ -634,6 +645,8 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
     CompilerTypes   *vtypes = (CompilerTypes *) cand->ValueTypes();
     CompilerTypes::Decl rwcat = CompilerTypes::RewriteCategory(cand);
     bool lazyBindings = (rwcat == CompilerTypes::Decl::NORMAL);
+    record(closures, "DoRewrite call %t rw %t category %u lazy %u",
+           call, rw, uint(rwcat), uint(lazyBindings));
     Tree *rhs = rw->right;
     std::vector<JIT::Type_p> thickOverrides;
     thickOverrides.reserve(bnds.size());
@@ -645,6 +658,9 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
         JIT::Type_p  sigOverride = nullptr;
         bool keepLazyShape = ArgWantsLazyThickClosure(arg) &&
                              btypes->IsPatternType(argtype);
+        record(closures,
+               "Binding %t arg %t argtype %t keepLazyShape %u",
+               b.name, arg, argtype, uint(keepLazyShape));
 
         if (lazyBindings)
         {
@@ -657,6 +673,7 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
                 record(compiler_expr,
                        "Rewrite %t: null thick for unused binding %t",
                        rw, b.name);
+                record(closures, "Binding %t unused: null thick", b.name);
             }
             else if (keepLazyShape)
             {
@@ -665,20 +682,29 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
                 record(compiler_expr,
                        "Rewrite %t: thick closure for lazy binding %t",
                        rw, b.name);
+                record(closures, "Binding %t thick closure value %v",
+                       b.name, value);
             }
             else
             {
                 value = Value(arg);
+                record(closures, "Binding %t eager value %v",
+                       b.name, value);
             }
         }
         else
         {
             value = Value(arg);
+            record(closures, "Binding %t non-lazy value %v",
+                   b.name, value);
         }
         thickOverrides.push_back(sigOverride);
         args.push_back(value);
         if (lazyBindings && b.name)
+        {
             function.unit.lazyBindingSource[b.name->value] = arg;
+            record(closures, "Map lazy binding %t -> %t", b.name, arg);
+        }
 
         JIT::Type_p mtype   = function.ValueMachineType(arg);
         if (!lazyBindings && !btypes->IsPatternType(argtype))
@@ -759,6 +785,8 @@ JIT::Value_p CompilerExpression::DoAssignment(Infix *assign)
     JIT::Type_p   storageType = function.ValueMachineType(existing);
     JIT::Value_p  storage     = function.NeedStorage(existing, storageType);
     JIT::Value_p  value       = Evaluate(assign->right);
+    record(closures, "Assignment %t := %t storage %v value %v",
+           assign->left, assign->right, storage, value);
     return code.Store(storage, value);
 }
 
@@ -771,8 +799,14 @@ JIT::Value_p CompilerExpression::Value(Tree *expr)
     JIT::Value_p value = computed[expr];
     if (!value)
     {
+        record(closures, "Value miss for %t", expr);
         value = Evaluate(expr);
         computed[expr] = value;
+        record(closures, "Value computed %t => %v", expr, value);
+    }
+    else
+    {
+        record(closures, "Value hit for %t => %v", expr, value);
     }
     return value;
 }
@@ -796,6 +830,8 @@ JIT::Value_p CompilerExpression::Compare(Tree *valueTree, Tree *testTree)
     JIT::Value_p test      = Value(testTree);
     JIT::Type_p  valueType = code.Type(value);
     JIT::Type_p  testType  = code.Type(test);
+    record(closures, "Compare %t (%v:%T) with %t (%v:%T)",
+           valueTree, value, valueType, testTree, test, testType);
 
 
     // Comparison of boolean values
@@ -808,8 +844,14 @@ JIT::Value_p CompilerExpression::Compare(Tree *valueTree, Tree *testTree)
             valueType = code.Type(value);
         }
         if (valueType != compiler.booleanTy)
+        {
+            record(closures, "Compare boolean mismatch %T vs %T",
+                   valueType, testType);
             return code.BooleanConstant(false);
-        return code.ICmpEQ(test, value);
+        }
+        JIT::Value_p cmp = code.ICmpEQ(test, value);
+        record(closures, "Compare boolean result %v", cmp);
+        return cmp;
     }
 
     // Comparison of character values
@@ -821,8 +863,14 @@ JIT::Value_p CompilerExpression::Compare(Tree *valueTree, Tree *testTree)
             valueType = code.Type(value);
         }
         if (valueType != compiler.characterTy)
+        {
+            record(closures, "Compare char mismatch %T vs %T",
+                   valueType, testType);
             return code.BooleanConstant(false);
-        return code.ICmpEQ(test, value);
+        }
+        JIT::Value_p cmp = code.ICmpEQ(test, value);
+        record(closures, "Compare char result %v", cmp);
+        return cmp;
     }
 
     // Comparison of text constants

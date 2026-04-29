@@ -209,5 +209,6 @@ XL_END
 
 RECORDER_DECLARE(compiler_function);
 RECORDER_DECLARE(parameter_bindings);
+RECORDER_DECLARE(closures);
 
 #endif // COMPILER_FUNCTION_H
