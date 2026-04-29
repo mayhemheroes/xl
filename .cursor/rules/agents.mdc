@@ -5,15 +5,20 @@ alwaysApply: true
 
 # XL project context
 
-Before substantive edits to this repository, read **`AGENTS.md`** at the repo
-root. It documents comment style, type inference pitfalls (`Types::Evaluate`,
-`rcalls`, `evalInProgress`), and debugging with recorder traces.
+**Before** adding or changing **`//` comments**, **boxed function comment
+blocks** (`// -----------` …), or **file header banners** in **`src/`** or
+**`include/`**, read **`AGENTS.md`**: at least **Comment style** (and
+**Workflow** if the change is non-trivial). Do not guess layout or ≤80 columns
+from memory.
+
+Before other substantive edits to this repo, read **`AGENTS.md`** for type
+inference pitfalls (`Types::Evaluate`, `rcalls`, `evalInProgress`) and recorder
+traces.
 
 When the user gives important style or convention guidance—or corrects an
 assistant mistake—**update `AGENTS.md`** in that turn (see “How to maintain”
-there). Keep boxed function comments to one “what” line inside the box; put
-“why” and implementation detail below the closing rule line, with lines ≤ 80
-characters.
+there).
 
-Detailed enforcement for `src/**/*.cpp` and `src/**/*.h`: see
-**`.cursor/rules/xl-cpp-boxed-comments.mdc`**.
+Boxed function comments: one “what” line inside the box; “why” and detail only
+after the closing `// -----------`, each `//` line ≤ 80 characters (see
+**`AGENTS.md`**, section **Comment style**).

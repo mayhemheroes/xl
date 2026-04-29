@@ -18,7 +18,9 @@ This file records conventions and debugging context for automated assistants
   once per cache entry) where the pattern requires a **value**—literals,
   metabox `[[…]]`, re-checks of bound names, etc. That is the meaning of
   **MustEvaluate**: evaluation happens to satisfy the match, not “eagerly for
-  every parameter” in one lump.
+  every parameter” in one lump. Short summary of lazy vs forced parameters for
+  O3 work: **`CLOSURES.md` §1.4** (handbook: `#immediate-evaluation` vs
+  `#lazy-evaluation` in **`docs/HANDBOOK.adoc`**).
 
 - **Factorial / recursion (`N!`, `(N-1)`, …):** **Lazy** parameter IR is **not**
   required. Uses of **`N`** in **MustEvaluate** contexts (e.g. comparisons to
@@ -55,6 +57,8 @@ This file records conventions and debugging context for automated assistants
 - Before treating a change as **done**, run **`make tests`** from the repo root
   and ensure it reports success. Inference or codegen tweaks can regress many
   tests with exit **114** (crash) or wrong negatives; the suite is the gate.
+  Do **not** substitute a **`make`** run only under **`src/`** (recorder may be
+  missing and the link fails); root **`make tests`** is the supported pipeline.
 - Preferably build and test using `make tests` at least initially. Do not
   try to optimize the build away: `make test` does build beforehand, so no point
   in asking for two commands when one will do the two steps.
@@ -85,8 +89,11 @@ This file records conventions and debugging context for automated assistants
 
 ## Comment style (boxed comments after functions)
 
-- **Cursor:** When editing `src/**/*.cpp` or `src/**/*.h`, follow
-  **`.cursor/rules/xl-cpp-boxed-comments.mdc`** (mirrors this section).
+- **Agents:** Re-read this section **before** changing `//` comments in
+  `src/**/*.cpp`, `src/**/*.h`, or `include/**/*.h`. The boxed layout and
+  ≤80-column rule are easy to violate from memory.
+- **Cursor:** When editing those paths, follow the rules in this section (the
+  separate **`xl-cpp-boxed-comments.mdc`** rule file is optional if absent).
 - The box between `// -----------` lines is **one line only**: what the
   function does, not how.
 - Do **not** put implementation detail inside that single boxed line.
@@ -94,6 +101,10 @@ This file records conventions and debugging context for automated assistants
   rationale, invariants, or “why” — including recursion, data structures, or
   call-site expectations.
 - Keep every comment line **≤ 80 characters** (counting from column 1).
+- The boxed “what” line describes **that** function only. Do not use it to carry
+  unrelated concepts (e.g. `IsCommaList` stays comma-only; lazy NORMAL peel vs
+  builtin `while` Condition belong in rewrite/compiler notes, not in a predicate’s
+  box).
 
 Example (pattern only):
 
@@ -225,8 +236,8 @@ A recorder used across `.cpp` files can be declared in a header using
   is false) must run **before** **`Value(arg)`** so metabox short-circuit forms
   like **`if [[false]] then …`** do not evaluate the unused branch. Keep
   **`AddBoxedType`** on logical types via **`ValueMachineType(arg)`** only.
-  See **MustEvaluate, closures, and O3 rewrites** above for factorial vs
-  **`while`** (closure) design.
+  See **MustEvaluate, closures, and O3 rewrites** above for factorial vs lazy
+  NORMAL-parameter design.
 - `src/compiler-types.cpp` — `AddBoxedType` should not assert on conflicting
   machine types; prefer a clear error.
 
