@@ -50,6 +50,7 @@
 
 
 RECORDER(compiler_expr,   128, "Expression reduction (compilation of calls)");
+RECORDER(boxed_assign,    128, "Boxed assignment/read debug flow");
 
 XL_BEGIN
 
@@ -337,15 +338,36 @@ JIT::Value_p CompilerExpression::Do(Name *what)
 {
     CompilerUnit &unit     = function.unit;
     JITBlock     &code     = function.code;
+
+    // Eval-style helper functions seed values[pattern]=self. When the body is
+    // a single name (e.g. thick closure invoke for [ival]), that name can be
+    // resolved directly from known argument values without context lookup.
+    if (JIT::Value_p direct = function.Known(what, CompilerFunction::knowValues))
+    {
+        record(boxed_assign, "Do(Name) %t resolved from direct known value %v",
+               what, direct);
+        return UnwrapThickIfNeeded(function, unit, code, what, direct);
+    }
+
     Scope_g       where;
     Rewrite_g     rewrite;
     Tree         *existing = context->Bound(what, true, &rewrite, &where);
+    record(boxed_assign, "Do(Name) %t existing %t rewrite %t where %t",
+           what, existing, rewrite, where);
+    if (!existing || !rewrite)
+        record(boxed_assign, "Do(Name) invariant violation existing %t rw %t",
+               existing, rewrite);
     assert(existing || !"Type checking didn't realize a name is missing");
+    assert(rewrite || !"Type checking didn't keep rewrite for name binding");
     Tree *from = PatternBase(rewrite->left);
     if (where == context->Symbols())
     {
         if (JIT::Value_p result = function.Known(from))
+        {
+            record(boxed_assign, "Name %t resolved from local pattern %t => %v",
+                   what, from, result);
             return UnwrapThickIfNeeded(function, unit, code, what, result);
+        }
     }
 
     // Check true and false values
@@ -356,13 +378,23 @@ JIT::Value_p CompilerExpression::Do(Name *what)
 
     // Check if it is a global
     if (JIT::Value_p global = unit.Global(existing))
+    {
+        record(boxed_assign, "Name %t resolved from global existing %t => %v",
+               what, existing, global);
         return UnwrapThickIfNeeded(function, unit, code, what, global);
+    }
     if (JIT::Value_p global = unit.Global(from))
+    {
+        record(boxed_assign, "Name %t resolved from global pattern %t => %v",
+               what, from, global);
         return UnwrapThickIfNeeded(function, unit, code, what, global);
+    }
 
     JIT::Value_p result = DoCall(what, true);
     if (!result)
         result = Value(existing);
+    record(boxed_assign, "Name %t fallback result %v via existing %t",
+           what, result, existing);
 
     return UnwrapThickIfNeeded(function, unit, code, what, result);
 }
@@ -514,7 +546,12 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
     }
     else if (max == 0)
     {
-        // If it passed type check and there is no candidate, return tree as is
+        // For Name lookup (mayfail=true), no rewrite candidate means
+        // "not callable here": let caller fall back to bound value.
+        if (mayfail)
+            return nullptr;
+
+        // For regular expression compilation, no candidate keeps tree shape.
         result = function.BoxedTree(rewriteCall);
         return result;
     }
@@ -656,8 +693,7 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
         Tree        *argtype = vtypes->ValueType(arg);
         JIT::Value_p value = nullptr;
         JIT::Type_p  sigOverride = nullptr;
-        bool keepLazyShape = ArgWantsLazyThickClosure(arg) &&
-                             btypes->IsPatternType(argtype);
+        bool keepLazyShape = ArgWantsLazyThickClosure(arg);
         record(closures,
                "Binding %t arg %t argtype %t keepLazyShape %u",
                b.name, arg, argtype, uint(keepLazyShape));
@@ -785,9 +821,14 @@ JIT::Value_p CompilerExpression::DoAssignment(Infix *assign)
     JIT::Type_p   storageType = function.ValueMachineType(existing);
     JIT::Value_p  storage     = function.NeedStorage(existing, storageType);
     JIT::Value_p  value       = Evaluate(assign->right);
+    record(boxed_assign,
+           "Assign left %t right %t existing %t rw %t where %t stype %T",
+           assign->left, assign->right, existing, rw, where, storageType);
     record(closures, "Assignment %t := %t storage %v value %v",
            assign->left, assign->right, storage, value);
-    return code.Store(storage, value);
+    record(boxed_assign, "Assign store target %v value %v", storage, value);
+    code.Store(storage, value);
+    return value;
 }
 
 
