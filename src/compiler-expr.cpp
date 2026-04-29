@@ -390,14 +390,17 @@ JIT::Value_p CompilerExpression::Do(Name *what)
     assert(existing || !"Type checking didn't realize a name is missing");
     assert(rewrite || !"Type checking didn't keep rewrite for name binding");
     Tree *from = PatternBase(rewrite->left);
+    if (JIT::Value_p result = function.Known(from))
+    {
+        record(boxed_assign,
+               "Name %t resolved from known pattern %t => %v",
+               what, from, result);
+        return UnwrapThickIfNeeded(function, unit, code, what, result);
+    }
     if (where == context->Symbols())
     {
-        if (JIT::Value_p result = function.Known(from))
-        {
-            record(boxed_assign, "Name %t resolved from local pattern %t => %v",
-                   what, from, result);
-            return UnwrapThickIfNeeded(function, unit, code, what, result);
-        }
+        record(boxed_assign, "Name %t local symbols scope via pattern %t",
+               what, from);
     }
 
     // Check true and false values
@@ -588,9 +591,21 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
     // More general case: we need to generate expression reduction
     JITBlock &code = function.code;
     JITBlock isDone(code, "done");
-    JIT::Type_p storageType = function.ValueMachineType(rewriteCall);
-    JIT::Value_p storage = function.NeedStorage(rewriteCall, storageType);
+    JIT::Type_p storageType = function.ValueMachineType(rewriteCall, true);
+    JIT::Value_p storage = nullptr;
+    if (storageType)
+        storage = function.NeedStorage(rewriteCall, storageType);
     Compiler &compiler = function.compiler;
+    auto NormalizeResult = [&](JIT::Value_p value) -> JIT::Value_p
+    {
+        if (!storageType)
+        {
+            storageType = code.Type(value);
+            function.ValueMachineType(rewriteCall, storageType);
+            storage = function.NeedStorage(rewriteCall, storageType);
+        }
+        return function.Autobox(rewriteCall, value, storageType);
+    };
 
     for (i = 0; i < max; i++)
     {
@@ -637,7 +652,7 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
 
             result = DoRewrite(rewriteCall, (CompilerRewriteCandidate *) cand);
             computed = saveComputed;
-            result = function.Autobox(rewriteCall, result, storageType);
+            result = NormalizeResult(result);
             record(compiler_expr, "Call %t candidate %u is conditional: %v",
                    rewriteCall, i, result);
             code.Store(result, storage);
@@ -648,7 +663,7 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
         {
             // If this particular call was unconditional, we are done
             result = DoRewrite(rewriteCall, (CompilerRewriteCandidate *) cand);
-            result = function.Autobox(rewriteCall, result, storageType);
+            result = NormalizeResult(result);
             code.Store(result, storage);
             code.Branch(isDone);
             code.SwitchTo(isDone);
@@ -658,7 +673,9 @@ JIT::Value_p CompilerExpression::DoCall(Tree *call, bool mayfail)
     }
 
     // The final call to xl_form_error if nothing worked
-    function.CallFormError(rewriteCall);
+    result = function.CallFormError(rewriteCall);
+    result = NormalizeResult(result);
+    code.Store(result, storage);
     code.Branch(isDone);
     code.SwitchTo(isDone);
     result = code.Load(storageType, storage);
@@ -744,13 +761,37 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
             }
             else if (keepLazyShape)
             {
-                value = function.ThickClosureForExpr(arg);
-                sigOverride = compiler.closureValueTy;
-                record(compiler_expr,
-                       "Rewrite %t: thick closure for lazy binding %t",
-                       rw, b.name);
-                record(closures, "Binding %t thick closure value %v",
-                       b.name, value);
+                if (Name *argName = arg->AsName())
+                {
+                    if (JIT::Value_p snap =
+                            function.Known(argName,
+                                           CompilerFunction::knowValues |
+                                           CompilerFunction::knowLocals))
+                    {
+                        JIT::Type_p snapTy = code.Type(snap);
+                        if (!function.unit.IsClosureType(snapTy))
+                        {
+                            value = UnwrapThickIfNeeded(function,
+                                                        function.unit,
+                                                        code,
+                                                        arg,
+                                                        snap);
+                            record(closures,
+                                   "Binding %t lazy-shape snapshot %t => %v",
+                                   b.name, argName, value);
+                        }
+                    }
+                }
+                if (!value)
+                {
+                    value = function.ThickClosureForExpr(arg);
+                    sigOverride = compiler.closureValueTy;
+                    record(compiler_expr,
+                           "Rewrite %t: thick closure for lazy binding %t",
+                           rw, b.name);
+                    record(closures, "Binding %t thick closure value %v",
+                           b.name, value);
+                }
             }
             else
             {
@@ -828,7 +869,16 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
             record(closures, "Map lazy binding %t -> %t", b.name, arg);
         }
 
-        JIT::Type_p mtype   = function.ValueMachineType(arg);
+        JIT::Type_p mtype   = function.ValueMachineType(arg, true);
+        if (!mtype && value)
+        {
+            mtype = code.Type(value);
+            record(closures,
+                   "Binding %t inferred machine type %T from value %v",
+                   b.name, mtype, value);
+        }
+        if (!mtype)
+            mtype = compiler.treePtrTy;
         if (!lazyBindings && !btypes->IsPatternType(argtype))
             btypes->AddBoxedType(argtype, mtype);
 

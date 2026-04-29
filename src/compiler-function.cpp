@@ -1111,15 +1111,51 @@ JIT::Type_p CompilerFunction::ValueMachineType(Tree *tree, bool mayfail)
     }
     if (!type)
     {
+        if (Name *nameBase = base->AsName())
+        {
+            Context *ctx = types->TypesContext();
+            Context *unitCtx = unit.types ? unit.types->TypesContext()
+                                          : nullptr;
+            Scope_g where = nullptr;
+            Rewrite_g rw = nullptr;
+            Tree *bound = nullptr;
+            if (ctx)
+                bound = ctx->Bound(nameBase, true, &rw, &where);
+            if ((!bound || bound == nameBase) && unitCtx && unitCtx != ctx)
+                bound = unitCtx->Bound(nameBase, true, &rw, &where);
+            if (bound && bound != nameBase)
+            {
+                Tree *boundType = types->KnownType(bound);
+                if (!boundType && unit.types)
+                    boundType = unit.types->KnownType(bound);
+                if (boundType)
+                {
+                    if (JIT::Type_p bty = BoxedType(boundType))
+                    {
+                        AddBoxedType(base, bty);
+                        record(compiler_function,
+                               "ValueMachineType recovered %T for name %t via bound %t type %t",
+                               bty, base, bound, boundType);
+                        return bty;
+                    }
+                }
+            }
+        }
         if (Block *bb = base->AsBlock())
             if (Name *bn = bb->child->AsName())
             {
                 Context *ctx = types->TypesContext();
-                if (ctx)
+                Context *unitCtx = unit.types ? unit.types->TypesContext()
+                                              : nullptr;
+                if (ctx || unitCtx)
                 {
                     Scope_g where = nullptr;
                     Rewrite_g rw = nullptr;
-                    Tree *bound = ctx->Bound(bn, true, &rw, &where);
+                    Tree *bound = nullptr;
+                    if (ctx)
+                        bound = ctx->Bound(bn, true, &rw, &where);
+                    if ((!bound || bound == bn) && unitCtx && unitCtx != ctx)
+                        bound = unitCtx->Bound(bn, true, &rw, &where);
                     if (bound && bound != bn)
                         if (JIT::Type_p boundTy = ValueMachineType(bound, true))
                         {
@@ -1154,8 +1190,8 @@ JIT::Type_p CompilerFunction::ValueMachineType(Tree *tree, bool mayfail)
             type = code.Type(known);
             AddBoxedType(base, type);
             record(compiler_function,
-                   "ValueMachineType recovered %T for %t via known %v",
-                   type, tree, known);
+                   "ValueMachineType recovered %T for %t via known value",
+                   type, tree);
             return type;
         }
         if (base != tree)
@@ -1164,12 +1200,14 @@ JIT::Type_p CompilerFunction::ValueMachineType(Tree *tree, bool mayfail)
                 type = code.Type(knownBase);
                 AddBoxedType(base, type);
                 record(compiler_function,
-                       "ValueMachineType recovered %T for base %t via known %v",
-                       type, base, knownBase);
+                       "ValueMachineType recovered %T for base %t via known value",
+                       type, base);
                 return type;
             }
         if (mayfail)
             return nullptr;
+        record(boxed_assign_data,
+               "ValueMachineType miss tree %t base %t", tree, base);
         record(compiler_function,
                "ValueMachineType miss tree %t base %t in types %p",
                tree, base, types);
@@ -1478,7 +1516,27 @@ void CompilerFunction::BoxedTreeType(JIT::Signature &sig, Tree *what)
             sig.push_back(compiler.treePtrTy);
             break;
         }
-        sig.push_back(ValueMachineType(decl));
+        JIT::Type_p declTy = ValueMachineType(decl, true);
+        if (!declTy)
+        {
+            Tree *boundValue = ctx->Bound(what);
+            if ((!boundValue || boundValue == what) && unit.types)
+            {
+                Context *unitCtx = unit.types->TypesContext();
+                if (unitCtx && unitCtx != ctx)
+                    boundValue = unitCtx->Bound(what);
+            }
+            if (boundValue && boundValue != what)
+                declTy = ValueMachineType(boundValue, true);
+        }
+        if (!declTy)
+        {
+            record(boxed_assign_data,
+                   "BoxedTreeType(NAME) %t decl %t has no machine type, use Tree*",
+                   what, decl);
+            declTy = compiler.treePtrTy;
+        }
+        sig.push_back(declTy);
         break;
     }
 
