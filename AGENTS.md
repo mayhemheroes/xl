@@ -66,6 +66,10 @@ This file records conventions and debugging context for automated assistants
   They do not replace a full `make tests` pass before marking work done.
 - Claims about tests: do not assert that failures are “pre-existing” without
   verifying (e.g. `git stash` / checkout) the same tests on the base revision.
+- Treat `assert(...)` failures as contract violations to investigate at the
+  root cause (type analysis / invariants / call flow). Do not "fix" crashes by
+  replacing asserts with permissive fallback behavior, unless the assert is
+  explicitly marking an unimplemented path.
 
 - **LLVM stays in `llvm-crap`:** Do not add `#include <llvm/...>` (or any LLVM
   header) to other translation units such as `src/compiler-expr.cpp`. Put every
