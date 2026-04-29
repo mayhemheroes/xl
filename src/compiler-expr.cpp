@@ -338,22 +338,28 @@ JIT::Value_p CompilerExpression::Do(Name *what)
 {
     CompilerUnit &unit     = function.unit;
     JITBlock     &code     = function.code;
-
-    // Eval-style helper functions seed values[pattern]=self. When the body is
-    // a single name (e.g. thick closure invoke for [ival]), that name can be
-    // resolved directly from known argument values without context lookup.
-    if (JIT::Value_p direct = function.Known(what, CompilerFunction::knowValues))
-    {
-        record(boxed_assign, "Do(Name) %t resolved from direct known value %v",
-               what, direct);
-        return UnwrapThickIfNeeded(function, unit, code, what, direct);
-    }
-
     Scope_g       where;
     Rewrite_g     rewrite;
     Tree         *existing = context->Bound(what, true, &rewrite, &where);
     record(boxed_assign, "Do(Name) %t existing %t rewrite %t where %t",
            what, existing, rewrite, where);
+    if (!existing && !rewrite)
+    {
+        if (JIT::Value_p known = function.Known(what, CompilerFunction::knowValues))
+        {
+            JIT::Type_p kty = code.Type(known);
+            if (kty != function.compiler.treePtrTy)
+            {
+                record(boxed_assign,
+                       "Do(Name) %t context miss, use known value %v type %T",
+                       what, known, kty);
+                return UnwrapThickIfNeeded(function, unit, code, what, known);
+            }
+            record(boxed_assign,
+                   "Do(Name) %t context miss, ignore known raw tree value %v",
+                   what, known);
+        }
+    }
     if (!existing || !rewrite)
         record(boxed_assign, "Do(Name) invariant violation existing %t rw %t",
                existing, rewrite);
@@ -693,7 +699,8 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
         Tree        *argtype = vtypes->ValueType(arg);
         JIT::Value_p value = nullptr;
         JIT::Type_p  sigOverride = nullptr;
-        bool keepLazyShape = ArgWantsLazyThickClosure(arg);
+        bool keepLazyShape = ArgWantsLazyThickClosure(arg) &&
+                             btypes->IsPatternType(argtype);
         record(closures,
                "Binding %t arg %t argtype %t keepLazyShape %u",
                b.name, arg, argtype, uint(keepLazyShape));
@@ -827,7 +834,7 @@ JIT::Value_p CompilerExpression::DoAssignment(Infix *assign)
     record(closures, "Assignment %t := %t storage %v value %v",
            assign->left, assign->right, storage, value);
     record(boxed_assign, "Assign store target %v value %v", storage, value);
-    code.Store(storage, value);
+    code.Store(value, storage);
     return value;
 }
 
