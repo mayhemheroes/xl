@@ -343,6 +343,30 @@ JIT::Value_p CompilerExpression::Do(Name *what)
     Tree         *existing = context->Bound(what, true, &rewrite, &where);
     record(boxed_assign, "Do(Name) %t existing %t rewrite %t where %t",
            what, existing, rewrite, where);
+
+    if (!existing || !rewrite)
+    {
+        Context *unitCtx = nullptr;
+        if (function.unit.types)
+            unitCtx = function.unit.types->TypesContext();
+        if (unitCtx && unitCtx != context)
+        {
+            Scope_g unitWhere = nullptr;
+            Rewrite_g unitRewrite = nullptr;
+            Tree *unitExisting = unitCtx->Bound(what, true,
+                                                &unitRewrite, &unitWhere);
+            if (unitExisting && unitRewrite)
+            {
+                existing = unitExisting;
+                rewrite = unitRewrite;
+                where = unitWhere;
+                record(boxed_assign,
+                       "Do(Name) %t recovered from unit context: %t %t %t",
+                       what, existing, rewrite, where);
+            }
+        }
+    }
+
     if (!existing && !rewrite)
     {
         if (JIT::Value_p known = function.Known(what, CompilerFunction::knowValues))
@@ -730,14 +754,69 @@ JIT::Value_p CompilerExpression::DoRewrite(Tree *call,
             }
             else
             {
-                value = Value(arg);
-                record(closures, "Binding %t eager value %v",
-                       b.name, value);
+                if (Name *argName = arg->AsName())
+                {
+                    if (JIT::Value_p known =
+                            function.Known(argName, CompilerFunction::knowValues))
+                    {
+                        value = UnwrapThickIfNeeded(function,
+                                                    function.unit,
+                                                    code,
+                                                    arg,
+                                                    known);
+                        record(closures,
+                               "Binding %t eager known name %t => %v",
+                               b.name, argName, value);
+                    }
+                    else
+                    {
+                        auto it = function.unit.lazyBindingSource.find(argName->value);
+                        if (it != function.unit.lazyBindingSource.end() &&
+                            it->second && it->second != arg)
+                        {
+                            value = Value(it->second);
+                            record(closures,
+                                   "Binding %t eager remap %t -> %t => %v",
+                                   b.name, argName, it->second, value);
+                        }
+                    }
+                }
+                if (!value)
+                    value = Value(arg);
+                record(closures, "Binding %t eager value %v", b.name, value);
             }
         }
         else
         {
-            value = Value(arg);
+            if (Name *argName = arg->AsName())
+            {
+                if (JIT::Value_p known =
+                        function.Known(argName, CompilerFunction::knowValues))
+                {
+                    value = UnwrapThickIfNeeded(function,
+                                                function.unit,
+                                                code,
+                                                arg,
+                                                known);
+                    record(closures,
+                           "Binding %t non-lazy known name %t => %v",
+                           b.name, argName, value);
+                }
+                else
+                {
+                    auto it = function.unit.lazyBindingSource.find(argName->value);
+                    if (it != function.unit.lazyBindingSource.end() &&
+                        it->second && it->second != arg)
+                    {
+                        value = Value(it->second);
+                        record(closures,
+                               "Binding %t non-lazy remap %t -> %t => %v",
+                               b.name, argName, it->second, value);
+                    }
+                }
+            }
+            if (!value)
+                value = Value(arg);
             record(closures, "Binding %t non-lazy value %v",
                    b.name, value);
         }
@@ -825,12 +904,25 @@ JIT::Value_p CompilerExpression::DoAssignment(Infix *assign)
     Rewrite_g     rw;
     JITBlock     &code        = function.code;
     Tree         *existing    = context->Bound(assign->left, true, &rw, &where);
-    JIT::Type_p   storageType = function.ValueMachineType(existing);
-    JIT::Value_p  storage     = function.NeedStorage(existing, storageType);
+    Tree         *binding     = existing;
+    if (rw)
+        binding = PatternBase(rw->left);
+    if (!binding)
+        binding = assign->left;
     JIT::Value_p  value       = Evaluate(assign->right);
+    JIT::Type_p   storageType = function.ValueMachineType(binding, true);
+    if (!storageType)
+    {
+        storageType = code.Type(value);
+        function.ValueMachineType(binding, storageType);
+        record(boxed_assign,
+               "Assign inferred machine type %T for binding %t from value %v",
+               storageType, binding, value);
+    }
+    JIT::Value_p  storage     = function.NeedStorage(binding, storageType);
     record(boxed_assign,
-           "Assign left %t right %t existing %t rw %t where %t stype %T",
-           assign->left, assign->right, existing, rw, where, storageType);
+           "Assign left %t right %t existing %t bind %t rw %t where %t stype %T",
+           assign->left, assign->right, existing, binding, rw, where, storageType);
     record(closures, "Assignment %t := %t storage %v value %v",
            assign->left, assign->right, storage, value);
     record(boxed_assign, "Assign store target %v value %v", storage, value);

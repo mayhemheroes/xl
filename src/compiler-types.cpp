@@ -126,6 +126,16 @@ Tree *CompilerTypes::CodeGenerationType(Tree *expr)
     Tree *result = KnownType(expr);
     if (!result)
     {
+        // Rewritten trees can be synthesized after the initial pass.
+        // Force a local type computation before reporting an internal error.
+        if (expr)
+        {
+            (void) Type(expr);
+            result = KnownType(expr);
+        }
+    }
+    if (!result)
+    {
         Ooops("Internal error: No type for $1 at code generation time", expr);
         return natural_type;
     }

@@ -421,6 +421,18 @@ JIT::Value_p CompilerFunction::Data(Tree        *expr,
         Scope_g where = nullptr;
         Rewrite_g rewrite = nullptr;
         Tree *bound = context->Bound(expr, true, &rewrite, &where);
+        if (!existing && !bound && unit.types)
+        {
+            Context *unitCtx = unit.types->TypesContext();
+            if (unitCtx && unitCtx != context)
+            {
+                existing = unitCtx->DeclaredPattern(expr);
+                bound = unitCtx->Bound(expr, true, &rewrite, &where);
+                record(boxed_assign_data,
+                       "Data(NAME) %t recovered from unit context: decl %t bound %t",
+                       expr, existing, bound);
+            }
+        }
         record(boxed_assign_data, "Data(NAME) %t declared pattern %t",
                expr, existing);
         record(boxed_assign_data,
@@ -430,9 +442,20 @@ JIT::Value_p CompilerFunction::Data(Tree        *expr,
         {
             // Some synthesized tree-data forms carry literal/free names that
             // are intentionally not declarations in this function context.
-            // Preserve the name node itself in that case.
+            // Prefer a known machine value (e.g. lazy rewrite parameter).
+            // Otherwise preserve the name node itself.
             if (!bound)
             {
+                if (JIT::Value_p known = Known(expr, knowValues))
+                {
+                    JIT::Value_p ptr =
+                        code.StructGEP(boxTy, box, index++, "resultp");
+                    JIT::Value_p store = code.Store(known, ptr);
+                    record(boxed_assign_data,
+                           "Data(NAME) %t no binding, store known value %v",
+                           expr, known);
+                    return store;
+                }
                 record(boxed_assign_data,
                        "Data(NAME) %t treated as literal free name", expr);
                 return ConstantTree(expr);
@@ -862,6 +885,18 @@ JIT::Value_p CompilerFunction::Known(Tree *tree, uint which)
         auto it = values.find(tree);
         if (it != values.end())
             return it->second;
+
+        // Rewrite expansion can produce structurally equivalent Name nodes
+        // that are not pointer-identical to the original binding key.
+        if (Name *name = tree->AsName())
+        {
+            for (auto &entry : values)
+            {
+                if (Name *bound = entry.first->AsName())
+                    if (bound->value == name->value)
+                        return entry.second;
+            }
+        }
     }
     if (which & knowGlobals)
     {
@@ -1060,8 +1095,84 @@ JIT::Type_p CompilerFunction::ValueMachineType(Tree *tree, bool mayfail)
     JIT::Type_p type = BoxedType(base);
     if (!type)
     {
+        Tree *knownBaseType = types->KnownType(base);
+        if (knownBaseType && knownBaseType != base)
+        {
+            type = BoxedType(knownBaseType);
+            if (type)
+            {
+                AddBoxedType(base, type);
+                record(compiler_function,
+                       "ValueMachineType recovered %T for %t via known type %t",
+                       type, base, knownBaseType);
+                return type;
+            }
+        }
+    }
+    if (!type)
+    {
+        if (Block *bb = base->AsBlock())
+            if (Name *bn = bb->child->AsName())
+            {
+                Context *ctx = types->TypesContext();
+                if (ctx)
+                {
+                    Scope_g where = nullptr;
+                    Rewrite_g rw = nullptr;
+                    Tree *bound = ctx->Bound(bn, true, &rw, &where);
+                    if (bound && bound != bn)
+                        if (JIT::Type_p boundTy = ValueMachineType(bound, true))
+                        {
+                            AddBoxedType(base, boundTy);
+                            record(compiler_function,
+                                   "ValueMachineType recovered %T for block base %t from bound %t",
+                                   boundTy, base, bound);
+                            return boundTy;
+                        }
+                }
+            }
+        if (Block *b = tree->AsBlock())
+            if (JIT::Type_p childTy = ValueMachineType(b->child, true))
+            {
+                AddBoxedType(base, childTy);
+                record(compiler_function,
+                       "ValueMachineType recovered %T for block tree %t via child %t",
+                       childTy, tree, b->child);
+                return childTy;
+            }
+        if (Block *bb = base->AsBlock())
+            if (JIT::Type_p childTy = ValueMachineType(bb->child, true))
+            {
+                AddBoxedType(base, childTy);
+                record(compiler_function,
+                       "ValueMachineType recovered %T for block base %t via child %t",
+                       childTy, base, bb->child);
+                return childTy;
+            }
+        if (JIT::Value_p known = Known(tree, knowValues|knowLocals))
+        {
+            type = code.Type(known);
+            AddBoxedType(base, type);
+            record(compiler_function,
+                   "ValueMachineType recovered %T for %t via known %v",
+                   type, tree, known);
+            return type;
+        }
+        if (base != tree)
+            if (JIT::Value_p knownBase = Known(base, knowValues|knowLocals))
+            {
+                type = code.Type(knownBase);
+                AddBoxedType(base, type);
+                record(compiler_function,
+                       "ValueMachineType recovered %T for base %t via known %v",
+                       type, base, knownBase);
+                return type;
+            }
         if (mayfail)
             return nullptr;
+        record(compiler_function,
+               "ValueMachineType miss tree %t base %t in types %p",
+               tree, base, types);
         Ooops("Internal: No type associated to $1", tree);
         return compiler.naturalTy;
     }
@@ -1076,6 +1187,9 @@ void CompilerFunction::ValueMachineType(Tree *tree, JIT::Type_p type)
 // ----------------------------------------------------------------------------
 {
     Tree *base = types->CodeGenerationType(tree);
+    record(compiler_function,
+           "ValueMachineType set tree %t base %t mtype %T in types %p",
+           tree, base, type, types);
     AddBoxedType(base, type);
 }
 
@@ -1306,6 +1420,18 @@ void CompilerFunction::BoxedTreeType(JIT::Signature &sig, Tree *what)
     case NAME:
     {
         Context *ctx = types->TypesContext();
+        Tree *boundValue = ctx->Bound(what);
+        if (boundValue && boundValue != what)
+        {
+            if (JIT::Type_p bty = ValueMachineType(boundValue, true))
+            {
+                record(boxed_assign_data,
+                       "BoxedTreeType(NAME) %t using bound value %t type %T",
+                       what, boundValue, bty);
+                sig.push_back(bty);
+                break;
+            }
+        }
         Tree *decl = ctx->DeclaredPattern(what);
         if (!decl)
         {
@@ -1315,8 +1441,37 @@ void CompilerFunction::BoxedTreeType(JIT::Signature &sig, Tree *what)
             if (rewrite)
                 decl = PatternBase(rewrite->left);
         }
+        if (!decl && unit.types)
+        {
+            Context *unitCtx = unit.types->TypesContext();
+            if (unitCtx && unitCtx != ctx)
+            {
+                decl = unitCtx->DeclaredPattern(what);
+                if (!decl)
+                {
+                    Scope_g unitWhere = nullptr;
+                    Rewrite_g unitRewrite = nullptr;
+                    (void) unitCtx->Bound(what, true, &unitRewrite, &unitWhere);
+                    if (unitRewrite)
+                        decl = PatternBase(unitRewrite->left);
+                }
+                if (decl)
+                    record(boxed_assign_data,
+                           "BoxedTreeType(NAME) %t recovered declaration %t from unit context",
+                           what, decl);
+            }
+        }
         if (!decl)
         {
+            if (JIT::Value_p known = Known(what, knowValues))
+            {
+                JIT::Type_p kty = code.Type(known);
+                record(boxed_assign_data,
+                       "BoxedTreeType(NAME) %t missing declaration, use known %T",
+                       what, kty);
+                sig.push_back(kty);
+                break;
+            }
             record(boxed_assign_data,
                    "BoxedTreeType(NAME) %t missing declaration, use Tree*",
                    what);
