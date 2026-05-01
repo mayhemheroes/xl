@@ -63,6 +63,7 @@ protected:
     JIT::Type_p         closure;    // Closure type if any
     value_map           values;     // Tree -> LLVM value
     value_map           storage;    // Tree -> LLVM storage (alloca)
+    std::map<Tree_g, JIT::Type_p> storageTypes; // Tree -> storage machine type
 
     friend class CompilerExpression;
 

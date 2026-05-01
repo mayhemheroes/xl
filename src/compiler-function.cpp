@@ -840,6 +840,7 @@ JIT::Value_p CompilerFunction::NeedStorage(Tree *tree, JIT::Type_p mtype)
         // Create alloca to store the new form
         result = data.Alloca(mtype, "loc");
         storage[tree] = result;
+        storageTypes[tree] = mtype;
 
         // If this started with a value, initialize it here
         if (values.count(tree))
@@ -874,11 +875,43 @@ JIT::Value_p CompilerFunction::Known(Tree *tree, uint which)
 //   Return the known local or global value if any
 // ----------------------------------------------------------------------------
 {
+    auto bindingName = [](Tree *t) -> Name *
+    {
+        if (!t)
+            return nullptr;
+        if (Name *n = t->AsName())
+            return n;
+        if (Block *b = t->AsBlock())
+            return b->child ? b->child->AsName() : nullptr;
+        return nullptr;
+    };
+
     if (which & knowLocals)
     {
         auto it = storage.find(tree);
         if (it != storage.end())
-            return code.Load(compiler.treePtrTy, it->second, "loc");
+        {
+            JIT::Type_p loadTy = compiler.treePtrTy;
+            auto st = storageTypes.find(tree);
+            if (st != storageTypes.end() && st->second)
+                loadTy = st->second;
+            return code.Load(loadTy, it->second, "loc");
+        }
+
+        if (Name *name = bindingName(tree))
+        {
+            for (auto &entry : storage)
+            {
+                Name *bound = bindingName(entry.first);
+                if (!bound || bound->value != name->value)
+                    continue;
+                JIT::Type_p loadTy = compiler.treePtrTy;
+                auto st = storageTypes.find(entry.first);
+                if (st != storageTypes.end() && st->second)
+                    loadTy = st->second;
+                return code.Load(loadTy, entry.second, "loc");
+            }
+        }
     }
     if (which & knowValues)
     {
@@ -1185,7 +1218,7 @@ JIT::Type_p CompilerFunction::ValueMachineType(Tree *tree, bool mayfail)
                        childTy, base, bb->child);
                 return childTy;
             }
-        if (JIT::Value_p known = Known(tree, knowValues|knowLocals))
+        if (JIT::Value_p known = Known(tree, knowValues))
         {
             type = code.Type(known);
             AddBoxedType(base, type);
@@ -1195,7 +1228,7 @@ JIT::Type_p CompilerFunction::ValueMachineType(Tree *tree, bool mayfail)
             return type;
         }
         if (base != tree)
-            if (JIT::Value_p knownBase = Known(base, knowValues|knowLocals))
+            if (JIT::Value_p knownBase = Known(base, knowValues))
             {
                 type = code.Type(knownBase);
                 AddBoxedType(base, type);
